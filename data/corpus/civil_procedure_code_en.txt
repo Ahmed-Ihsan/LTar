@@ -1,0 +1,34 @@
+LAW: Civil Procedure Code
+SOURCE: Al-Waqa'i al-Iraqiya No. 188, 1969
+LANG: en
+---
+
+ARTICLE 1
+Jurisdiction of the civil courts extends to all civil and commercial disputes between persons unless the law assigns them to a special court. The court before which a case is filed shall rule on its own jurisdiction.
+
+ARTICLE 2
+A claim is initiated by the claimant filing a statement of claim with the competent court. The statement of claim must contain the names of the parties, the subject matter of the claim, and the facts and legal grounds on which the claim is based.
+
+ARTICLE 3
+The defendant must file a statement of defense within fifteen days from the date of being notified of the claim. The statement of defense must respond to each allegation in the statement of claim.
+
+ARTICLE 4
+The court may order the parties to submit evidence in the form of documents, witness testimony, or expert reports. The burden of proof rests on the party making the allegation.
+
+ARTICLE 5
+An appeal against a judgment of the first instance court may be filed within thirty days from the date of notification of the judgment. The appeal must state the grounds on which the appellant challenges the judgment.
+
+ARTICLE 6
+The court of appeal reviews the judgment on questions of fact and law. The court may confirm, modify, or reverse the judgment and may remand the case for retrial.
+
+ARTICLE 7
+Judgments become final and enforceable when no ordinary appeal lies against them or when the time limit for appeal has expired. Final judgments have the force of res judicata between the parties.
+
+ARTICLE 8
+Execution of judgments is carried out by the execution court upon the request of the party in whose favor the judgment was rendered. The execution court may use lawful means to compel compliance.
+
+ARTICLE 9
+Interim measures may be ordered by the court before the final judgment to preserve the status quo or prevent irreparable harm. The party requesting an interim measure must show a prima facie right and urgency.
+
+ARTICLE 10
+Court fees are payable by the party initiating the proceedings. The court may order the losing party to reimburse the fees and costs of the proceedings to the prevailing party.

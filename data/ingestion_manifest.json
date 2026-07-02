@@ -1,0 +1,83 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-02T11:50:29.278263+00:00",
+  "content_hash": "74d4f38e22c3e80c37f3626d7c5f1c31053d57d40f1b5fd4c03b1f580340fbb6",
+  "glossary": {
+    "file_count": 3,
+    "term_count": 33,
+    "files": [
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\civil_code.json",
+        "sha256": "4e874682047bda8c197a58d3d663b7b7b33ffbfeae38205d2091f43d0d8a87f6",
+        "size": 4856
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\civil_procedure_code.json",
+        "sha256": "892fa8f2b4fa06cee556364aad0a2b339b8e42af4ecdde98e9b8717ddb7b44ca",
+        "size": 2691
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\penal_code.json",
+        "sha256": "856789095f2df57956038084e3269399b228b1f10b7ce97d4d68e53ade5df5ac",
+        "size": 3180
+      }
+    ]
+  },
+  "corpus": {
+    "file_count": 8,
+    "law_count": 5,
+    "article_count": 90,
+    "chunk_count": 90,
+    "files": [
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\civil_code_ar.txt",
+        "sha256": "0f2787ae8852f81795a6bf06efe0acdbc77647e249dea7461764f09c2d38b04e",
+        "size": 3914
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\civil_code_en.txt",
+        "sha256": "83b9f934254750679b533543a4a01f57d495a661c8bc2bbe2c364b0a7d143c60",
+        "size": 3334
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\civil_procedure_code_ar.txt",
+        "sha256": "86329dd0cd0d6a40e4b17b2d781aa3dde43039c9032baf713016a5357d95a65e",
+        "size": 2794
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\civil_procedure_code_en.txt",
+        "sha256": "1a655d7f2df7003c4e2bf6c4ba30ed602fe9bd13b9e169250522b654facd2893",
+        "size": 2191
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\commercial_code_ar.txt",
+        "sha256": "b1d77ff23f24aecabfc5dafbcf33582882fe0cd88d9324e8ec555c71411d7865",
+        "size": 3221
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\penal_code_ar.txt",
+        "sha256": "ec80bede704fa849c9da393ce41ad41f81a774334b70ce485f7270855a480e3a",
+        "size": 2253
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\penal_code_en.txt",
+        "sha256": "856c52bf4c9816eb382ff92a97b91864bf36a63b38122ea6dcb5943127b41c0b",
+        "size": 1892
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\corpus\\penal_procedure_code_ar.txt",
+        "sha256": "816ce1ed3392a466ef7c6afea8b81524253139dbf0f79f821fdede0973d29378",
+        "size": 2696
+      }
+    ]
+  },
+  "chroma": {
+    "collection": "iraqi_laws",
+    "embeddings_written": 90
+  },
+  "models": {
+    "llm_model": "qwen2.5:7b-instruct-q5_K_M",
+    "embed_model": "nomic-embed-text"
+  },
+  "duration_seconds": 4.0
+}

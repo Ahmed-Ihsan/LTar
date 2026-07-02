@@ -1,0 +1,87 @@
+{
+  "domain": "civil_procedure_code",
+  "version": "1.0.0",
+  "last_updated": "2026-07-02",
+  "terms": [
+    {
+      "source_term": "صحيفة الدعوى",
+      "source_lang": "ar",
+      "target_term": "statement of claim",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Must contain names of parties, subject matter, facts and legal grounds.",
+      "priority": 9
+    },
+    {
+      "source_term": "محكمة الاستئناف",
+      "source_lang": "ar",
+      "target_term": "court of appeal",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "6",
+      "note": "Reviews judgment on questions of fact and law.",
+      "priority": 8
+    },
+    {
+      "source_term": "محكمة التنفيذ",
+      "source_lang": "ar",
+      "target_term": "execution court",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "8",
+      "note": "Carries out execution of judgments; may compel compliance.",
+      "priority": 8
+    },
+    {
+      "source_term": "التدابير المؤقتة",
+      "source_lang": "ar",
+      "target_term": "interim measures",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "9",
+      "note": "Ordered before final judgment to preserve status quo or prevent irreparable harm.",
+      "priority": 7
+    },
+    {
+      "source_term": "عبء الإثبات",
+      "source_lang": "ar",
+      "target_term": "burden of proof",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "4",
+      "note": "Rests on the party making the allegation.",
+      "priority": 8
+    },
+    {
+      "source_term": "statement of claim",
+      "source_lang": "en",
+      "target_term": "صحيفة الدعوى",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Initiates proceedings; must contain names, subject, facts, legal grounds.",
+      "priority": 9
+    },
+    {
+      "source_term": "court of appeal",
+      "source_lang": "en",
+      "target_term": "محكمة الاستئناف",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "6",
+      "note": "Reviews on fact and law; may confirm, modify, reverse, or remand.",
+      "priority": 8
+    },
+    {
+      "source_term": "burden of proof",
+      "source_lang": "en",
+      "target_term": "عبء الإثبات",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "4",
+      "note": "Rests on the party making the allegation.",
+      "priority": 8
+    }
+  ]
+}

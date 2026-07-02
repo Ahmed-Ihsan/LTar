@@ -1,0 +1,107 @@
+{
+  "domain": "penal_code",
+  "version": "1.0.0",
+  "last_updated": "2026-07-02",
+  "terms": [
+    {
+      "source_term": "السرقة",
+      "source_lang": "ar",
+      "target_term": "theft",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "3",
+      "note": "Penalty increases if committed at night, with a weapon, or by 2+ persons.",
+      "priority": 9
+    },
+    {
+      "source_term": "النهب",
+      "source_lang": "ar",
+      "target_term": "robbery",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "10",
+      "note": "Theft with use or threat of force against persons. More severe than theft.",
+      "priority": 10
+    },
+    {
+      "source_term": "القتل العمد",
+      "source_lang": "ar",
+      "target_term": "intentional murder",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "4",
+      "note": "Unlawful killing with intent. Penalty: death or life imprisonment.",
+      "priority": 10
+    },
+    {
+      "source_term": "الاحتيال",
+      "source_lang": "ar",
+      "target_term": "fraud",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "6",
+      "note": "Deception by false statement to induce delivery of property.",
+      "priority": 8
+    },
+    {
+      "source_term": "الدفاع الشرعي",
+      "source_lang": "ar",
+      "target_term": "self-defense",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "9",
+      "note": "Lawful act; proportionate response to unlawful attack.",
+      "priority": 8
+    },
+    {
+      "source_term": "الشروع في الجريمة",
+      "source_lang": "ar",
+      "target_term": "attempt to commit a crime",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "7",
+      "note": "Begun execution with intent but failed for reasons independent of will.",
+      "priority": 7
+    },
+    {
+      "source_term": "الاشتراك في الجريمة",
+      "source_lang": "ar",
+      "target_term": "complicity",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "8",
+      "note": "Participation of two or more persons in commission of a crime.",
+      "priority": 7
+    },
+    {
+      "source_term": "robbery",
+      "source_lang": "en",
+      "target_term": "النهب",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "10",
+      "note": "Theft with force or threat of force. More severe than theft (السرقة).",
+      "priority": 10
+    },
+    {
+      "source_term": "theft",
+      "source_lang": "en",
+      "target_term": "السرقة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "3",
+      "note": "Penalty increases if at night, with weapon, or by 2+ persons.",
+      "priority": 9
+    },
+    {
+      "source_term": "self-defense",
+      "source_lang": "en",
+      "target_term": "الدفاع الشرعي",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "9",
+      "note": "Lawful act; proportionate response to unlawful attack.",
+      "priority": 8
+    }
+  ]
+}

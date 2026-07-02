@@ -1,0 +1,60 @@
+{
+  "domain": "civil_code",
+  "version": "1.0.0",
+  "last_updated": "2026-07-01",
+  "terms": [
+    {
+      "source_term": "عقد البيع",
+      "source_lang": "ar",
+      "target_term": "contract of sale",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "148",
+      "note": "Core nominate contract; do not render as 'sale agreement'.",
+      "priority": 10
+    },
+    {
+      "source_term": "عقد",
+      "source_lang": "ar",
+      "target_term": "contract",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "priority": 5
+    },
+    {
+      "source_term": "الالتزام ببذل العناية",
+      "source_lang": "ar",
+      "target_term": "obligation of means",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "175",
+      "note": "Distinguished from 'obligation of result'.",
+      "priority": 9
+    },
+    {
+      "source_term": "المحكمة",
+      "source_lang": "ar",
+      "target_term": "court",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "priority": 10
+    },
+    {
+      "source_term": "المحكمة الاتحادية",
+      "source_lang": "ar",
+      "target_term": "Federal Supreme Court",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "priority": 10
+    },
+    {
+      "source_term": "contract of sale",
+      "source_lang": "en",
+      "target_term": "عقد البيع",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "148",
+      "priority": 10
+    }
+  ]
+}
