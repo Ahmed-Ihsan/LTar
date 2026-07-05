@@ -68,6 +68,21 @@ class AuditVerdict(TypedDict):
     confidence: float
 
 
+class TmHit(TypedDict):
+    """A Translation Memory match found in the source text.
+
+    Produced by the ``tm_lookup`` node. When a sentence has ≥ 98% similarity
+    to a stored bilingual pair, the stored target translation is used directly
+    (bypassing the LLM).
+    """
+
+    source_sentence: str
+    target_sentence: str
+    similarity: float
+    char_start: int
+    char_end: int
+
+
 class TranslationState(TypedDict):
     """The typed state that flows between LangGraph nodes.
 
@@ -75,6 +90,7 @@ class TranslationState(TypedDict):
     does not own, enforced by unit tests:
 
     - ``preprocess`` writes ``glossary_hits`` and ``context_chunks`` (only).
+    - ``tm_lookup`` reads ``input_text`` / ``direction``; writes ``tm_hits``.
     - ``translate`` reads ``glossary_hits`` / ``context_chunks`` / ``direction``
       / ``input_text``; writes ``draft``; increments ``revision_count`` only
       on re-entry (first pass sets it to 0).
@@ -88,6 +104,7 @@ class TranslationState(TypedDict):
     direction: Direction
     glossary_hits: list[GlossaryHit]
     context_chunks: list[ContextChunk]
+    tm_hits: list[TmHit]
     draft: str
     audit: AuditVerdict | None
     revision_count: int

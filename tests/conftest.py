@@ -162,6 +162,7 @@ def _empty_state(
         "direction": direction,  # type: ignore[arg-type]
         "glossary_hits": [],
         "context_chunks": [],
+        "tm_hits": [],
         "draft": "",
         "audit": None,
         "revision_count": 0,
