@@ -47,6 +47,9 @@ from src.state import (
     GlossaryHit as StateGlossaryHit,
 )
 from src.state import (
+    TmHit as StateTmHit,
+)
+from src.state import (
     TranslationState,
     Verdict,
 )
@@ -449,6 +452,41 @@ def finalize_node(
         "final_output": state["draft"],
         "warnings": warnings,
     }
+
+
+# ---------------------------------------------------------------------------
+# tm_lookup_node (TM layer — spec §5)
+# ---------------------------------------------------------------------------
+
+
+def tm_lookup_node(
+    state: TranslationState,
+    *,
+    tm: object | None = None,
+    cfg: AppConfig,
+) -> TranslationState:
+    """Look up the input text in the Translation Memory; populate ``tm_hits``.
+
+    Reads: ``input_text``, ``direction``.
+    Writes: ``tm_hits``.
+
+    When ``tm`` is ``None`` (TM disabled), ``tm_hits`` is set to an empty
+    list and the node is a no-op pass-through. When the TM is enabled, the
+    full input text is looked up; a hit at or above the configured
+    threshold populates ``tm_hits`` with the stored target translation.
+    """
+    _require_fields(state, ("input_text", "direction"))
+    if tm is None:
+        return {**state, "tm_hits": []}
+
+    input_text: str = state["input_text"].strip()
+    hit: StateTmHit | None = tm.lookup(  # type: ignore[attr-defined]
+        input_text, state["direction"]
+    )
+    if hit is None:
+        return {**state, "tm_hits": []}
+
+    return {**state, "tm_hits": [hit]}
 
 
 # ---------------------------------------------------------------------------
