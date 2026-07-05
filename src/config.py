@@ -8,7 +8,6 @@ Run ``python -m src.config load`` to print the parsed configuration.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -153,7 +152,7 @@ def load(
         cfg: AppConfig = load_config(config_path)
     except ConfigError as e:
         typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     typer.echo(cfg.model_dump_json(indent=2))
 
 
