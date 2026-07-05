@@ -160,9 +160,10 @@ class TestGraphCompiles:
         )
         edges: dict[str, str] = dict(graph.builder.edges)
         # Static edges (ARCHITECTURE.md §4.3): START->preprocess,
-        # preprocess->translate, translate->auditor, finalize->END.
+        # preprocess->tm_lookup->translate, translate->auditor, finalize->END.
         assert edges["__start__"] == "preprocess"
-        assert edges["preprocess"] == "translate"
+        assert edges["preprocess"] == "tm_lookup"
+        assert edges["tm_lookup"] == "translate"
         assert edges["translate"] == "auditor"
         assert edges["finalize"] == "__end__"
         # The audit->? edge is conditional, so it lives in `branches`, not
@@ -349,3 +350,45 @@ class TestStateMutationOwnership:
         }
         result = finalize_node(state, cfg=config)
         assert result["final_output"] == "contract of sale"
+
+
+# ---------------------------------------------------------------------------
+# 3.3.4 tm_lookup node wiring (task 6)
+# ---------------------------------------------------------------------------
+
+
+def test_graph_includes_tm_lookup_node_when_enabled(
+    config, mock_llm, mock_embedder, glossary_index, tmp_path
+):
+    from src.graph import build_graph
+    persist_dir = str(tmp_path / "chroma")
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    corpus_dir = tmp_path / "corpus"
+    corpus_dir.mkdir()
+    (corpus_dir / "civil_code_ar.txt").write_text(
+        "LAW: قانون\nLANG: ar\n---\n\nARTICLE 1\nعقد البيع\n", encoding="utf-8")
+    (corpus_dir / "civil_code_en.txt").write_text(
+        "LAW: Code\nLANG: en\n---\n\nARTICLE 1\nContract of sale\n", encoding="utf-8")
+    from src.tm import TranslationMemory
+    tm = TranslationMemory(db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98)
+    tm.build_from_corpus(corpus_dir)
+    graph = build_graph(
+        llm=mock_llm, cfg=config, glossary_index=glossary_index,
+        embedder=mock_embedder, persist_dir=persist_dir, tm=tm)
+    state = _initial_state("عقد البيع")
+    result = graph.invoke(state)
+    assert "tm_hits" in result
+    tm.close()
+
+
+def test_graph_skips_tm_lookup_when_tm_is_none(
+    config, mock_llm, mock_embedder, glossary_index, tmp_path
+):
+    persist_dir = str(tmp_path / "chroma")
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    graph = build_graph(
+        llm=mock_llm, cfg=config, glossary_index=glossary_index,
+        embedder=mock_embedder, persist_dir=persist_dir, tm=None)
+    state = _initial_state("المادة 148: عقد البيع")
+    result = graph.invoke(state)
+    assert result["tm_hits"] == []

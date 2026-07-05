@@ -157,7 +157,7 @@ class TestRunTranslationLogging:
     def test_approve_first_pass_logs_one_line_per_node(
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
     ) -> None:
-        """4.3.1 verify: one JSON line per node execution (4 nodes)."""
+        """4.3.1 verify: one JSON line per node execution (5 nodes)."""
         from src.cli import run_translation
 
         mock_llm.set_response(
@@ -189,12 +189,12 @@ class TestRunTranslationLogging:
         log_file: Path = log_dir / "run_verify.jsonl"
         assert log_file.is_file()
         lines = log_file.read_text(encoding="utf-8").strip().split("\n")
-        # preprocess + translate + audit + finalize == 4 node executions.
-        assert len(lines) == 4
+        # preprocess + tm_lookup + translate + audit + finalize == 5 nodes.
+        assert len(lines) == 5
         nodes = [json.loads(line)["node"] for line in lines]
-        assert nodes == ["preprocess", "translate", "auditor", "finalize"]
+        assert nodes == ["preprocess", "tm_lookup", "translate", "auditor", "finalize"]
         # The audit node line carries the verdict.
-        audit_line = json.loads(lines[2])
+        audit_line = json.loads(lines[3])
         assert audit_line["audit_verdict"] == "APPROVE"
 
     def test_without_logger_no_log_file_and_no_error(

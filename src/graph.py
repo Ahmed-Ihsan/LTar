@@ -28,7 +28,7 @@ from langgraph.graph import END, StateGraph
 from src.config import AppConfig
 from src.glossary import GlossaryIndex
 from src.llm import LLMEngineAdapter
-from src.nodes import audit_node, finalize_node, preprocess_node, translate_node
+from src.nodes import audit_node, finalize_node, preprocess_node, tm_lookup_node, translate_node
 from src.run_logging import RunLogger
 from src.state import TranslationState
 
@@ -38,6 +38,7 @@ _NodeCallable = Callable[[TranslationState], TranslationState]
 # Node identifiers — a closed set shared by the graph and its tests (DRY,
 # clean-code §1.1: closed string sets as constants).
 PREPROCESS_NODE: str = "preprocess"
+TM_LOOKUP_NODE: str = "tm_lookup"
 TRANSLATE_NODE: str = "translate"
 # LangGraph 0.2.x forbids a node name that collides with a state key. The
 # state field that holds the verdict is ``audit`` (ARCHITECTURE.md §4.1), so
@@ -120,6 +121,7 @@ def build_graph(
     embedder: object | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
+    tm: object | None = None,
 ) -> Any:
     """Wire the four nodes into a compiled :class:`StateGraph` and return it.
 
@@ -161,6 +163,10 @@ def build_graph(
         ),
     )
     graph.add_node(
+        TM_LOOKUP_NODE,
+        _bind(TM_LOOKUP_NODE, partial(tm_lookup_node, tm=tm, cfg=cfg)),
+    )
+    graph.add_node(
         TRANSLATE_NODE,
         _bind(TRANSLATE_NODE, partial(translate_node, llm=llm, cfg=cfg)),
     )
@@ -174,7 +180,8 @@ def build_graph(
     )
 
     graph.set_entry_point(PREPROCESS_NODE)
-    graph.add_edge(PREPROCESS_NODE, TRANSLATE_NODE)
+    graph.add_edge(PREPROCESS_NODE, TM_LOOKUP_NODE)
+    graph.add_edge(TM_LOOKUP_NODE, TRANSLATE_NODE)
     graph.add_edge(TRANSLATE_NODE, AUDIT_NODE)
 
     graph.add_conditional_edges(
