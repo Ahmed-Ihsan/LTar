@@ -90,6 +90,70 @@ def _new_run_logger(cfg: AppConfig) -> RunLogger:
     return RunLogger(log_dir=_resolve_path(cfg, "logs"))
 
 
+def _new_tm(cfg: AppConfig) -> object | None:
+    """Construct a :class:`TranslationMemory` when TM is enabled (task 7).
+
+    Returns ``None`` when ``cfg.tm_enabled`` is False so the ``tm_lookup``
+    node becomes a no-op pass-through. The DB path is resolved against the
+    project root (single source of truth: ``cfg.tm_db``).
+    """
+    if not cfg.tm_enabled:
+        return None
+    from src.tm import TranslationMemory
+
+    return TranslationMemory(
+        db_path=str(_resolve_path(cfg, cfg.tm_db)),
+        similarity_threshold=cfg.tm_similarity_threshold,
+    )
+
+
+@dataclass(slots=True, frozen=True)
+class Adapters:
+    """Bundle of concrete adapters constructed by the CLI (engineering-principles §3.6).
+
+    Built once per command invocation and passed into the orchestration seam.
+    ``tm`` is ``None`` when TM is disabled.
+    """
+
+    llm: LLMEngineAdapter
+    embedder: object
+    glossary_index: GlossaryIndex | None
+    persist_dir: str
+    tm: object | None
+
+
+def _construct_adapters(cfg: AppConfig) -> Adapters:
+    """Construct the concrete Ollama/ChromaDB/Glossary/TM adapters (DI seam).
+
+    The single place concrete adapters are built (engineering-principles
+    §3.6). Raises :class:`typer.Exit` (code 1) on a glossary load failure.
+    """
+    from src.embeddings import Embedder
+    from src.glossary import load_glossary_index
+    from src.llm import OllamaEngineAdapter
+
+    persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
+    llm = OllamaEngineAdapter(host=cfg.ollama_host)
+    embedder = Embedder(host=cfg.ollama_host)
+    try:
+        glossary_index = load_glossary_index(
+            _resolve_path(cfg, cfg.paths.glossary_db)
+        )
+    except Exception as e:
+        typer.secho(
+            f"glossary index error: {e}", fg=typer.colors.RED, err=True,
+        )
+        raise typer.Exit(code=1) from e
+
+    return Adapters(
+        llm=llm,
+        embedder=embedder,
+        glossary_index=glossary_index,
+        persist_dir=persist_dir,
+        tm=_new_tm(cfg),
+    )
+
+
 def _check_ollama_reachable(client: ollama.Client) -> CheckResult:
     """Verify the Ollama daemon is reachable and responding."""
     try:
@@ -367,6 +431,7 @@ def run_translation(
     glossary_index: GlossaryIndex | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
+    tm: object | None = None,
 ) -> TranslationState:
     """Build the graph with the given adapters and run one translation.
 
@@ -378,6 +443,10 @@ def run_translation(
     ``run_logger`` (task 4.3.1), when supplied, emits one structured JSON line
     per node execution to ``logs/run_<id>.jsonl``; when ``None`` the pipeline
     runs unchanged.
+
+    ``tm`` (task 7), when supplied, is bound into the ``tm_lookup`` node so
+    sentences with a ≥ threshold TM match bypass the LLM; when ``None`` the
+    ``tm_lookup`` node is a no-op pass-through.
     """
     state: TranslationState = _initial_state(input_text, direction)
     graph = build_graph(
@@ -387,6 +456,7 @@ def run_translation(
         embedder=embedder,
         persist_dir=persist_dir,
         run_logger=run_logger,
+        tm=tm,
     )
     return graph.invoke(state)
 
@@ -441,6 +511,7 @@ def run_translation_streamed(
     glossary_index: GlossaryIndex | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
+    tm: object | None = None,
 ) -> tuple[TranslationState, list[RevisionStep]]:
     """Run one translation, streaming per-node updates to capture revisions.
 
@@ -464,6 +535,7 @@ def run_translation_streamed(
         embedder=embedder,
         persist_dir=persist_dir,
         run_logger=run_logger,
+        tm=tm,
     )
 
     history: list[RevisionStep] = []
@@ -658,6 +730,7 @@ def _translate_for_ui(
     glossary_index: GlossaryIndex | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
+    tm: object | None = None,
 ) -> UiTranslationResult:
     """Run one streamed translation and build the three UI outputs.
 
@@ -672,7 +745,7 @@ def _translate_for_ui(
         input_text, direction, cfg,
         llm=llm, embedder=embedder,
         glossary_index=glossary_index, persist_dir=persist_dir,
-        run_logger=run_logger,
+        run_logger=run_logger, tm=tm,
     )
     return UiTranslationResult(
         translation=state.get("final_output") or "",
@@ -728,29 +801,15 @@ def translate(
         raise typer.Exit(code=1)
 
     # Construct concrete adapters (engineering-principles §3.6).
-    from src.embeddings import Embedder
-    from src.glossary import load_glossary_index
-    from src.llm import OllamaEngineAdapter
-
-    persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
-    llm = OllamaEngineAdapter(host=cfg.ollama_host)
-    embedder = Embedder(host=cfg.ollama_host)
-    try:
-        glossary_index = load_glossary_index(
-            _resolve_path(cfg, cfg.paths.glossary_db)
-        )
-    except Exception as e:
-        typer.secho(
-            f"glossary index error: {e}", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1) from e
+    adapters: Adapters = _construct_adapters(cfg)
 
     try:
         state = run_translation(
             input_text, direction.value, cfg,
-            llm=llm, embedder=embedder,
-            glossary_index=glossary_index, persist_dir=persist_dir,
+            llm=adapters.llm, embedder=adapters.embedder,
+            glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
             run_logger=_new_run_logger(cfg),
+            tm=adapters.tm,
         )
     except (OllamaConnectionError, EmbeddingConnectionError) as e:
         typer.secho(
@@ -769,6 +828,9 @@ def translate(
     except Exception as e:
         typer.secho(f"translation error: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from e
+    finally:
+        if adapters.tm is not None:
+            adapters.tm.close()
 
     final_output: str = state.get("final_output") or ""
     provenance: str = _render_provenance(state)
@@ -838,6 +900,7 @@ def _process_batch(
     glossary_index: GlossaryIndex | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
+    tm: object | None = None,
 ) -> int:
     """Process a JSONL batch sequentially (concurrency = 1 per RAM rule).
 
@@ -857,7 +920,7 @@ def _process_batch(
                 record["input"], record["direction"], cfg,
                 llm=llm, embedder=embedder,
                 glossary_index=glossary_index, persist_dir=persist_dir,
-                run_logger=run_logger,
+                run_logger=run_logger, tm=tm,
             )
             output_record: dict[str, object] = _state_to_batch_record(state)
             fout.write(json.dumps(output_record, ensure_ascii=False) + "\n")
@@ -893,29 +956,16 @@ def batch(
         typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from e
 
-    from src.embeddings import Embedder
-    from src.glossary import load_glossary_index
-    from src.llm import OllamaEngineAdapter
-
-    persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
-    llm = OllamaEngineAdapter(host=cfg.ollama_host)
-    embedder = Embedder(host=cfg.ollama_host)
-    try:
-        glossary_index = load_glossary_index(
-            _resolve_path(cfg, cfg.paths.glossary_db)
-        )
-    except Exception as e:
-        typer.secho(
-            f"glossary index error: {e}", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1) from e
+    # Construct concrete adapters (engineering-principles §3.6).
+    adapters: Adapters = _construct_adapters(cfg)
 
     try:
         count: int = _process_batch(
             input_arg, out, cfg,
-            llm=llm, embedder=embedder,
-            glossary_index=glossary_index, persist_dir=persist_dir,
+            llm=adapters.llm, embedder=adapters.embedder,
+            glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
             run_logger=_new_run_logger(cfg),
+            tm=adapters.tm,
         )
     except (OllamaConnectionError, EmbeddingConnectionError) as e:
         typer.secho(
@@ -934,6 +984,9 @@ def batch(
     except Exception as e:
         typer.secho(f"batch error: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from e
+    finally:
+        if adapters.tm is not None:
+            adapters.tm.close()
 
     typer.secho(
         f"batch complete: {count} record(s) written to {out}",
@@ -1046,22 +1099,7 @@ def ui(
         raise typer.Exit(code=1) from e
 
     # Construct concrete adapters once at launch (engineering-principles §3.6).
-    from src.embeddings import Embedder
-    from src.glossary import load_glossary_index
-    from src.llm import OllamaEngineAdapter
-
-    persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
-    llm = OllamaEngineAdapter(host=cfg.ollama_host)
-    embedder = Embedder(host=cfg.ollama_host)
-    try:
-        glossary_index = load_glossary_index(
-            _resolve_path(cfg, cfg.paths.glossary_db)
-        )
-    except Exception as e:
-        typer.secho(
-            f"glossary index error: {e}", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1) from e
+    adapters: Adapters = _construct_adapters(cfg)
 
     def _translate(
         input_text: str, direction: str,
@@ -1076,9 +1114,10 @@ def ui(
         try:
             result: UiTranslationResult = _translate_for_ui(
                 input_text, direction, cfg,
-                llm=llm, embedder=embedder,
-                glossary_index=glossary_index, persist_dir=persist_dir,
+                llm=adapters.llm, embedder=adapters.embedder,
+                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
                 run_logger=_new_run_logger(cfg),
+                tm=adapters.tm,
             )
         except Exception as e:  # noqa: BLE001 — UI must not crash the server
             return (
