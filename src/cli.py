@@ -1058,6 +1058,47 @@ def ingest(
 
 
 # ---------------------------------------------------------------------------
+# tm-build command (task 8) — build the Translation Memory SQLite DB
+# ---------------------------------------------------------------------------
+
+
+@app.command("tm-build")
+def tm_build(
+    corpus_dir: Annotated[
+        Path | None,
+        typer.Option("--corpus-dir", help="Path to the corpus directory."),
+    ] = None,
+    tm_db: Annotated[
+        str | None,
+        typer.Option("--tm-db", help="Path to the TM SQLite DB to create."),
+    ] = None,
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to config.yaml."),
+    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+) -> None:
+    """Build the Translation Memory SQLite DB from the bilingual corpus."""
+    try:
+        cfg: AppConfig = load_config(config_path)
+    except Exception as e:
+        typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+
+    cdir: Path = corpus_dir if corpus_dir is not None else _resolve_path(cfg, cfg.paths.corpus_dir)
+    dbpath: str = tm_db if tm_db is not None else str(_resolve_path(cfg, cfg.tm_db))
+
+    from src.tm import TranslationMemory
+
+    tm = TranslationMemory(
+        db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
+    )
+    tm.build_from_corpus(cdir)
+    entries = tm.list_all()
+    tm.close()
+    typer.echo(f"TM built: {len(entries)} entries in {dbpath}")
+
+
+# ---------------------------------------------------------------------------
 # 4.2.1 / 4.2.2 Gradio UI command
 # ---------------------------------------------------------------------------
 

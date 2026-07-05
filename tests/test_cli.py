@@ -764,3 +764,39 @@ class TestRamGuardCli:
         assert result.exit_code == 3
         combined = (result.stdout or "") + (result.output or "")
         assert "Traceback" not in combined
+
+
+# ---------------------------------------------------------------------------
+# 4.1.4 tm-build command (task 8)
+# ---------------------------------------------------------------------------
+
+
+class TestTmBuildCommand:
+    def test_tm_build_command_creates_db(self, tmp_path: Path) -> None:
+        import sqlite3
+
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        (corpus_dir / "civil_code_ar.txt").write_text(
+            "LAW: قانون\nLANG: ar\n---\n\nARTICLE 1\nعقد البيع\n",
+            encoding="utf-8",
+        )
+        (corpus_dir / "civil_code_en.txt").write_text(
+            "LAW: Code\nLANG: en\n---\n\nARTICLE 1\nContract of sale\n",
+            encoding="utf-8",
+        )
+        tm_db = str(tmp_path / "tm.sqlite")
+
+        result = runner.invoke(
+            app, ["tm-build", "--corpus-dir", str(corpus_dir), "--tm-db", tm_db]
+        )
+        assert result.exit_code == 0
+        conn = sqlite3.connect(tm_db)
+        count = conn.execute("SELECT COUNT(*) FROM tm_entries").fetchone()[0]
+        conn.close()
+        assert count > 0
+
+    def test_help_exits_0(self) -> None:
+        result = runner.invoke(app, ["tm-build", "--help"])
+        assert result.exit_code == 0
+        assert "--corpus-dir" in result.stdout
