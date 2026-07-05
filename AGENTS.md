@@ -23,6 +23,8 @@ Project-specific guidance for any agent working in this repo.
   - NOTE: several pre-existing untouched files (e.g. `tests/test_retrieval.py`)
     have ruff errors (unused imports). Only lint the files you changed.
 - No `mypy`/`radon` are wired into a CI gate here; ruff is the gate.
+- TM build: `.\.venv310\Scripts\python.exe -m src.cli tm-build`
+  - Builds `db/tm.sqlite` from `data/corpus` aligned ar/en article pairs.
 
 ## Architecture / conventions (enforced by `.devin/skills/*`)
 
