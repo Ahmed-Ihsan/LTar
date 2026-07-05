@@ -48,7 +48,7 @@ class AppConfig(BaseModel):
     ollama_host: str = "http://localhost:11434"
     llamacpp_url: str = "http://localhost:8080"
 
-    llm_model: str = "qwen2.5:7b-instruct-q5_K_M"
+    llm_model: str = "gemma3:4b"
     embed_model: str = "nomic-embed-text"
 
     paths: PathsConfig = Field(default_factory=PathsConfig)
@@ -69,6 +69,11 @@ class AppConfig(BaseModel):
 
     chroma: ChromaConfig = Field(default_factory=ChromaConfig)
 
+    # --- Translation Memory (TM) ---
+    tm_enabled: bool = True
+    tm_similarity_threshold: float = 0.98
+    tm_db: str = "db/tm.sqlite"
+
     @field_validator("chunk_size", "chunk_overlap", "top_k",
                      "embedding_batch_size", "chroma_add_batch",
                      "max_revisions", "context_window",
@@ -79,11 +84,19 @@ class AppConfig(BaseModel):
             raise ValueError(f"expected a positive integer, got {v}")
         return v
 
-    @field_validator("llm_timeout", "translator_temperature", "auditor_temperature")
+    @field_validator("llm_timeout", "translator_temperature", "auditor_temperature",
+                     "tm_similarity_threshold")
     @classmethod
     def _non_negative_float(cls, v: float) -> float:
         if v < 0:
             raise ValueError(f"expected a non-negative float, got {v}")
+        return v
+
+    @field_validator("tm_similarity_threshold")
+    @classmethod
+    def _threshold_upper_bound(cls, v: float) -> float:
+        if v > 1.0:
+            raise ValueError(f"tm_similarity_threshold must be <= 1.0, got {v}")
         return v
 
 

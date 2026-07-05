@@ -8,7 +8,7 @@ ollama_host: http://localhost:11434
 llamacpp_url: http://localhost:8080
 
 # Model names (must be pulled via `ollama pull` before running).
-llm_model: qwen2.5:7b-instruct-q5_K_M
+llm_model: gemma3:4b
 embed_model: nomic-embed-text
 
 # --- Paths (relative to project root) ---
@@ -43,3 +43,8 @@ chroma:
   hnsw_M: 8
   construction_ef: 64
   search_ef: 32
+
+# --- Translation Memory (TM) ---
+tm_enabled: true
+tm_similarity_threshold: 0.98
+tm_db: db/tm.sqlite
