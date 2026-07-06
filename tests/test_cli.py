@@ -646,7 +646,7 @@ class TestUiCommand:
     def test_help_exits_0(self) -> None:
         result = runner.invoke(app, ["ui", "--help"])
         assert result.exit_code == 0
-        assert "--port" in result.stdout or "--host" in result.stdout
+        assert "Tkinter" in result.stdout or "--config" in result.stdout
 
 
 # ---------------------------------------------------------------------------

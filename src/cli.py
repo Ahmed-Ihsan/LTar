@@ -1099,40 +1099,26 @@ def tm_build(
 
 
 # ---------------------------------------------------------------------------
-# 4.2.1 / 4.2.2 Gradio UI command
+# 4.2.1 / 4.2.2 Tkinter desktop UI command
 # ---------------------------------------------------------------------------
 
 
 @app.command()
 def ui(
-    host: Annotated[
-        str,
-        typer.Option("--host", help="Server bind address."),
-    ] = "127.0.0.1",
-    port: Annotated[
-        int,
-        typer.Option("--port", help="Server port."),
-    ] = 7860,
-    share: Annotated[
-        bool,
-        typer.Option("--share", help="Create a public Gradio share link."),
-    ] = False,
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
     ] = Path(__file__).resolve().parent.parent / "config.yaml",
 ) -> None:
-    """Launch a Gradio web UI for interactive translation + audit trace.
+    """Launch a Tkinter desktop UI for interactive translation + audit trace.
 
     Tab "Translate": source text box, direction dropdown, Translate button,
-    and an output panel with the translation plus a collapsible provenance
-    block (glossary hits, retrieved chunks, audit verdict).
+    and an output panel with the translation plus a provenance block
+    (glossary hits, retrieved chunks, audit verdict).
 
     Tab "Audit Trace": the full revision history (each draft + critique) for
     the last run (task 4.2.2).
     """
-    import gradio as gr
-
     try:
         cfg: AppConfig = load_config(config_path)
     except Exception as e:
@@ -1142,67 +1128,10 @@ def ui(
     # Construct concrete adapters once at launch (engineering-principles §3.6).
     adapters: Adapters = _construct_adapters(cfg)
 
-    def _translate(
-        input_text: str, direction: str,
-    ) -> tuple[str, str, str]:
-        """Gradio button handler — thin closure over :func:`_translate_for_ui`."""
-        if not input_text.strip():
-            return (
-                "",
-                "Input text is empty.",
-                _audit_trace_markdown([]),
-            )
-        try:
-            result: UiTranslationResult = _translate_for_ui(
-                input_text, direction, cfg,
-                llm=adapters.llm, embedder=adapters.embedder,
-                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
-                run_logger=_new_run_logger(cfg),
-                tm=adapters.tm,
-            )
-        except Exception as e:  # noqa: BLE001 — UI must not crash the server
-            return (
-                "",
-                f"Translation error: {e}",
-                _audit_trace_markdown([]),
-            )
-        return result.translation, result.provenance_md, result.audit_trace_md
+    from src.tk_ui import launch_ui
 
-    with gr.Blocks(title="Iraqi Legal Translation Agent") as demo:
-        with gr.Tab("Translate"):
-            input_box = gr.Textbox(
-                label="Source text", lines=8, rtl=False,
-                placeholder="Paste an Iraqi legal article…",
-            )
-            direction_dd = gr.Dropdown(
-                choices=["ar-en", "en-ar"], value="ar-en",
-                label="Direction",
-            )
-            btn = gr.Button("Translate", variant="primary")
-            output_box = gr.Textbox(
-                label="Translation", lines=8, interactive=False,
-            )
-            with gr.Accordion("Provenance", open=False):
-                prov_md = gr.Markdown()
-        with gr.Tab("Audit Trace"):
-            gr.Markdown(
-                "The full revision history (each draft + critique) for the "
-                "last run."
-            )
-            trace_md = gr.Markdown(label="Audit Trace")
-        btn.click(
-            _translate,
-            inputs=[input_box, direction_dd],
-            outputs=[output_box, prov_md, trace_md],
-        )
-
-    typer.secho(
-        f"Launching UI on http://{host}:{port}", fg=typer.colors.CYAN,
-    )
-    demo.launch(
-        server_name=host, server_port=port, share=share,
-        prevent_thread_lock=False,
-    )
+    typer.secho("Launching Tkinter desktop UI…", fg=typer.colors.CYAN)
+    launch_ui(cfg, adapters)
 
 
 if __name__ == "__main__":
