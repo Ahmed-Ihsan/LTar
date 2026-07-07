@@ -229,6 +229,33 @@ class ChromaStore:
 
     # -- query --------------------------------------------------------------
 
+    def add_chunks(self, chunks: list[Chunk]) -> int:
+        """Add ``chunks`` to the existing collection (incremental, non-destructive).
+
+        Unlike :meth:`build`, this opens the existing collection and adds chunks
+        without dropping what's already there. Used by external corpus importers
+        (e.g. MultiUN RAG import) to augment the live store. Embeds in bounded
+        batches and adds in batches of 64 (same as ``build``). Returns the number
+        of embeddings added.
+        """
+        if not chunks:
+            return 0
+        collection = self._open()
+        texts: list[str] = [c.text for c in chunks]
+        embeddings: list[list[float]] = self._embedder.embed_batch(
+            texts, batch_size=self._cfg.embedding_batch_size
+        )
+        for start in range(0, len(chunks), DEFAULT_ADD_BATCH):
+            end: int = start + DEFAULT_ADD_BATCH
+            batch_chunks: list[Chunk] = chunks[start:end]
+            collection.add(
+                ids=[c.chunk_id for c in batch_chunks],
+                documents=[c.text for c in batch_chunks],
+                embeddings=embeddings[start:end],
+                metadatas=[_chunk_metadata(c) for c in batch_chunks],
+            )
+        return len(chunks)
+
     def _open(self) -> chromadb.Collection:
         """Open the existing collection at ``persist_dir`` (lazy, cached)."""
         if self._collection is not None:
@@ -359,6 +386,29 @@ def build_chroma_collection(
         cfg=cfg,
     )
     return store.build(chunks)
+
+
+def add_chunks_to_collection(
+    chunks: list[Chunk],
+    persist_dir: str | Path,
+    *,
+    embedder: EmbeddingAdapter | None = None,
+    collection_name: str = DEFAULT_COLLECTION,
+    cfg: AppConfig | None = None,
+) -> int:
+    """Add ``chunks`` to an existing ChromaDB collection (incremental).
+
+    Thin wrapper around :meth:`ChromaStore.add_chunks` — the incremental,
+    non-destructive counterpart to :func:`build_chroma_collection`. Used by
+    external corpus importers (e.g. MultiUN RAG import).
+    """
+    store = ChromaStore(
+        persist_dir=Path(persist_dir),
+        collection_name=collection_name,
+        embedder=embedder,
+        cfg=cfg,
+    )
+    return store.add_chunks(chunks)
 
 
 def query_chroma(

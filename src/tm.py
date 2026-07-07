@@ -12,6 +12,14 @@ similarity metric is ``difflib.SequenceMatcher.ratio`` (stdlib, no
 dependencies). The threshold (default 0.98) is non-negotiable per the spec
 safety rules: a near-match with a critical legal difference is worse than
 a slow LLM call.
+
+Lookup uses a **two-stage algorithm** (trigram index → SequenceMatcher):
+1. Extract character trigrams from the query and find the top-K entries
+   that share the most trigrams (fast SQL query with an index).
+2. Run ``SequenceMatcher.ratio`` only on those K candidates.
+
+This scales to millions of entries (e.g. MultiUN's 9.7M pairs) without the
+O(n) cost of comparing against every row.
 """
 from __future__ import annotations
 
@@ -25,6 +33,11 @@ from src.state import TmHit
 
 _ARTICLE_MARKER_RE: re.Pattern[str] = re.compile(r"^ARTICLE\s+(.+?)\s*$")
 _HEADER_SEPARATOR: str = "---"
+
+# Two-stage lookup: after the trigram filter, verify at most this many
+# candidates with SequenceMatcher. 50 is enough to catch near-matches while
+# keeping the verification stage fast (50 × SequenceMatcher ≈ <5ms).
+_MAX_CANDIDATES: int = 50
 
 
 @dataclass(slots=True, frozen=True)
@@ -121,15 +134,35 @@ def _align_corpus(corpus_dir: Path) -> list[TmEntry]:
     return entries
 
 
+def _extract_trigrams(text: str) -> set[str]:
+    """Extract the set of character trigrams from ``text``.
+
+    Padded with leading/trailing spaces so short words still produce
+    meaningful trigrams. Whitespace is collapsed to single spaces.
+    """
+    normalized: str = re.sub(r"\s+", " ", text.strip().lower())
+    if len(normalized) < 3:
+        return {normalized} if normalized else set()
+    padded: str = f" {normalized} "
+    return {padded[i:i + 3] for i in range(len(padded) - 2)}
+
+
 class TranslationMemory:
-    """SQLite-backed legal Translation Memory with threshold-gated lookup."""
+    """SQLite-backed legal Translation Memory with threshold-gated lookup.
+
+    Uses a two-stage lookup: a character-trigram index filters candidates
+    fast, then ``SequenceMatcher`` verifies only the top-K. This scales to
+    millions of entries without O(n) comparisons.
+    """
 
     __slots__ = ("_db_path", "_threshold", "_conn")
 
     def __init__(self, *, db_path: str, similarity_threshold: float = 0.98) -> None:
         self._db_path: str = db_path
         self._threshold: float = similarity_threshold
-        self._conn: sqlite3.Connection = sqlite3.connect(db_path)
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path, check_same_thread=False
+        )
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS tm_entries (
@@ -143,11 +176,30 @@ class TranslationMemory:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tm_trigrams (
+                trigram TEXT NOT NULL,
+                entry_id INTEGER NOT NULL,
+                source_lang TEXT NOT NULL,
+                FOREIGN KEY (entry_id) REFERENCES tm_entries(id)
+            )
+            """
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trigram_lang "
+            "ON tm_trigrams(trigram, source_lang)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entry_id "
+            "ON tm_trigrams(entry_id)"
+        )
         self._conn.commit()
 
     def build_from_corpus(self, corpus_dir: Path) -> None:
         """Build the TM by aligning ar/en article pairs. Idempotent rebuild."""
         self._conn.execute("DELETE FROM tm_entries")
+        self._conn.execute("DELETE FROM tm_trigrams")
         entries: list[TmEntry] = _align_corpus(corpus_dir)
         self._conn.executemany(
             """
@@ -159,21 +211,141 @@ class TranslationMemory:
             [(e.source_sentence, e.target_sentence, e.source_lang,
               e.target_lang, e.law_slug, e.article) for e in entries],
         )
+        self._build_trigram_index()
         self._conn.commit()
 
-    def lookup(self, sentence: str, direction: str) -> TmHit | None:
-        """Look up a source sentence; return a TmHit if above threshold."""
-        source_lang: str = direction.split("-")[0]
+    def _build_trigram_index(self) -> None:
+        """Build the trigram index from all entries in ``tm_entries``."""
         rows = self._conn.execute(
-            "SELECT source_sentence, target_sentence FROM tm_entries "
-            "WHERE source_lang = ?",
-            (source_lang,),
+            "SELECT id, source_sentence, source_lang FROM tm_entries"
+        ).fetchall()
+        trigram_rows: list[tuple[str, int, str]] = []
+        for entry_id, sentence, lang in rows:
+            for trigram in _extract_trigrams(sentence):
+                trigram_rows.append((trigram, entry_id, lang))
+        self._conn.executemany(
+            "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
+            trigram_rows,
+        )
+
+    def build_from_parallel(
+        self, pairs: list[tuple[str, str, str, str]],
+    ) -> None:
+        """Build the TM from pre-aligned parallel sentence pairs.
+
+        Each pair is ``(source_sentence, target_sentence, source_lang,
+        target_lang)``. Used by external corpus importers (e.g. MultiUN).
+        Idempotent: clears all existing entries first.
+        """
+        self._conn.execute("DELETE FROM tm_entries")
+        self._conn.execute("DELETE FROM tm_trigrams")
+        self._conn.executemany(
+            """
+            INSERT INTO tm_entries
+                (source_sentence, target_sentence, source_lang,
+                 target_lang, law_slug, article)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
+        )
+        self._build_trigram_index()
+        self._conn.commit()
+
+    def add_parallel(
+        self, pairs: list[tuple[str, str, str, str]],
+    ) -> int:
+        """Add parallel sentence pairs to the TM without clearing existing entries.
+
+        Non-destructive counterpart to :meth:`build_from_parallel`. Inserts
+        new entries and augments the trigram index. Used to merge multiple
+        corpora (e.g. add MultiUN entries to an existing Iraqi-law TM).
+        Returns the number of pairs added.
+        """
+        if not pairs:
+            return 0
+        self._conn.executemany(
+            """
+            INSERT INTO tm_entries
+                (source_sentence, target_sentence, source_lang,
+                 target_lang, law_slug, article)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
+        )
+        # Build trigram index only for the newly inserted rows.
+        rows = self._conn.execute(
+            "SELECT id, source_sentence, source_lang FROM tm_entries "
+            "ORDER BY id DESC LIMIT ?", (len(pairs),),
+        ).fetchall()
+        trigram_rows: list[tuple[str, int, str]] = []
+        for entry_id, sentence, lang in rows:
+            for trigram in _extract_trigrams(sentence):
+                trigram_rows.append((trigram, entry_id, lang))
+        self._conn.executemany(
+            "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
+            trigram_rows,
+        )
+        self._conn.commit()
+        return len(pairs)
+
+    def lookup(self, sentence: str, direction: str) -> TmHit | None:
+        """Look up a source sentence; return a TmHit if above threshold.
+
+        Two-stage: trigram index filters to top-K candidates, then
+        ``SequenceMatcher`` verifies only those. Falls back to full scan
+        if the trigram index is empty (backward compat with old DBs).
+        """
+        source_lang: str = direction.split("-")[0]
+        query_trigrams: set[str] = _extract_trigrams(sentence)
+        if not query_trigrams:
+            return None
+
+        # Stage 1: fast trigram-based candidate filtering.
+        placeholders: str = ",".join("?" * len(query_trigrams))
+        candidates = self._conn.execute(
+            f"""
+            SELECT entry_id, COUNT(*) AS shared
+            FROM tm_trigrams
+            WHERE source_lang = ? AND trigram IN ({placeholders})
+            GROUP BY entry_id
+            ORDER BY shared DESC
+            LIMIT ?
+            """,
+            (source_lang, *query_trigrams, _MAX_CANDIDATES),
         ).fetchall()
 
+        if not candidates:
+            # Fallback: no trigram index (old DB) → full scan.
+            rows = self._conn.execute(
+                "SELECT id, source_sentence, target_sentence FROM tm_entries "
+                "WHERE source_lang = ?",
+                (source_lang,),
+            ).fetchall()
+            candidate_ids: list[int] = [r[0] for r in rows]
+            candidate_map: dict[int, tuple[str, str]] = {
+                r[0]: (r[1], r[2]) for r in rows
+            }
+        else:
+            candidate_ids = [c[0] for c in candidates]
+            if not candidate_ids:
+                return None
+            placeholders_ids: str = ",".join("?" * len(candidate_ids))
+            rows = self._conn.execute(
+                f"SELECT id, source_sentence, target_sentence FROM tm_entries "
+                f"WHERE id IN ({placeholders_ids})",
+                candidate_ids,
+            ).fetchall()
+            candidate_map = {r[0]: (r[1], r[2]) for r in rows}
+
+        # Stage 2: precise SequenceMatcher verification on candidates only.
         best_ratio: float = 0.0
         best_source: str = ""
         best_target: str = ""
-        for source_sentence, target_sentence in rows:
+        for cid in candidate_ids:
+            pair = candidate_map.get(cid)
+            if pair is None:
+                continue
+            source_sentence, target_sentence = pair
             ratio: float = SequenceMatcher(None, sentence, source_sentence).ratio()
             if ratio > best_ratio:
                 best_ratio = ratio

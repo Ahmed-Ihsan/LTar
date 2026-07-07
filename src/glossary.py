@@ -357,7 +357,63 @@ def load_glossary_files(glob_pattern: str | Path) -> list[Term]:
                 )
             )
             global_order += 1
+    # Append reverse (bidirectional) entries derived from the explicit terms so
+    # the glossary grounds both directions equally. Explicit entries always win
+    # (they keep their lower file_order; _resolve_conflict §2.4 tie-breaks on
+    # priority → length → law_ref → earliest file_order). A reverse is only
+    # derived when no explicit entry already covers that (source, target) pair.
+    all_terms.extend(_derive_reverse_terms(all_terms, start_order=global_order))
     return all_terms
+
+
+def _derive_reverse_terms(terms: list[Term], *, start_order: int = 0) -> list[Term]:
+    """Return reverse entries for terms whose reverse is not already present.
+
+    For an explicit term ``(src, sl) -> (tgt, tl)``, the reverse is
+    ``(tgt, tl) -> (src, sl)`` reusing the same ``law_ref``, ``domain``,
+    ``article_ref``, ``note``, and ``priority``. This is correct by
+    construction — it reuses the authored pair rather than inventing a new
+    translation. Explicit entries (loaded from JSON) always take precedence:
+    if an explicit entry already covers the reverse direction, no derived
+    entry is emitted. Derived entries are deduplicated among themselves and
+    stamped with ``file_order`` starting at ``start_order`` (so they sort
+    after every explicit entry and lose §2.4 tie-breaks against them).
+    """
+    explicit_keys: set[tuple[str, str, str]] = {
+        (t.source_term_norm, t.source_lang, t.target_lang)
+        for t in terms
+    }
+    derived: list[Term] = []
+    seen: set[tuple[str, str, str]] = set()
+    order: int = start_order
+    for t in terms:
+        rev_src_term: str = t.target_term
+        rev_src_lang: Lang = t.target_lang
+        rev_tgt_term: str = t.source_term
+        rev_tgt_lang: Lang = t.source_lang
+        rev_norm: str = normalize(rev_src_term, rev_src_lang)
+        key: tuple[str, str, str] = (rev_norm, rev_src_lang, rev_tgt_lang)
+        if key in explicit_keys or key in seen:
+            continue
+        seen.add(key)
+        derived.append(
+            Term(
+                source_term=rev_src_term,
+                source_lang=rev_src_lang,
+                target_term=rev_tgt_term,
+                target_lang=rev_tgt_lang,
+                law_ref=t.law_ref,
+                domain=t.domain,
+                source_term_norm=rev_norm,
+                file_path=t.file_path,
+                file_order=order,
+                article_ref=t.article_ref,
+                note=t.note,
+                priority=t.priority,
+            )
+        )
+        order += 1
+    return derived
 
 
 # ---------------------------------------------------------------------------
@@ -501,7 +557,7 @@ class GlossaryIndex:
         for term in self.terms:
             grouped[term.source_lang].append(term)
         self._by_lang = {
-            lang: _LangIndex.build(terms) for lang, terms in grouped.items()
+            lang: _LangIndex.build(terms, lang) for lang, terms in grouped.items()
         }
 
     def scan(self, text: str, lang: Lang) -> list[GlossaryHit]:
@@ -535,8 +591,13 @@ class _LangIndex:
     terms_by_norm: dict[str, list[Term]]
 
     @classmethod
-    def build(cls, terms: list[Term]) -> _LangIndex:
-        """Compile the alternation regex and the norm → terms lookup map."""
+    def build(cls, terms: list[Term], lang: Lang = "ar") -> _LangIndex:
+        """Compile the alternation regex and the norm → terms lookup map.
+
+        English terms are normalized to lowercase, so the regex is compiled
+        with :data:`re.IGNORECASE` to match capitalized source text (e.g.
+        "Court of First Instance"). Arabic has no case and is unaffected.
+        """
         if not terms:
             return cls(pattern=None, terms_by_norm={})
         terms_by_norm: dict[str, list[Term]] = {}
@@ -550,7 +611,8 @@ class _LangIndex:
         alternation: str = "|".join(
             _diacritic_tolerant_pattern(n) for n in ordered_norms
         )
-        pattern: re.Pattern[str] = re.compile(alternation)
+        flags: int = re.IGNORECASE if lang == "en" else 0
+        pattern: re.Pattern[str] = re.compile(alternation, flags)
         return cls(pattern=pattern, terms_by_norm=terms_by_norm)
 
 

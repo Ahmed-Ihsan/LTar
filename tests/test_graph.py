@@ -160,15 +160,18 @@ class TestGraphCompiles:
         )
         edges: dict[str, str] = dict(graph.builder.edges)
         # Static edges (ARCHITECTURE.md §4.3): START->preprocess,
-        # preprocess->tm_lookup->translate, translate->auditor, finalize->END.
+        # preprocess->tm_lookup, translate->auditor, tm_bypass->finalize,
+        # finalize->END.
         assert edges["__start__"] == "preprocess"
         assert edges["preprocess"] == "tm_lookup"
-        assert edges["tm_lookup"] == "translate"
         assert edges["translate"] == "auditor"
+        assert edges["tm_bypass"] == "finalize"
         assert edges["finalize"] == "__end__"
-        # The audit->? edge is conditional, so it lives in `branches`, not
-        # `edges`. The ``auditor`` node must have exactly one conditional
-        # branch (the route_audit fork to finalize | translate).
+        # The tm_lookup->? and audit->? edges are conditional, so they live in
+        # `branches`, not `edges`: tm_lookup forks (route_after_tm) to
+        # {tm_bypass | translate}, and auditor forks (route_audit) to
+        # {finalize | translate}.
+        assert "tm_lookup" in graph.builder.branches
         assert "auditor" in graph.builder.branches
 
 
@@ -392,3 +395,78 @@ def test_graph_skips_tm_lookup_when_tm_is_none(
     state = _initial_state("المادة 148: عقد البيع")
     result = graph.invoke(state)
     assert result["tm_hits"] == []
+
+
+# ---------------------------------------------------------------------------
+# TM bypass: a >= threshold hit skips the LLM entirely (spec §5.4)
+# ---------------------------------------------------------------------------
+
+
+def _build_tm(tmp_path):
+    """Build a small TM whose ARTICLE 1 pair is عقد البيع -> Contract of sale."""
+    corpus_dir = tmp_path / "corpus"
+    corpus_dir.mkdir()
+    (corpus_dir / "civil_code_ar.txt").write_text(
+        "LAW: قانون\nLANG: ar\n---\n\nARTICLE 1\nعقد البيع\n", encoding="utf-8")
+    (corpus_dir / "civil_code_en.txt").write_text(
+        "LAW: Code\nLANG: en\n---\n\nARTICLE 1\nContract of sale\n",
+        encoding="utf-8")
+    from src.tm import TranslationMemory
+    tm = TranslationMemory(
+        db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98)
+    tm.build_from_corpus(corpus_dir)
+    return tm
+
+
+def test_tm_hit_bypasses_the_llm(
+    config, mock_llm, mock_embedder, glossary_index, tmp_path
+):
+    """A >= threshold TM hit emits the stored translation without any LLM call."""
+    persist_dir = str(tmp_path / "chroma")
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    tm = _build_tm(tmp_path)
+    graph = build_graph(
+        llm=mock_llm, cfg=config, glossary_index=glossary_index,
+        embedder=mock_embedder, persist_dir=persist_dir, tm=tm)
+    result = graph.invoke(_initial_state("عقد البيع"))
+    assert result["final_output"] == "Contract of sale"
+    # Neither the translator nor the auditor was called.
+    assert mock_llm.call_log == []
+    assert result["audit"]["verdict"] == "APPROVE"
+    tm.close()
+
+
+def test_tm_miss_invokes_the_llm(
+    config, mock_llm, mock_embedder, glossary_index, tmp_path
+):
+    """A below-threshold input falls through to the normal translate/audit path."""
+    persist_dir = str(tmp_path / "chroma")
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    tm = _build_tm(tmp_path)
+    graph = build_graph(
+        llm=mock_llm, cfg=config, glossary_index=glossary_index,
+        embedder=mock_embedder, persist_dir=persist_dir, tm=tm)
+    result = graph.invoke(
+        _initial_state("نص قانوني مختلف تماماً لا يطابق أي شيء في الذاكرة."))
+    assert result["tm_hits"] == []
+    assert result["final_output"] == "[Mock translation output]"
+    # The LLM ran for both the translator and the auditor.
+    assert len(mock_llm.call_log) >= 2
+    tm.close()
+
+
+class TestRouteAfterTm:
+    def test_hit_above_threshold_routes_to_bypass(self) -> None:
+        from src.graph import route_after_tm
+        state = _initial_state()
+        state["tm_hits"] = [{
+            "source_sentence": "s", "target_sentence": "t",
+            "similarity": 1.0, "char_start": 0, "char_end": 1,
+        }]
+        assert route_after_tm(state, threshold=0.98) == "tm_bypass"
+
+    def test_no_hit_routes_to_translate(self) -> None:
+        from src.graph import route_after_tm
+        state = _initial_state()
+        state["tm_hits"] = []
+        assert route_after_tm(state, threshold=0.98) == "translate"

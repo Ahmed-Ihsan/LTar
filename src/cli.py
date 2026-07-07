@@ -183,6 +183,20 @@ def _canonical_model_name(name: str) -> str:
     return f"{name}:latest"
 
 
+def _list_ollama_models(host: str) -> list[str]:
+    """Return the names of models installed on the Ollama instance at ``host``.
+
+    Returns an empty list if the daemon is unreachable (the UI falls back to
+    the config default in that case). Used by the Tkinter UI to populate the
+    model dropdown.
+    """
+    try:
+        response = ollama.Client(host=host).list()
+    except (ConnectionError, OSError):
+        return []
+    return [m.model for m in response.models if m.model]
+
+
 def _check_models_present(client: ollama.Client, cfg: AppConfig) -> CheckResult:
     """Verify both the LLM and embedding models are present locally."""
     try:
@@ -628,11 +642,14 @@ def _provenance_markdown(state: TranslationState) -> str:
 
     Mirrors :func:`_render_provenance` but in Markdown so it renders in the
     collapsible Gradio ``Accordion``. Pure function — no I/O.
+
+    Uses ``## `` sub-headers so the JS ``renderProvenance`` function can split
+    on ``^## `` and create collapsible sections per block.
     """
-    lines: list[str] = ["### Provenance"]
+    lines: list[str] = []
 
     hits: list = state.get("glossary_hits", [])
-    lines.append(f"**Glossary terms applied ({len(hits)}):**")
+    lines.append(f"## Glossary terms applied ({len(hits)})")
     if hits:
         for hit in hits:
             article: str = hit.get("article_ref", "") or ""
@@ -644,7 +661,7 @@ def _provenance_markdown(state: TranslationState) -> str:
         lines.append("- (none)")
 
     chunks: list = state.get("context_chunks", [])
-    lines.append(f"\n**Source chunks cited ({len(chunks)}):**")
+    lines.append(f"\n## Source chunks cited ({len(chunks)})")
     if chunks:
         for i, chunk in enumerate(chunks, start=1):
             score: float = float(chunk.get("score", 0.0))
@@ -668,7 +685,7 @@ def _provenance_markdown(state: TranslationState) -> str:
         critique = str(audit.get("critique", ""))
     revision_count: int = int(state.get("revision_count", 0))
     lines.append(
-        f"\n**Audit verdict:** {verdict} "
+        f"\n## Audit verdict: {verdict} "
         f"(confidence: {confidence:.2f}, revisions: {revision_count})"
     )
     if critique:
@@ -676,7 +693,7 @@ def _provenance_markdown(state: TranslationState) -> str:
 
     warnings: list[str] = list(state.get("warnings", []))
     if warnings:
-        lines.append("\n**Warnings:**")
+        lines.append("\n## Warnings")
         for w in warnings:
             lines.append(f"- {w}")
 
@@ -1098,6 +1115,164 @@ def tm_build(
     typer.echo(f"TM built: {len(entries)} entries in {dbpath}")
 
 
+@app.command("tm-build-parallel")
+def tm_build_parallel(
+    jsonl_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a JSONL file of parallel sentence pairs "
+                            "(fields: source_sentence, target_sentence, "
+                            "source_lang, target_lang)."),
+    ],
+    tm_db: Annotated[
+        str | None,
+        typer.Option("--tm-db", help="Path to the TM SQLite DB to create."),
+    ] = None,
+    max_pairs: Annotated[
+        int,
+        typer.Option("--max-pairs", help="Max sentence pairs to import "
+                                          "(default 10000 — keeps RAM bounded)."),
+    ] = 10000,
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to config.yaml."),
+    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+) -> None:
+    """Build the TM from a JSONL file of pre-aligned parallel sentence pairs.
+
+    Used to import external corpora (e.g. MultiUN filtered sentences) into the
+    Translation Memory. Idempotent: clears all existing TM entries first.
+    """
+    import json
+
+    try:
+        cfg: AppConfig = load_config(config_path)
+    except Exception as e:
+        typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+
+    dbpath: str = tm_db if tm_db is not None else str(_resolve_path(cfg, cfg.tm_db))
+
+    if not jsonl_path.exists():
+        typer.secho(f"error: {jsonl_path} not found", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    pairs: list[tuple[str, str, str, str]] = []
+    with open(jsonl_path, encoding="utf-8") as f:
+        for line in f:
+            if len(pairs) >= max_pairs:
+                break
+            try:
+                record: dict = json.loads(line)
+                pairs.append((
+                    record["source_sentence"],
+                    record["target_sentence"],
+                    record.get("source_lang", "ar"),
+                    record.get("target_lang", "en"),
+                ))
+            except (json.JSONDecodeError, KeyError) as e:
+                typer.secho(
+                    f"error: malformed JSONL line in {jsonl_path}: {e}",
+                    fg=typer.colors.RED, err=True,
+                )
+                raise typer.Exit(code=1) from e
+
+    if not pairs:
+        typer.secho(f"error: no valid pairs found in {jsonl_path}",
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    from src.tm import TranslationMemory
+
+    tm = TranslationMemory(
+        db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
+    )
+    tm.build_from_parallel(pairs)
+    entries = tm.list_all()
+    tm.close()
+    typer.echo(f"TM built from parallel: {len(entries)} entries ({len(pairs)} pairs) in {dbpath}")
+
+
+@app.command("tm-add-parallel")
+def tm_add_parallel(
+    jsonl_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a JSONL file of parallel sentence pairs "
+                            "(fields: source_sentence, target_sentence, "
+                            "source_lang, target_lang)."),
+    ],
+    tm_db: Annotated[
+        str | None,
+        typer.Option("--tm-db", help="Path to the TM SQLite DB to augment."),
+    ] = None,
+    max_pairs: Annotated[
+        int,
+        typer.Option("--max-pairs", help="Max sentence pairs to add "
+                                          "(default 10000 — keeps RAM bounded)."),
+    ] = 10000,
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to config.yaml."),
+    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+) -> None:
+    """Add parallel sentence pairs to an existing TM (non-destructive).
+
+    Unlike ``tm-build-parallel``, this does NOT clear existing entries.
+    Use it to merge external corpora (e.g. MultiUN) into a TM that already
+    has Iraqi-law entries.
+    """
+    import json
+
+    try:
+        cfg: AppConfig = load_config(config_path)
+    except Exception as e:
+        typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+
+    dbpath: str = tm_db if tm_db is not None else str(_resolve_path(cfg, cfg.tm_db))
+
+    if not jsonl_path.exists():
+        typer.secho(f"error: {jsonl_path} not found", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    pairs: list[tuple[str, str, str, str]] = []
+    with open(jsonl_path, encoding="utf-8") as f:
+        for line in f:
+            if len(pairs) >= max_pairs:
+                break
+            try:
+                record: dict = json.loads(line)
+                pairs.append((
+                    record["source_sentence"],
+                    record["target_sentence"],
+                    record.get("source_lang", "ar"),
+                    record.get("target_lang", "en"),
+                ))
+            except (json.JSONDecodeError, KeyError) as e:
+                typer.secho(
+                    f"error: malformed JSONL line in {jsonl_path}: {e}",
+                    fg=typer.colors.RED, err=True,
+                )
+                raise typer.Exit(code=1) from e
+
+    if not pairs:
+        typer.secho(f"error: no valid pairs found in {jsonl_path}",
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    from src.tm import TranslationMemory
+
+    tm = TranslationMemory(
+        db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
+    )
+    before: int = len(tm.list_all())
+    added: int = tm.add_parallel(pairs)
+    after: int = len(tm.list_all())
+    tm.close()
+    typer.echo(
+        f"TM augmented: {added} pairs added ({before} → {after} entries) in {dbpath}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 4.2.1 / 4.2.2 Tkinter desktop UI command
 # ---------------------------------------------------------------------------
@@ -1110,10 +1285,10 @@ def ui(
         typer.Option("--config", "-c", help="Path to config.yaml."),
     ] = Path(__file__).resolve().parent.parent / "config.yaml",
 ) -> None:
-    """Launch a Tkinter desktop UI for interactive translation + audit trace.
+    """Launch a web-based desktop UI for interactive translation + audit trace.
 
-    Tab "Translate": source text box, direction dropdown, Translate button,
-    and an output panel with the translation plus a provenance block
+    Tab "Translate": source text box, direction + model dropdowns, Translate
+    button, and an output panel with the translation plus a provenance block
     (glossary hits, retrieved chunks, audit verdict).
 
     Tab "Audit Trace": the full revision history (each draft + critique) for
@@ -1128,9 +1303,9 @@ def ui(
     # Construct concrete adapters once at launch (engineering-principles §3.6).
     adapters: Adapters = _construct_adapters(cfg)
 
-    from src.tk_ui import launch_ui
+    from src.web_ui import launch_ui
 
-    typer.secho("Launching Tkinter desktop UI…", fg=typer.colors.CYAN)
+    typer.secho("Launching web desktop UI…", fg=typer.colors.CYAN)
     launch_ui(cfg, adapters)
 
 

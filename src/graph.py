@@ -26,9 +26,17 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 
 from src.config import AppConfig
+from src.decision import route_tm
 from src.glossary import GlossaryIndex
 from src.llm import LLMEngineAdapter
-from src.nodes import audit_node, finalize_node, preprocess_node, tm_lookup_node, translate_node
+from src.nodes import (
+    audit_node,
+    finalize_node,
+    preprocess_node,
+    tm_bypass_node,
+    tm_lookup_node,
+    translate_node,
+)
 from src.run_logging import RunLogger
 from src.state import TranslationState
 
@@ -39,6 +47,7 @@ _NodeCallable = Callable[[TranslationState], TranslationState]
 # clean-code §1.1: closed string sets as constants).
 PREPROCESS_NODE: str = "preprocess"
 TM_LOOKUP_NODE: str = "tm_lookup"
+TM_BYPASS_NODE: str = "tm_bypass"
 TRANSLATE_NODE: str = "translate"
 # LangGraph 0.2.x forbids a node name that collides with a state key. The
 # state field that holds the verdict is ``audit`` (ARCHITECTURE.md §4.1), so
@@ -49,10 +58,35 @@ TRANSLATE_NODE: str = "translate"
 AUDIT_NODE: str = "auditor"
 FINALIZE_NODE: str = "finalize"
 
-# Conditional-edge return values (route_audit outcomes). These double as the
-# target node names, so the path map is the identity mapping.
+# Conditional-edge return values (route_audit / route_after_tm outcomes). These
+# double as the target node names, so the path map is the identity mapping.
 _ROUTE_FINALIZE: str = "finalize"
 _ROUTE_TRANSLATE: str = "translate"
+_ROUTE_TM_BYPASS: str = "tm_bypass"
+
+
+def route_after_tm(state: TranslationState, *, threshold: float) -> str:
+    """Conditional edge after ``tm_lookup`` — TM bypass gate (spec §5.4).
+
+    A pure routing function (it MUST NOT mutate state). Delegates the accept /
+    reject decision to :func:`decision.route_tm`, the single source of truth
+    for threshold gating:
+
+    - a ``tm_hits`` entry with similarity ``>= threshold`` -> ``tm_bypass``
+      (emit the stored translation, skipping the Translator and Auditor);
+    - no hit, or a below-threshold hit -> ``translate`` (normal LLM path).
+
+    ``threshold`` is bound at graph-build time from
+    ``config.tm_similarity_threshold`` via ``functools.partial`` (DRY, no magic
+    numbers). ``tm_lookup`` already gates at the store level; routing through
+    ``route_tm`` here keeps the decision explicit, testable, and independent of
+    the store implementation.
+    """
+    hits = state.get("tm_hits") or []
+    hit = hits[0] if hits else None
+    if route_tm(hit, threshold=threshold):
+        return _ROUTE_TM_BYPASS
+    return _ROUTE_TRANSLATE
 
 
 def route_audit(state: TranslationState, *, max_revisions: int) -> str:
@@ -167,6 +201,10 @@ def build_graph(
         _bind(TM_LOOKUP_NODE, partial(tm_lookup_node, tm=tm, cfg=cfg)),
     )
     graph.add_node(
+        TM_BYPASS_NODE,
+        _bind(TM_BYPASS_NODE, tm_bypass_node),
+    )
+    graph.add_node(
         TRANSLATE_NODE,
         _bind(TRANSLATE_NODE, partial(translate_node, llm=llm, cfg=cfg)),
     )
@@ -181,7 +219,14 @@ def build_graph(
 
     graph.set_entry_point(PREPROCESS_NODE)
     graph.add_edge(PREPROCESS_NODE, TM_LOOKUP_NODE)
-    graph.add_edge(TM_LOOKUP_NODE, TRANSLATE_NODE)
+    # A >= threshold TM hit bypasses the LLM (tm_bypass -> finalize); a miss
+    # falls through to the normal translate/audit path (spec §5.4).
+    graph.add_conditional_edges(
+        TM_LOOKUP_NODE,
+        partial(route_after_tm, threshold=cfg.tm_similarity_threshold),
+        {_ROUTE_TM_BYPASS: _ROUTE_TM_BYPASS, _ROUTE_TRANSLATE: _ROUTE_TRANSLATE},
+    )
+    graph.add_edge(TM_BYPASS_NODE, FINALIZE_NODE)
     graph.add_edge(TRANSLATE_NODE, AUDIT_NODE)
 
     graph.add_conditional_edges(

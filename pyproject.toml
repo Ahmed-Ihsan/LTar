@@ -28,6 +28,7 @@ dependencies = [
     "rich>=13.7,<14",
     "pydantic>=2.6,<3",
     "pyyaml>=6.0,<7",
+    "pywebview>=5.0,<7",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +60,10 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # Prompt constants hold the canonical PROMPTS.md text verbatim; wrapping would
 # alter prompt wording (prompts are versioned code, PROMPTS.md §5).
 "src/prompts.py" = ["E501"]
+# web_ui.py holds a single embedded HTML/CSS/JS document (no external assets);
+# long lines are inline SVG attributes and compact CSS one-liners that wrapping
+# would harm readability of, not Python code.
+"src/web_ui.py" = ["E501"]
 # The LLMEngineAdapter.generate signature is fixed by ARCHITECTURE.md §5.3
 # (system, user, model, temperature, max_tokens, timeout) — 6 args is the
 # mandated adapter contract, not an over-engineered function.

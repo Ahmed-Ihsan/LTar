@@ -33,13 +33,16 @@ from src.config import AppConfig
 from src.glossary import GlossaryIndex, scan_glossary_hits
 from src.llm import LLMEngineAdapter
 from src.prompts import (
-    AUDITOR_SYSTEM_V1,
-    AUDITOR_USER_TEMPLATE_V1,
-    TRANSLATOR_REVISION_ADDENDUM_V1,
-    TRANSLATOR_SYSTEM_V1,
-    TRANSLATOR_USER_TEMPLATE_V1,
+    AUDITOR_SYSTEM_V4,
+    AUDITOR_USER_TEMPLATE_V4,
+    TRANSLATOR_REVISION_ADDENDUM_V4,
+    TRANSLATOR_SYSTEM_V4,
+    TRANSLATOR_USER_TEMPLATE_V4,
 )
 from src.retrieval import retrieve_context_chunks
+from src.state import (
+    AuditVerdict as StateAuditVerdict,
+)
 from src.state import (
     ContextChunk as StateContextChunk,
 )
@@ -100,6 +103,32 @@ def _require_fields(state: TranslationState, fields: tuple[str, ...]) -> None:
 def _langs(direction: str) -> tuple[str, str]:
     """Resolve ``(source_lang, target_lang)`` from a translation direction."""
     return _DIR_LANGS[direction]
+
+
+def _augment_query_for_retrieval(
+    input_text: str,
+    source_lang: str,
+    target_lang: str,
+    hits: list[StateGlossaryHit],
+) -> str:
+    """Augment the retrieval query with target-language glossary anchors.
+
+    The RAG corpus is predominantly Arabic (see the corpus build in
+    ``src/ingestion.py``), so an English query embeds poorly against it and
+    EN→AR retrieval returns weakly-relevant chunks. For EN→AR, the
+    glossary-bound Arabic target terms are appended to the query as anchors so
+    the Arabic corpus returns chunks the translator can mimic for register and
+    phrasing. AR→EN retrieval is already monolingual (Arabic query → Arabic
+    corpus) and is left unchanged to avoid regressing the strong direction.
+    """
+    if source_lang != "en" or target_lang != "ar" or not hits:
+        return input_text
+    anchors: list[str] = [
+        h["target_term"] for h in hits if h.get("target_term")
+    ]
+    if not anchors:
+        return input_text
+    return input_text + "\n" + " ".join(anchors)
 
 
 def _format_glossary_bindings(hits: list[StateGlossaryHit]) -> str:
@@ -195,17 +224,22 @@ def preprocess_node(
     """
     _require_fields(state, ("input_text", "direction"))
     input_text: str = state["input_text"].strip()
-    source_lang, _target_lang = _langs(state["direction"])
+    source_lang, target_lang = _langs(state["direction"])
 
     hits: list[StateGlossaryHit] = [
         _hit_to_state(h)
         for h in scan_glossary_hits(input_text, source_lang, index=glossary_index)
     ]
 
+    # For EN→AR, anchor the retrieval query with the glossary-bound Arabic
+    # target terms so the predominantly-Arabic corpus returns relevant chunks.
+    retrieval_query: str = _augment_query_for_retrieval(
+        input_text, source_lang, target_lang, hits,
+    )
     chunks: list[StateContextChunk] = [
         _chunk_to_state(c)
         for c in retrieve_context_chunks(
-            input_text,
+            retrieval_query,
             persist_dir=persist_dir,
             embedder=embedder,  # type: ignore[arg-type]
             cfg=cfg,
@@ -490,20 +524,53 @@ def tm_lookup_node(
 
 
 # ---------------------------------------------------------------------------
+# tm_bypass_node (TM layer — spec §5.4: pre-approved TM output)
+# ---------------------------------------------------------------------------
+
+
+def tm_bypass_node(state: TranslationState) -> TranslationState:
+    """Emit a Translation Memory hit directly, bypassing the LLM (spec §5.4).
+
+    Reads: ``tm_hits``.
+    Writes: ``draft`` (the stored target translation) and a synthetic
+    ``APPROVE`` ``audit`` verdict.
+
+    Reached only via the ``route_after_tm`` conditional edge, when the first
+    ``tm_hits`` entry is at or above the similarity threshold. Per spec §5.4 a
+    TM match is *pre-approved*: it bypasses both the Translator and the
+    Auditor. Writing a synthetic APPROVE verdict keeps ``finalize_node``'s
+    contract satisfied (it reads ``audit``) and records provenance — the
+    ``confidence`` carries the match similarity so the trace is auditable.
+    """
+    _require_fields(state, ("tm_hits",))
+    hit: StateTmHit = state["tm_hits"][0]
+    verdict: StateAuditVerdict = {
+        "verdict": "APPROVE",
+        "critique": (
+            f"Pre-approved: Translation Memory match "
+            f"(similarity={hit['similarity']:.4f})."
+        ),
+        "violations": [],
+        "confidence": hit["similarity"],
+    }
+    return {**state, "draft": hit["target_sentence"], "audit": verdict}
+
+
+# ---------------------------------------------------------------------------
 # Prompt constants — the versioned templates in prompts.py are the single
 # source of truth (DRY, engineering-principles §2.1.3). The translator system
 # role carries runtime {source_lang}/{target_lang} placeholders, so it is
 # formatted per call; the auditor system role has no placeholders.
 # ---------------------------------------------------------------------------
 
-_AUDITOR_SYSTEM: str = AUDITOR_SYSTEM_V1
-_REVISION_ADDENDUM: str = TRANSLATOR_REVISION_ADDENDUM_V1
-_TRANSLATOR_USER: str = TRANSLATOR_USER_TEMPLATE_V1
-_AUDITOR_USER: str = AUDITOR_USER_TEMPLATE_V1
+_AUDITOR_SYSTEM: str = AUDITOR_SYSTEM_V4
+_REVISION_ADDENDUM: str = TRANSLATOR_REVISION_ADDENDUM_V4
+_TRANSLATOR_USER: str = TRANSLATOR_USER_TEMPLATE_V4
+_AUDITOR_USER: str = AUDITOR_USER_TEMPLATE_V4
 
 
 def _TRANSLATOR_SYSTEM(source_lang: str, target_lang: str) -> str:
     """Format the translator system role with the runtime language pair."""
-    return TRANSLATOR_SYSTEM_V1.format(
+    return TRANSLATOR_SYSTEM_V4.format(
         source_lang=source_lang, target_lang=target_lang
     )

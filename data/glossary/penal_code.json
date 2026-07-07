@@ -4,6 +4,26 @@
   "last_updated": "2026-07-02",
   "terms": [
     {
+      "source_term": "Penal Code",
+      "source_lang": "en",
+      "target_term": "قانون العقوبات",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Iraqi law name. Do NOT use 'القانون الجنائي' (that is a generic calque, not the Iraqi statute name).",
+      "priority": 10
+    },
+    {
+      "source_term": "قانون العقوبات",
+      "source_lang": "ar",
+      "target_term": "Penal Code",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Iraqi law name.",
+      "priority": 10
+    },
+    {
       "source_term": "السرقة",
       "source_lang": "ar",
       "target_term": "theft",

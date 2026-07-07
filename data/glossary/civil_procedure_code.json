@@ -4,6 +4,66 @@
   "last_updated": "2026-07-02",
   "terms": [
     {
+      "source_term": "Civil Procedure Code",
+      "source_lang": "en",
+      "target_term": "قانون المرافعات المدنية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Iraqi law name. NEVER use the Maghrebi term 'المسطرة' — that is Moroccan, not Iraqi.",
+      "priority": 10
+    },
+    {
+      "source_term": "قانون المرافعات المدنية",
+      "source_lang": "ar",
+      "target_term": "Civil Procedure Code",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Iraqi law name. The Maghrebi term 'المسطرة' is NOT used in Iraqi law.",
+      "priority": 10
+    },
+    {
+      "source_term": "Civil Litigation Law",
+      "source_lang": "en",
+      "target_term": "قانون المرافعات المدنية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Synonym for Civil Procedure Code. NEVER use the Maghrebi term 'المسطرة' — that is Moroccan, not Iraqi.",
+      "priority": 10
+    },
+    {
+      "source_term": "Court of First Instance",
+      "source_lang": "en",
+      "target_term": "محكمة البداية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Iraqi court of first instance. Do NOT translate as 'basic court' or 'primary court'.",
+      "priority": 10
+    },
+    {
+      "source_term": "محكمة البداية",
+      "source_lang": "ar",
+      "target_term": "Court of First Instance",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Iraqi court of first instance. Do NOT translate as 'basic court' or 'primary court'.",
+      "priority": 10
+    },
+    {
+      "source_term": "basic court",
+      "source_lang": "en",
+      "target_term": "محكمة البداية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Informal English rendering of محكمة البداية. Use 'Court of First Instance' in formal EN→AR; this entry catches the informal source term.",
+      "priority": 7
+    },
+    {
       "source_term": "صحيفة الدعوى",
       "source_lang": "ar",
       "target_term": "statement of claim",

@@ -91,6 +91,8 @@ class TranslationState(TypedDict):
 
     - ``preprocess`` writes ``glossary_hits`` and ``context_chunks`` (only).
     - ``tm_lookup`` reads ``input_text`` / ``direction``; writes ``tm_hits``.
+    - ``tm_bypass`` reads ``tm_hits``; writes ``draft`` and a pre-approved
+      ``audit`` verdict (spec §5.4: a >= threshold TM match bypasses the LLM).
     - ``translate`` reads ``glossary_hits`` / ``context_chunks`` / ``direction``
       / ``input_text``; writes ``draft``; increments ``revision_count`` only
       on re-entry (first pass sets it to 0).

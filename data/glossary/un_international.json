@@ -1,0 +1,597 @@
+{
+  "domain": "un_international",
+  "version": "1.0.0",
+  "last_updated": "2026-07-07",
+  "terms": [
+    {
+      "source_term": "المادة",
+      "source_lang": "ar",
+      "target_term": "article",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=27734, confidence=72%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "القرار",
+      "source_lang": "ar",
+      "target_term": "resolution",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=26958, confidence=67%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الفقرة",
+      "source_lang": "ar",
+      "target_term": "paragraph",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=23864, confidence=63%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "القانون",
+      "source_lang": "ar",
+      "target_term": "law",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=20505, confidence=52%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "البند",
+      "source_lang": "ar",
+      "target_term": "item",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=15239, confidence=81%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الاتفاقية",
+      "source_lang": "ar",
+      "target_term": "convention",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=13206, confidence=67%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الحق",
+      "source_lang": "ar",
+      "target_term": "right",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=6725, confidence=86%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الجريمة",
+      "source_lang": "ar",
+      "target_term": "crime",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=6349, confidence=71%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "التنفيذ",
+      "source_lang": "ar",
+      "target_term": "implementation",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=6026, confidence=70%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المدني",
+      "source_lang": "ar",
+      "target_term": "civil",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=5664, confidence=87%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "القرارات",
+      "source_lang": "ar",
+      "target_term": "resolutions",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=5270, confidence=39%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الحقوق",
+      "source_lang": "ar",
+      "target_term": "rights",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=5265, confidence=76%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المعاهدة",
+      "source_lang": "ar",
+      "target_term": "treaty",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=4727, confidence=62%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "البروتوكول",
+      "source_lang": "ar",
+      "target_term": "protocol",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=4395, confidence=66%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الاتفاق",
+      "source_lang": "ar",
+      "target_term": "agreement",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=4393, confidence=55%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المسؤولية",
+      "source_lang": "ar",
+      "target_term": "responsibility",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3767, confidence=60%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "محكمة",
+      "source_lang": "ar",
+      "target_term": "court",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3515, confidence=74%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الالتزام",
+      "source_lang": "ar",
+      "target_term": "commitment",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3490, confidence=48%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الالتزامات",
+      "source_lang": "ar",
+      "target_term": "commitments",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3335, confidence=41%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الأحكام",
+      "source_lang": "ar",
+      "target_term": "provisions",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3318, confidence=66%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "النص",
+      "source_lang": "ar",
+      "target_term": "text",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3255, confidence=56%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الجرائم",
+      "source_lang": "ar",
+      "target_term": "crimes",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3216, confidence=49%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المعاهدات",
+      "source_lang": "ar",
+      "target_term": "treaties",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3204, confidence=54%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الفقرات",
+      "source_lang": "ar",
+      "target_term": "paragraphs",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=3006, confidence=49%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "التحقيق",
+      "source_lang": "ar",
+      "target_term": "investigation",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=2740, confidence=36%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الدفاع",
+      "source_lang": "ar",
+      "target_term": "defence",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=2644, confidence=48%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الدستور",
+      "source_lang": "ar",
+      "target_term": "constitution",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=2034, confidence=58%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "البنود",
+      "source_lang": "ar",
+      "target_term": "items",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1717, confidence=69%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الملكية",
+      "source_lang": "ar",
+      "target_term": "property",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1649, confidence=47%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الإداري",
+      "source_lang": "ar",
+      "target_term": "administrative",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1585, confidence=54%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "قانوني",
+      "source_lang": "ar",
+      "target_term": "legal",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1551, confidence=74%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الجنائي",
+      "source_lang": "ar",
+      "target_term": "criminal",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1360, confidence=78%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "العقوبة",
+      "source_lang": "ar",
+      "target_term": "punishment",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1330, confidence=36%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "التشريع",
+      "source_lang": "ar",
+      "target_term": "legislation",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=1014, confidence=60%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الاستئناف",
+      "source_lang": "ar",
+      "target_term": "appeal",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=987, confidence=44%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المحاكمة",
+      "source_lang": "ar",
+      "target_term": "trial",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=950, confidence=43%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "عقود",
+      "source_lang": "ar",
+      "target_term": "contracts",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=929, confidence=41%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "التشريعي",
+      "source_lang": "ar",
+      "target_term": "legislative",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=921, confidence=74%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "التعويض",
+      "source_lang": "ar",
+      "target_term": "compensation",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=893, confidence=46%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المرسوم",
+      "source_lang": "ar",
+      "target_term": "decree",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=837, confidence=67%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "السجن",
+      "source_lang": "ar",
+      "target_term": "prison",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=693, confidence=40%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "النصوص",
+      "source_lang": "ar",
+      "target_term": "texts",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=627, confidence=39%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الادعاء",
+      "source_lang": "ar",
+      "target_term": "prosecution",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=605, confidence=35%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الدستوري",
+      "source_lang": "ar",
+      "target_term": "constitutional",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=570, confidence=90%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "البيع",
+      "source_lang": "ar",
+      "target_term": "sale",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=371, confidence=31%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الإثبات",
+      "source_lang": "ar",
+      "target_term": "evidence",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=337, confidence=31%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "اللائحة",
+      "source_lang": "ar",
+      "target_term": "regulation",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=237, confidence=39%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "قاضي",
+      "source_lang": "ar",
+      "target_term": "judge",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=232, confidence=47%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الحبس",
+      "source_lang": "ar",
+      "target_term": "detention",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=206, confidence=33%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الإيجار",
+      "source_lang": "ar",
+      "target_term": "rental",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=148, confidence=42%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الإرث",
+      "source_lang": "ar",
+      "target_term": "inheritance",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=120, confidence=43%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الميراث",
+      "source_lang": "ar",
+      "target_term": "inheritance",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=65, confidence=63%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "القاصر",
+      "source_lang": "ar",
+      "target_term": "minor",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=64, confidence=50%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المراسيم",
+      "source_lang": "ar",
+      "target_term": "decrees",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=49, confidence=63%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الغرامة",
+      "source_lang": "ar",
+      "target_term": "fine",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=41, confidence=63%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الولي",
+      "source_lang": "ar",
+      "target_term": "guardian",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=23, confidence=57%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "الوصية",
+      "source_lang": "ar",
+      "target_term": "will",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=15, confidence=47%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "المسئولية",
+      "source_lang": "ar",
+      "target_term": "responsibility",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=12, confidence=42%). UN terminology — review before use in Iraqi legal context."
+    },
+    {
+      "source_term": "البينة",
+      "source_lang": "ar",
+      "target_term": "evidence",
+      "target_lang": "en",
+      "law_ref": "UN parallel corpus (MultiUN)",
+      "domain": "un_international",
+      "priority": 5,
+      "note": "Auto-extracted from MultiUN (freq=10, confidence=40%). UN terminology — review before use in Iraqi legal context."
+    }
+  ]
+}

@@ -4,6 +4,26 @@
   "last_updated": "2026-07-02",
   "terms": [
     {
+      "source_term": "Civil Code",
+      "source_lang": "en",
+      "target_term": "القانون المدني",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "",
+      "note": "Iraqi law name. The Iraqi Civil Code is 'القانون المدني', not 'المدونة المدنية' (that is Moroccan/Maghrebi).",
+      "priority": 10
+    },
+    {
+      "source_term": "القانون المدني",
+      "source_lang": "ar",
+      "target_term": "Civil Code",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "",
+      "note": "Iraqi law name.",
+      "priority": 10
+    },
+    {
       "source_term": "عقد البيع",
       "source_lang": "ar",
       "target_term": "contract of sale",
