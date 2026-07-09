@@ -44,10 +44,18 @@ gradio = [
 ]
 
 [project.scripts]
-iraqi-translate = "src.cli:app"
+iraqi-translate = "src.app:main"
 
 [tool.setuptools]
-packages = ["src"]
+packages = [
+    "src",
+    "src.config",
+    "src.components",
+    "src.components.translation_pipeline",
+    "src.components.knowledge_sources",
+    "src.components.infrastructure",
+    "src.components.interfaces",
+]
 
 [tool.ruff]
 line-length = 100
@@ -59,15 +67,15 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 [tool.ruff.lint.per-file-ignores]
 # Prompt constants hold the canonical PROMPTS.md text verbatim; wrapping would
 # alter prompt wording (prompts are versioned code, PROMPTS.md §5).
-"src/prompts.py" = ["E501"]
+"src/components/translation_pipeline/prompts.py" = ["E501"]
 # web_ui.py holds a single embedded HTML/CSS/JS document (no external assets);
 # long lines are inline SVG attributes and compact CSS one-liners that wrapping
 # would harm readability of, not Python code.
-"src/web_ui.py" = ["E501"]
+"src/components/interfaces/web_ui.py" = ["E501"]
 # The LLMEngineAdapter.generate signature is fixed by ARCHITECTURE.md §5.3
 # (system, user, model, temperature, max_tokens, timeout) — 6 args is the
 # mandated adapter contract, not an over-engineered function.
-"src/llm.py" = ["PLR0913"]
+"src/components/infrastructure/llm.py" = ["PLR0913"]
 # Test helpers and the mock LLM adapter mirror the mandated protocol signature;
 # the _state builder takes one arg per state field for readability.
 "tests/conftest.py" = ["PLR0913"]
@@ -79,13 +87,13 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # Typer commands require Path(__file__) defaults (standard Typer pattern,
 # unavoidable B008). run_translation / _process_batch take 7 args for
 # dependency injection (DIP, engineering-principles §1.5).
-"src/cli.py" = ["B008", "PLR0913"]
+"src/components/interfaces/cli.py" = ["B008", "PLR0913"]
 # build_graph takes one arg per injected dependency (DIP, engineering-principles
 # §1.5) — run_logger is the task 4.3.1 logging seam.
-"src/graph.py" = ["PLR0913"]
+"src/components/translation_pipeline/graph.py" = ["PLR0913"]
 # datetime.UTC is 3.11-only; the test venv runs 3.10, so timezone.utc is kept
 # for cross-version compatibility (task 4.3.1 logging timestamps).
-"src/run_logging.py" = ["UP017"]
+"src/components/infrastructure/run_logging.py" = ["UP017"]
 
 [tool.mypy]
 python_version = "3.11"
