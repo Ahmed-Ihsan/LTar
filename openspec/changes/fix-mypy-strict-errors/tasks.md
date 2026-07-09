@@ -39,17 +39,17 @@
 
 ## 6. Translation pipeline component — nodes.py (5 errors)
 
-- [ ] 6.1 Fix `nodes.py:257` — cast the `lang` variable from `str` to `Lang` before calling `scan_glossary_hits` (e.g., `from typing import cast; cast(Lang, lang)`)
-- [ ] 6.2 Fix `nodes.py:425` — change `_parse_verdict` return type from `dict[str, object]` to `AuditVerdict` and remove the `# type: ignore[return-value]` comment in `audit_node`
-- [ ] 6.3 Fix `nodes.py:425` — remove the stale `# type: ignore` comment (resolved by task 6.2)
-- [ ] 6.4 Fix `nodes.py:471` — cast the `object`-typed confidence value to `str` before calling `float()` (e.g., `float(str(confidence))`)
-- [ ] 6.5 Verify: `mypy src/components/translation_pipeline/nodes.py` reports 0 errors (down from 5)
+- [x] 6.1 Fix `nodes.py:257` — cast the `lang` variable from `str` to `Lang` before calling `scan_glossary_hits` (e.g., `from typing import cast; cast(Lang, lang)`)
+- [x] 6.2 Fix `nodes.py:425` — change `_parse_verdict` return type from `dict[str, object]` to `AuditVerdict` and remove the `# type: ignore[return-value]` comment in `audit_node`
+- [x] 6.3 Fix `nodes.py:425` — remove the stale `# type: ignore` comment (resolved by task 6.2)
+- [x] 6.4 Fix `nodes.py:471` — cast the `object`-typed confidence value to `str` before calling `float()` (e.g., `float(str(confidence))`)
+- [x] 6.5 Verify: `mypy src/components/translation_pipeline/nodes.py` reports 0 errors (down from 5)
 
 ## 7. Translation pipeline component — verification
 
-- [ ] 7.1 Verify: `mypy src/components/translation_pipeline/` reports 0 errors total (down from 5)
-- [ ] 7.2 Verify: `ruff check src/components/translation_pipeline/` passes with zero errors
-- [ ] 7.3 Verify: `pytest tests/ -q -k "nodes or graph or decision or prompts"` passes with no regressions
+- [x] 7.1 Verify: `mypy src/components/translation_pipeline/` reports 0 errors total (down from 5)
+- [x] 7.2 Verify: `ruff check src/components/translation_pipeline/` passes with zero errors
+- [x] 7.3 Verify: `pytest tests/ -q -k "nodes or graph or decision or prompts"` passes with no regressions
 
 ## 8. Interfaces component — cli.py (14 errors)
 

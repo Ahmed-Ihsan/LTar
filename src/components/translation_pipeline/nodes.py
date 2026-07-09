@@ -27,11 +27,12 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.knowledge_sources.glossary import GlossaryIndex, scan_glossary_hits
 from src.components.knowledge_sources.legal_search import search_all_sources
+from src.components.knowledge_sources.models import Lang
 from src.components.knowledge_sources.retrieval import retrieve_context_chunks
 from src.components.translation_pipeline.models import (
     AuditVerdict as StateAuditVerdict,
@@ -48,6 +49,7 @@ from src.components.translation_pipeline.models import (
 from src.components.translation_pipeline.models import (
     TranslationState,
     Verdict,
+    WebSearchResult,
 )
 from src.components.translation_pipeline.prompts import (
     AUDITOR_SYSTEM_V4,
@@ -163,7 +165,7 @@ def _format_context_chunks(chunks: list[StateContextChunk]) -> str:
     return "\n\n".join(lines)
 
 
-def _format_web_search_results(results: list[dict[str, str]]) -> str:
+def _format_web_search_results(results: list[WebSearchResult]) -> str:
     """Format web search hits for the translator/auditor prompt.
 
     Each hit is rendered as:
@@ -253,7 +255,7 @@ def preprocess_node(
 
     hits: list[StateGlossaryHit] = [
         _hit_to_state(h)
-        for h in scan_glossary_hits(input_text, source_lang, index=glossary_index)
+        for h in scan_glossary_hits(input_text, cast(Lang, source_lang), index=glossary_index)
     ]
 
     # For EN→AR, anchor the retrieval query with the glossary-bound Arabic
@@ -420,11 +422,11 @@ def audit_node(
         timeout=cfg.llm_timeout,
     )
 
-    verdict: dict[str, object] = _parse_verdict(raw)
-    return {**state, "audit": verdict}  # type: ignore[return-value]
+    verdict: StateAuditVerdict = _parse_verdict(raw)
+    return {**state, "audit": verdict}
 
 
-def _parse_verdict(raw: str) -> dict[str, object]:
+def _parse_verdict(raw: str) -> StateAuditVerdict:
     """Defensively parse the Auditor output into a verdict dict (PROMPTS §3.3).
 
     1. Strip markdown fences.
@@ -467,7 +469,7 @@ def _parse_verdict(raw: str) -> dict[str, object]:
 
     confidence_raw: object = parsed.get("confidence", 0.0)
     try:
-        confidence: float = float(confidence_raw)
+        confidence: float = float(str(confidence_raw))
     except (TypeError, ValueError):
         confidence = 0.0
 
@@ -647,7 +649,12 @@ def web_search_node(
         # Web search must never crash the pipeline.
         hits = []
 
-    results: list[dict[str, str]] = [h.to_dict() for h in hits]
+    results: list[WebSearchResult] = [
+        WebSearchResult(
+            title=h.title, url=h.url, snippet=h.snippet, source=h.source
+        )
+        for h in hits
+    ]
 
     warnings: list[str] = list(state.get("warnings", []))
     if not results:
