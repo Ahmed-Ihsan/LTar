@@ -21,9 +21,9 @@ import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import IO, Annotated
 
-from src.components.knowledge_sources.models import Article, Chunk
+from src.components.knowledge_sources.models import Article, Chunk, Term
 from src.components.translation_pipeline.exceptions import (
     CorpusEncodingError,
     CorpusParseError,
@@ -136,7 +136,7 @@ def _parse_header(
     return header
 
 
-def _strict_utf8_lines(handle, path: Path) -> Iterator[str]:
+def _strict_utf8_lines(handle: IO[str], path: Path) -> Iterator[str]:
     """Yield lines from ``handle``, translating late UTF-8 decode errors.
 
     ``open(..., errors="strict")`` defers decode errors until iteration time
@@ -530,7 +530,7 @@ import gc
 import hashlib
 import json
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import typer
 
@@ -668,7 +668,7 @@ def _write_manifest(
 
     manifest: dict[str, object] = {
         "version": _MANIFEST_VERSION,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "content_hash": content_hash,
         "glossary": {
             "file_count": result.glossary.file_count if result.glossary else 0,
@@ -713,7 +713,7 @@ def _ingest_glossary(cfg: AppConfig) -> tuple[GlossarySummary, list[FileHash]]:
 
     conflicts: int = 0
     validation_errors: int = 0
-    all_terms: list = []
+    all_terms: list[Term] = []
     for fp in file_paths:
         try:
             terms = load_glossary_files(fp)

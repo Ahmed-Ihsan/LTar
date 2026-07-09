@@ -87,7 +87,7 @@ class RunLogger:
         """
         audit: object = state.get("audit")
         verdict: str | None = (
-            audit.get("verdict")  # type: ignore[union-attr]
+            audit.get("verdict")
             if isinstance(audit, dict) else None
         )
         record: dict[str, object] = {

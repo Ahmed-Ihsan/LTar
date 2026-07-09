@@ -22,7 +22,9 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
-from chromadb.api.client import SharedSystemClient
+from chromadb.api.client import (  # type: ignore[attr-defined]  # not in chromadb stubs __all__
+    SharedSystemClient,
+)
 from chromadb.config import Settings
 
 from src.components.infrastructure.embeddings import Embedder, EmbeddingAdapter
@@ -169,7 +171,7 @@ class ChromaStore:
             collection.add(
                 ids=[c.chunk_id for c in batch_chunks],
                 documents=[c.text for c in batch_chunks],
-                embeddings=embeddings[start:end],
+                embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
                 metadatas=[_chunk_metadata(c) for c in batch_chunks],
             )
 
@@ -231,7 +233,7 @@ class ChromaStore:
             collection.add(
                 ids=[c.chunk_id for c in batch_chunks],
                 documents=[c.text for c in batch_chunks],
-                embeddings=embeddings[start:end],
+                embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
                 metadatas=[_chunk_metadata(c) for c in batch_chunks],
             )
         return len(chunks)
@@ -276,14 +278,14 @@ class ChromaStore:
         query_embedding: list[float] = self._embedder.embed(query_text)
         try:
             raw = collection.query(
-                query_embeddings=[query_embedding],
+                query_embeddings=[query_embedding],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
                 n_results=n_results,
                 where=where,
-                include=["documents", "metadatas", "distances"],
+                include=["documents", "metadatas", "distances"],  # type: ignore[list-item]  # ChromaDB stubs require IncludeEnum, runtime accepts str
             )
         except Exception as err:
             raise _translate_chroma_error(err, self._persist_dir) from err
-        return _parse_query_result(raw)
+        return _parse_query_result(raw)  # type: ignore[arg-type]  # ChromaDB stubs return QueryResult, function expects dict[str, Any]
 
     def count(self) -> int:
         """Return the number of items in the collection (0 if unopenable)."""

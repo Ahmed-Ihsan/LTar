@@ -17,8 +17,16 @@ from __future__ import annotations
 import ctypes
 import platform
 
-from src.components.infrastructure.models import MemoryInfo
+from src.components.infrastructure.models import MemoryInfo as MemoryInfo
 from src.components.translation_pipeline.exceptions import RAMGuardError
+
+__all__ = [
+    "MemoryInfo",
+    "RAM_GUARD_MIN_GB",
+    "available_ram_gb",
+    "check_ram_guard",
+    "read_memory_info",
+]
 
 # Minimum free RAM (GB) required before an LLM call. Below this the guard
 # aborts to avoid OOM (TODO 4.3.3). The 7B q5 model + KV cache can spike
@@ -48,7 +56,7 @@ def read_memory_info() -> MemoryInfo | None:
 def _read_memory_info_windows() -> MemoryInfo | None:
     """Read RAM via ``GlobalMemoryStatusEx`` on Windows (stdlib ctypes)."""
     class MEMORYSTATUSEX(ctypes.Structure):
-        _fields_: list[tuple[str, object]] = [
+        _fields_: list[tuple[str, object]] = [  # type: ignore[misc,assignment]  # ctypes Structure._fields_ type is incompatible with list[tuple[str, object]]
             ("dwLength", ctypes.c_ulong),
             ("dwMemoryLoad", ctypes.c_ulong),
             ("ullTotalPhys", ctypes.c_ulonglong),
@@ -62,7 +70,7 @@ def _read_memory_info_windows() -> MemoryInfo | None:
 
     stat: MEMORYSTATUSEX = MEMORYSTATUSEX()
     stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
-    if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)) == 0:  # type: ignore[attr-defined]
+    if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)) == 0:
         return None
     return MemoryInfo(
         total_bytes=int(stat.ullTotalPhys),

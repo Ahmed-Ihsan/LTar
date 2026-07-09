@@ -19,6 +19,7 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from src.components.knowledge_sources.models import Lang, Term
 from src.components.translation_pipeline.exceptions import (
@@ -26,6 +27,25 @@ from src.components.translation_pipeline.exceptions import (
     GlossaryError,
     GlossaryValidationError,
 )
+
+__all__ = [
+    "GlossaryConflictError",
+    "GlossaryError",
+    "GlossaryHit",
+    "GlossaryIndex",
+    "GlossaryValidationError",
+    "Lang",
+    "Term",
+    "build_sqlite_index",
+    "glossary_scan",
+    "load_glossary_file",
+    "load_glossary_files",
+    "load_glossary_index",
+    "normalize",
+    "normalize_arabic",
+    "normalize_english",
+    "scan_glossary_hits",
+]
 
 # Arabic diacritics (tashkeel) and tatweel, used by normalization and by the
 # diacritic-tolerant scan pattern. Kept here as the single source of truth.
@@ -244,11 +264,12 @@ def _build_term(
     """Construct a validated, normalized :class:`Term` from a raw entry."""
     source_lang: Lang = term_raw["source_lang"]  # type: ignore[assignment]
     source_term: str = term_raw["source_term"]  # type: ignore[assignment]
+    target_lang: Lang = cast(Lang, term_raw["target_lang"])
     return Term(
         source_term=source_term,
         source_lang=source_lang,
         target_term=term_raw["target_term"],  # type: ignore[arg-type]
-        target_lang=term_raw["target_lang"],  # type: ignore[assignment]
+        target_lang=target_lang,
         law_ref=term_raw["law_ref"],  # type: ignore[arg-type]
         domain=domain,
         source_term_norm=normalize(source_term, source_lang),
@@ -260,7 +281,7 @@ def _build_term(
         note=term_raw.get("note") if isinstance(  # type: ignore[arg-type]
             term_raw.get("note"), str
         ) else None,
-        priority=int(term_raw.get("priority", 0)),
+        priority=int(str(term_raw.get("priority", 0))),
     )
 
 
@@ -460,9 +481,9 @@ def _row_to_term(row: sqlite3.Row) -> Term:
     """Reconstruct a :class:`Term` from a SQLite row."""
     return Term(
         source_term=row["source_term"],
-        source_lang=row["source_lang"],  # type: ignore[arg-type]
+        source_lang=row["source_lang"],
         target_term=row["target_term"],
-        target_lang=row["target_lang"],  # type: ignore[arg-type]
+        target_lang=row["target_lang"],
         law_ref=row["law_ref"],
         domain=row["domain"],
         source_term_norm=row["source_term_norm"],
