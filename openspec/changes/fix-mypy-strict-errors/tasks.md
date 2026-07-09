@@ -103,8 +103,8 @@
 
 ## 13. Final full-suite verification
 
-- [ ] 13.1 Run `mypy src/` — SHALL report 0 errors (down from 66)
-- [ ] 13.2 Run `ruff check src/ tests/` — SHALL pass with zero errors
-- [ ] 13.3 Run `pytest --tb=short -q` — SHALL pass with 390+ tests, 0 failures
-- [ ] 13.4 Run `openspec validate --all` — SHALL pass with 0 failures
-- [ ] 13.5 Confirm no runtime behavior changes — compare `pytest` test count and output with pre-fix baseline
+- [x] 13.1 Run `mypy src/` — SHALL report 0 errors (down from 66)
+- [x] 13.2 Run `ruff check src/ tests/` — SHALL pass with zero errors
+- [x] 13.3 Run `pytest --tb=short -q` — SHALL pass with 390+ tests, 0 failures
+- [x] 13.4 Run `openspec validate --all` — SHALL pass with 0 failures
+- [x] 13.5 Confirm no runtime behavior changes — compare `pytest` test count and output with pre-fix baseline
