@@ -7,9 +7,14 @@ populates them lives in :mod:`src.components.interfaces.cli`.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.knowledge_sources.glossary import GlossaryIndex
+
+if TYPE_CHECKING:
+    from src.components.infrastructure.embeddings import EmbeddingAdapter
+    from src.components.knowledge_sources.tm import TranslationMemory
 
 
 @dataclass(slots=True, frozen=True)
@@ -30,10 +35,10 @@ class Adapters:
     """
 
     llm: LLMEngineAdapter
-    embedder: object
+    embedder: EmbeddingAdapter
     glossary_index: GlossaryIndex | None
     persist_dir: str
-    tm: object | None
+    tm: TranslationMemory | None
 
 
 @dataclass(slots=True, frozen=True)

@@ -20,7 +20,7 @@ import enum
 import json
 import sqlite3
 from pathlib import Path
-from typing import Annotated, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, TypedDict
 
 import ollama
 import typer
@@ -43,6 +43,9 @@ from src.components.translation_pipeline.exceptions import (
 from src.components.translation_pipeline.graph import build_graph
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig, load_config
+
+if TYPE_CHECKING:
+    from src.components.knowledge_sources.tm import TranslationMemory
 
 app = typer.Typer(
     add_completion=False,
@@ -86,7 +89,7 @@ def _new_run_logger(cfg: AppConfig) -> RunLogger:
     return RunLogger(log_dir=_resolve_path(cfg, "logs"))
 
 
-def _new_tm(cfg: AppConfig) -> object | None:
+def _new_tm(cfg: AppConfig) -> TranslationMemory | None:
     """Construct a :class:`TranslationMemory` when TM is enabled (task 7).
 
     Returns ``None`` when ``cfg.tm_enabled`` is False so the ``tm_lookup``
@@ -152,13 +155,15 @@ def _check_ollama_reachable(client: ollama.Client) -> CheckResult:
     )
 
 
-def _canonical_model_name(name: str) -> str:
+def _canonical_model_name(name: str | None) -> str:
     """Normalize an Ollama model name to its canonical tagged form.
 
     Ollama defaults an omitted tag to ``:latest`` (e.g. ``nomic-embed-text``
     is the same model as ``nomic-embed-text:latest``). This lets a config
     value without a tag match the tagged form reported by ``ollama list``.
     """
+    if name is None:
+        return ""
     if ":" in name:
         return name
     return f"{name}:latest"
@@ -277,7 +282,7 @@ def _detect_offload_mode(client: ollama.Client) -> str:
     )
     if loaded is None:
         return "not loaded"
-    size: int = int(loaded.size)
+    size: int = int(loaded.size) if loaded.size is not None else 0
     vram: int = int(loaded.size_vram or 0)
     if size == 0:
         return "not loaded"
@@ -340,7 +345,7 @@ def _check_ram_headroom(client: ollama.Client, cfg: AppConfig) -> CheckResult:
 def _render_result(result: CheckResult) -> None:
     """Render a single check result with a green check or red failure."""
     mark: str = "[OK]  " if result.ok else "[FAIL]"
-    color: int = typer.colors.GREEN if result.ok else typer.colors.RED
+    color: str = typer.colors.GREEN if result.ok else typer.colors.RED
     typer.secho(f"  {mark} {result.name}: {result.detail}", fg=color)
 
 
@@ -405,7 +410,7 @@ def _initial_state(input_text: str, direction: str) -> TranslationState:
     """Build the minimal LangGraph input state from caller-supplied fields."""
     return {
         "input_text": input_text,
-        "direction": direction,  # type: ignore[arg-type]
+        "direction": direction,  # type: ignore[typeddict-item]  # direction is str, TypedDict expects Literal['ar-en', 'en-ar']
         "glossary_hits": [],
         "context_chunks": [],
         "draft": "",
@@ -413,6 +418,8 @@ def _initial_state(input_text: str, direction: str) -> TranslationState:
         "revision_count": 0,
         "final_output": None,
         "warnings": [],
+        "tm_hits": [],
+        "web_search_results": [],
     }
 
 
@@ -639,7 +646,7 @@ def _render_provenance(state: TranslationState) -> str:
     lines: list[str] = ["--- Provenance ---"]
 
     # Glossary terms applied
-    hits: list = state.get("glossary_hits", [])
+    hits: list[Any] = state.get("glossary_hits", [])
     lines.append(f"Glossary terms applied ({len(hits)}):")
     if hits:
         for hit in hits:
@@ -652,7 +659,7 @@ def _render_provenance(state: TranslationState) -> str:
         lines.append("  (none)")
 
     # Source chunks cited
-    chunks: list = state.get("context_chunks", [])
+    chunks: list[Any] = state.get("context_chunks", [])
     lines.append(f"Source chunks cited ({len(chunks)}):")
     if chunks:
         for i, chunk in enumerate(chunks, start=1):
@@ -708,7 +715,7 @@ def _provenance_markdown(state: TranslationState) -> str:
     """
     lines: list[str] = []
 
-    hits: list = state.get("glossary_hits", [])
+    hits: list[Any] = state.get("glossary_hits", [])
     lines.append(f"## Glossary terms applied ({len(hits)})")
     if hits:
         for hit in hits:
@@ -720,7 +727,7 @@ def _provenance_markdown(state: TranslationState) -> str:
     else:
         lines.append("- (none)")
 
-    chunks: list = state.get("context_chunks", [])
+    chunks: list[Any] = state.get("context_chunks", [])
     lines.append(f"\n## Source chunks cited ({len(chunks)})")
     if chunks:
         for i, chunk in enumerate(chunks, start=1):
@@ -989,7 +996,7 @@ def _process_batch(
             line = line.strip()
             if not line:
                 continue
-            record: dict = json.loads(line)
+            record: dict[str, Any] = json.loads(line)
             state = run_translation(
                 record["input"], record["direction"], cfg,
                 llm=llm, embedder=embedder,
@@ -1219,7 +1226,7 @@ def tm_build_parallel(
             if len(pairs) >= max_pairs:
                 break
             try:
-                record: dict = json.loads(line)
+                record: dict[str, Any] = json.loads(line)
                 pairs.append((
                     record["source_sentence"],
                     record["target_sentence"],
@@ -1297,7 +1304,7 @@ def tm_add_parallel(
             if len(pairs) >= max_pairs:
                 break
             try:
-                record: dict = json.loads(line)
+                record: dict[str, Any] = json.loads(line)
                 pairs.append((
                     record["source_sentence"],
                     record["target_sentence"],

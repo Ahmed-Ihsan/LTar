@@ -29,8 +29,6 @@ from dataclasses import dataclass
 import webview
 
 from src.components.interfaces.cli import (
-    Adapters,
-    UiTranslationResult,
     _audit_trace_markdown,
     _list_ollama_models,
     _new_run_logger,
@@ -42,6 +40,7 @@ from src.components.interfaces.cli import (
 from src.components.interfaces.cli import (
     _provenance_markdown as _provenance_md,
 )
+from src.components.interfaces.models import Adapters, UiTranslationResult
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
 
@@ -90,7 +89,7 @@ class _UiHumanReviewer:
         with self._lock:
             self._draft = draft
 
-    def review(self, state: TranslationState) -> str:  # type: ignore[name-defined]
+    def review(self, state: TranslationState) -> str:
         """Block until the human submits or approves, then return the text."""
         self._event.wait()
         self._event.clear()
@@ -126,7 +125,7 @@ class Api:
         self._models: list[str] = _list_ollama_models(cfg.ollama_host)
         self._result: _PendingResult = _PendingResult(status="idle")
         self._lock: threading.Lock = threading.Lock()
-        self._history: list[dict] = []
+        self._history: list[dict[str, str]] = []
         self._reviewer: _UiHumanReviewer | None = None
 
     def get_models(self) -> list[str]:
@@ -143,11 +142,11 @@ class Api:
             return self._models[0]
         return self._cfg.llm_model
 
-    def get_examples(self) -> list[dict]:
+    def get_examples(self) -> list[dict[str, str]]:
         """Return example legal sentences for the dropdown."""
         return _EXAMPLES
 
-    def get_store_counts(self) -> dict:
+    def get_store_counts(self) -> dict[str, int]:
         """Return live counts for glossary, ChromaDB, and TM stores.
 
         Uses the existing embedder from adapters to construct a ChromaStore
@@ -155,7 +154,7 @@ class Api:
         exists with different settings" error from creating a raw
         ``chromadb.PersistentClient`` with default settings.
         """
-        counts: dict = {"glossary": 0, "chroma": 0, "tm": 0}
+        counts: dict[str, int] = {"glossary": 0, "chroma": 0, "tm": 0}
         try:
             if self._adapters.glossary_index is not None:
                 counts["glossary"] = len(self._adapters.glossary_index.terms)
@@ -183,7 +182,7 @@ class Api:
             pass
         return counts
 
-    def get_history(self) -> list[dict]:
+    def get_history(self) -> list[dict[str, str]]:
         """Return the last 10 translations (input + direction + output)."""
         with self._lock:
             return list(self._history)
@@ -303,7 +302,7 @@ class Api:
             self._reviewer.approve_review()
         return "approved"
 
-    def get_result(self) -> dict:
+    def get_result(self) -> dict[str, str]:
         """Poll for the translation result. Called by JS every 300ms."""
         with self._lock:
             r: _PendingResult = self._result

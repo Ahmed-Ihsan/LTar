@@ -53,53 +53,53 @@
 
 ## 8. Interfaces component — cli.py (14 errors)
 
-- [ ] 8.1 Fix `cli.py:192` — guard `_canonical_model_name` against `str | None` input by defaulting to `""` when `None` (e.g., `name or ""`)
-- [ ] 8.2 Fix `cli.py:280` — guard `int(ByteSize | None)` by checking for `None` before conversion (e.g., `int(value) if value is not None else 0`)
-- [ ] 8.3 Fix `cli.py:343` — fix the `str`-to-`int` assignment conflict by using the correct type annotation for the variable
-- [ ] 8.4 Fix `cli.py:406` — add `"tm_hits": []` and `"web_search_results": []` to the `_initial_state` return dict
-- [ ] 8.5 Fix `cli.py:408` — remove or update the stale `# type: ignore[arg-type]` comment on the `direction` field (may still be needed if `str` is passed where `Direction` is expected — verify after task 8.4)
-- [ ] 8.6 Fix `cli.py:642` — add type parameter to bare `list` (e.g., `list[str]` per context)
-- [ ] 8.7 Fix `cli.py:655` — add type parameter to bare `list`
-- [ ] 8.8 Fix `cli.py:711` — add type parameter to bare `list`
-- [ ] 8.9 Fix `cli.py:723` — add type parameter to bare `list`
-- [ ] 8.10 Fix `cli.py:907` — type the `object` variable as `IO[str]` or `TextIO` so `.close()` is recognized
-- [ ] 8.11 Fix `cli.py:992` — add type parameter to bare `dict` (e.g., `dict[str, object]`)
-- [ ] 8.12 Fix `cli.py:1063` — type the `object` variable as `IO[str]` or `TextIO` so `.close()` is recognized
-- [ ] 8.13 Fix `cli.py:1222` — add type parameter to bare `dict`
-- [ ] 8.14 Fix `cli.py:1300` — add type parameter to bare `dict`
-- [ ] 8.15 Verify: `mypy src/components/interfaces/cli.py` reports 0 errors (down from 14)
+- [x] 8.1 Fix `cli.py:192` — guard `_canonical_model_name` against `str | None` input by defaulting to `""` when `None` (e.g., `name or ""`)
+- [x] 8.2 Fix `cli.py:280` — guard `int(ByteSize | None)` by checking for `None` before conversion (e.g., `int(value) if value is not None else 0`)
+- [x] 8.3 Fix `cli.py:343` — fix the `str`-to-`int` assignment conflict by using the correct type annotation for the variable
+- [x] 8.4 Fix `cli.py:406` — add `"tm_hits": []` and `"web_search_results": []` to the `_initial_state` return dict
+- [x] 8.5 Fix `cli.py:408` — remove or update the stale `# type: ignore[arg-type]` comment on the `direction` field (may still be needed if `str` is passed where `Direction` is expected — verify after task 8.4)
+- [x] 8.6 Fix `cli.py:642` — add type parameter to bare `list` (e.g., `list[str]` per context)
+- [x] 8.7 Fix `cli.py:655` — add type parameter to bare `list`
+- [x] 8.8 Fix `cli.py:711` — add type parameter to bare `list`
+- [x] 8.9 Fix `cli.py:723` — add type parameter to bare `list`
+- [x] 8.10 Fix `cli.py:907` — type the `object` variable as `IO[str]` or `TextIO` so `.close()` is recognized
+- [x] 8.11 Fix `cli.py:992` — add type parameter to bare `dict` (e.g., `dict[str, object]`)
+- [x] 8.12 Fix `cli.py:1063` — type the `object` variable as `IO[str]` or `TextIO` so `.close()` is recognized
+- [x] 8.13 Fix `cli.py:1222` — add type parameter to bare `dict`
+- [x] 8.14 Fix `cli.py:1300` — add type parameter to bare `dict`
+- [x] 8.15 Verify: `mypy src/components/interfaces/cli.py` reports 0 errors (down from 14)
 
 ## 9. Interfaces component — web_ui.py (8 errors)
 
-- [ ] 9.1 Fix `web_ui.py:128` — add type parameter to bare `dict`
-- [ ] 9.2 Fix `web_ui.py:145` — add type parameter to bare `dict`
-- [ ] 9.3 Fix `web_ui.py:149` — add type parameter to bare `dict`
-- [ ] 9.4 Fix `web_ui.py:157` — add type parameter to bare `dict`
-- [ ] 9.5 Fix `web_ui.py:172` — type the `embedder` argument as `EmbeddingAdapter | None` instead of `object` (import `EmbeddingAdapter` from infrastructure)
-- [ ] 9.6 Fix `web_ui.py:180` — type the variable holding the TM/glossary as `TranslationMemory` or `GlossaryIndex` instead of `object` so `.list_all()` is recognized
-- [ ] 9.7 Fix `web_ui.py:185` — add type parameter to bare `dict`
-- [ ] 9.8 Fix `web_ui.py:305` — add type parameter to bare `dict`
-- [ ] 9.9 Verify: `mypy src/components/interfaces/web_ui.py` reports 0 errors (down from 8)
+- [x] 9.1 Fix `web_ui.py:128` — add type parameter to bare `dict`
+- [x] 9.2 Fix `web_ui.py:145` — add type parameter to bare `dict`
+- [x] 9.3 Fix `web_ui.py:149` — add type parameter to bare `dict`
+- [x] 9.4 Fix `web_ui.py:157` — add type parameter to bare `dict`
+- [x] 9.5 Fix `web_ui.py:172` — type the `embedder` argument as `EmbeddingAdapter | None` instead of `object` (import `EmbeddingAdapter` from infrastructure)
+- [x] 9.6 Fix `web_ui.py:180` — type the variable holding the TM/glossary as `TranslationMemory` or `GlossaryIndex` instead of `object` so `.list_all()` is recognized
+- [x] 9.7 Fix `web_ui.py:185` — add type parameter to bare `dict`
+- [x] 9.8 Fix `web_ui.py:305` — add type parameter to bare `dict`
+- [x] 9.9 Verify: `mypy src/components/interfaces/web_ui.py` reports 0 errors (down from 8)
 
 ## 10. Interfaces component — tk_ui.py (18 errors)
 
-- [ ] 10.1 Fix all `ttk.Text` references (lines 41, 44, 45, 46, 47, 51, 57, 72, 77, 83, 91, 175) — change `ttk.Text` to `tkinter.Text` in type annotations (Text is in tkinter, not ttk; annotations are string-based so no runtime impact)
-- [ ] 10.2 Fix `tk_ui.py:57, 72, 77, 91` — the `Module has no attribute "Text"` errors (×4) are resolved by task 10.1 (changing `ttk.Text` to `tkinter.Text`)
-- [ ] 10.3 Fix `tk_ui.py:154` — remove stale `# type: ignore` comment
-- [ ] 10.4 Fix `tk_ui.py:99` — add type parameter to bare `Queue` (e.g., `Queue[UiTranslationResult | None]`)
-- [ ] 10.5 Fix `tk_ui.py:136` — add type parameter to bare `Queue`
-- [ ] 10.6 Fix `tk_ui.py:182` — add type parameter to bare `Queue`
-- [ ] 10.7 Verify: `mypy src/components/interfaces/tk_ui.py` reports 0 errors (down from 18)
+- [x] 10.1 Fix all `ttk.Text` references (lines 41, 44, 45, 46, 47, 51, 57, 72, 77, 83, 91, 175) — change `ttk.Text` to `tkinter.Text` in type annotations (Text is in tkinter, not ttk; annotations are string-based so no runtime impact)
+- [x] 10.2 Fix `tk_ui.py:57, 72, 77, 91` — the `Module has no attribute "Text"` errors (×4) are resolved by task 10.1 (changing `ttk.Text` to `tkinter.Text`)
+- [x] 10.3 Fix `tk_ui.py:154` — remove stale `# type: ignore` comment
+- [x] 10.4 Fix `tk_ui.py:99` — add type parameter to bare `Queue` (e.g., `Queue[UiTranslationResult | None]`)
+- [x] 10.5 Fix `tk_ui.py:136` — add type parameter to bare `Queue`
+- [x] 10.6 Fix `tk_ui.py:182` — add type parameter to bare `Queue`
+- [x] 10.7 Verify: `mypy src/components/interfaces/tk_ui.py` reports 0 errors (down from 18)
 
 ## 11. Interfaces component — hitl.py (1 error, already fixed)
 
-- [ ] 11.1 Verify `hitl.py:134` — the `dict` → `dict[str, object]` fix from the refactor session is still in place and mypy reports 0 errors
+- [x] 11.1 Verify `hitl.py:134` — the `dict` → `dict[str, object]` fix from the refactor session is still in place and mypy reports 0 errors
 
 ## 12. Interfaces component — verification
 
-- [ ] 12.1 Verify: `mypy src/components/interfaces/` reports 0 errors total (down from 41)
-- [ ] 12.2 Verify: `ruff check src/components/interfaces/` passes with zero errors
-- [ ] 12.3 Verify: `pytest tests/ -q -k "cli or web or tk or hitl"` passes with no regressions
+- [x] 12.1 Verify: `mypy src/components/interfaces/` reports 0 errors total (down from 41)
+- [x] 12.2 Verify: `ruff check src/components/interfaces/` passes with zero errors
+- [x] 12.3 Verify: `pytest tests/ -q -k "cli or web or tk or hitl"` passes with no regressions
 
 ## 13. Final full-suite verification
 

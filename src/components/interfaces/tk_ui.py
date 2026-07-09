@@ -22,16 +22,17 @@ from __future__ import annotations
 
 import queue
 import threading
+import tkinter
 from dataclasses import dataclass
 from tkinter import DISABLED, NORMAL, Tk, messagebox, ttk
+from typing import Any
 
 from src.components.interfaces.cli import (
-    Adapters,
-    UiTranslationResult,
     _audit_trace_markdown,
     _new_run_logger,
     _translate_for_ui,
 )
+from src.components.interfaces.models import Adapters, UiTranslationResult
 from src.config import AppConfig
 
 
@@ -39,23 +40,23 @@ from src.config import AppConfig
 class UiWidgets:
     """Bundle of Tkinter widgets passed between build and event functions."""
 
-    input_box: ttk.Text
+    input_box: tkinter.Text
     direction_dd: ttk.Combobox
     btn: ttk.Button
-    output_box: ttk.Text
-    prov_box: ttk.Text
-    trace_box: ttk.Text
+    output_box: tkinter.Text
+    prov_box: tkinter.Text
+    trace_box: tkinter.Text
 
 
 def _build_translate_tab(
     notebook: ttk.Notebook,
-) -> tuple[ttk.Text, ttk.Combobox, ttk.Button, ttk.Text, ttk.Text]:
+) -> tuple[tkinter.Text, ttk.Combobox, ttk.Button, tkinter.Text, tkinter.Text]:
     """Build the Translate tab; return (input, direction, button, output, provenance)."""
     frame: ttk.Frame = ttk.Frame(notebook, padding=10)
     notebook.add(frame, text="Translate")
 
     ttk.Label(frame, text="Source text:").pack(anchor="w")
-    input_box: ttk.Text = ttk.Text(frame, height=8, wrap="word")
+    input_box: tkinter.Text = tkinter.Text(frame, height=8, wrap="word")
     input_box.pack(fill="x", pady=(0, 8))
 
     controls: ttk.Frame = ttk.Frame(frame)
@@ -70,18 +71,18 @@ def _build_translate_tab(
     btn.pack(side="right")
 
     ttk.Label(frame, text="Translation:").pack(anchor="w")
-    output_box: ttk.Text = ttk.Text(frame, height=8, wrap="word")
+    output_box: tkinter.Text = tkinter.Text(frame, height=8, wrap="word")
     output_box.pack(fill="x", pady=(0, 8))
 
     prov_frame: ttk.LabelFrame = ttk.LabelFrame(frame, text="Provenance", padding=8)
     prov_frame.pack(fill="both", expand=True)
-    prov_box: ttk.Text = ttk.Text(prov_frame, height=10, wrap="word")
+    prov_box: tkinter.Text = tkinter.Text(prov_frame, height=10, wrap="word")
     prov_box.pack(fill="both", expand=True)
 
     return input_box, direction_dd, btn, output_box, prov_box
 
 
-def _build_trace_tab(notebook: ttk.Notebook) -> ttk.Text:
+def _build_trace_tab(notebook: ttk.Notebook) -> tkinter.Text:
     """Build the Audit Trace tab; return the trace text widget."""
     frame: ttk.Frame = ttk.Frame(notebook, padding=10)
     notebook.add(frame, text="Audit Trace")
@@ -89,7 +90,7 @@ def _build_trace_tab(notebook: ttk.Notebook) -> ttk.Text:
         frame,
         text="The full revision history (each draft + critique) for the last run.",
     ).pack(anchor="w", pady=(0, 8))
-    trace_box: ttk.Text = ttk.Text(frame, wrap="word")
+    trace_box: tkinter.Text = tkinter.Text(frame, wrap="word")
     trace_box.pack(fill="both", expand=True)
     trace_box.insert("1.0", _audit_trace_markdown([]))
     trace_box.config(state=DISABLED)
@@ -97,7 +98,10 @@ def _build_trace_tab(notebook: ttk.Notebook) -> ttk.Text:
 
 
 def _start_translation(
-    cfg: AppConfig, adapters: Adapters, widgets: UiWidgets, result_queue: queue.Queue,
+    cfg: AppConfig,
+    adapters: Adapters,
+    widgets: UiWidgets,
+    result_queue: queue.Queue[tuple[str, Any]],
 ) -> None:
     """Read UI inputs, disable the button, and start the worker thread."""
     input_text: str = widgets.input_box.get("1.0", "end-1c")
@@ -134,7 +138,7 @@ def _start_translation(
     threading.Thread(target=_worker, daemon=True).start()
 
 
-def _poll_result(root: Tk, widgets: UiWidgets, result_queue: queue.Queue) -> None:
+def _poll_result(root: Tk, widgets: UiWidgets, result_queue: queue.Queue[tuple[str, Any]]) -> None:
     """Poll the queue for a translation result; update UI if ready."""
     try:
         kind, payload = result_queue.get_nowait()
@@ -152,7 +156,7 @@ def _poll_result(root: Tk, widgets: UiWidgets, result_queue: queue.Queue) -> Non
         widgets.output_box.insert("1.0", f"Translation error: {payload}")
         widgets.trace_box.insert("1.0", _audit_trace_markdown([]))
     else:
-        result: UiTranslationResult = payload  # type: ignore[assignment]
+        result: UiTranslationResult = payload
         widgets.output_box.insert("1.0", result.translation)
         widgets.prov_box.insert("1.0", result.provenance_md)
         widgets.trace_box.insert("1.0", result.audit_trace_md)
@@ -173,14 +177,14 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
 
     notebook: ttk.Notebook = ttk.Notebook(root)
     input_box, direction_dd, btn, output_box, prov_box = _build_translate_tab(notebook)
-    trace_box: ttk.Text = _build_trace_tab(notebook)
+    trace_box: tkinter.Text = _build_trace_tab(notebook)
     notebook.pack(fill="both", expand=True)
 
     widgets: UiWidgets = UiWidgets(
         input_box=input_box, direction_dd=direction_dd, btn=btn,
         output_box=output_box, prov_box=prov_box, trace_box=trace_box,
     )
-    result_queue: queue.Queue = queue.Queue()
+    result_queue: queue.Queue[tuple[str, Any]] = queue.Queue[tuple[str, Any]]()
 
     def _on_translate() -> None:
         """Button handler — start translation in a background thread."""
