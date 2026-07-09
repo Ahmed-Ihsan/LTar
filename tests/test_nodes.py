@@ -15,17 +15,17 @@ import json
 
 import pytest
 
-from src.exceptions import OllamaConnectionError, OllamaTimeoutError
-from src.glossary import GlossaryIndex
-from src.ingestion import Chunk
-from src.nodes import (
+from src.components.translation_pipeline.exceptions import OllamaConnectionError, OllamaTimeoutError
+from src.components.knowledge_sources.glossary import GlossaryIndex
+from src.components.knowledge_sources.ingestion import Chunk
+from src.components.translation_pipeline.nodes import (
     audit_node,
     finalize_node,
     preprocess_node,
     translate_node,
 )
-from src.retrieval import build_chroma_collection
-from src.state import TranslationState
+from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.unit
 
@@ -87,6 +87,8 @@ def _state(
         "direction": direction,  # type: ignore[arg-type]
         "glossary_hits": glossary_hits if glossary_hits is not None else [],
         "context_chunks": context_chunks if context_chunks is not None else [],
+        "tm_hits": [],
+        "web_search_results": [],
         "draft": draft,
         "audit": audit,  # type: ignore[arg-type]
         "revision_count": revision_count,

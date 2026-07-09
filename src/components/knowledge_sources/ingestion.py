@@ -701,7 +701,7 @@ def _write_manifest(
 
 def _project_root() -> Path:
     """Return the project root (parent of the ``src`` package)."""
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _ingest_glossary(cfg: AppConfig) -> tuple[GlossarySummary, list[FileHash]]:
@@ -898,7 +898,7 @@ def ingest(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Ingest glossary and/or corpus into the local stores (DATA_SPEC §4)."""
     _ = rebuild  # run_ingestion always rebuilds atomically

@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import (
+from src.components.interfaces.cli import (
     _audit_trace_markdown,
     _initial_state,
     _provenance_markdown,
@@ -32,10 +32,10 @@ from src.cli import (
     run_translation,
     run_translation_streamed,
 )
-from src.exceptions import EmbeddingConnectionError, OllamaConnectionError
-from src.ingestion import Chunk
-from src.retrieval import build_chroma_collection
-from src.state import TranslationState
+from src.components.translation_pipeline.exceptions import EmbeddingConnectionError, OllamaConnectionError
+from src.components.knowledge_sources.ingestion import Chunk
+from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.integration
 
@@ -253,7 +253,7 @@ class TestProcessBatch:
     def test_output_has_final_output_per_record(
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
     ) -> None:
-        from src.cli import _process_batch
+        from src.components.interfaces.cli import _process_batch
 
         mock_llm.set_response("translator", "contract of sale")
         mock_llm.set_response(
@@ -294,7 +294,7 @@ class TestProcessBatch:
     def test_ten_records_all_have_final_output(
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
     ) -> None:
-        from src.cli import _process_batch
+        from src.components.interfaces.cli import _process_batch
 
         mock_llm.set_response("translator", "contract of sale")
         mock_llm.set_response(
@@ -364,7 +364,7 @@ class TestIngestCommand:
 
     def test_delegates_to_run_ingestion(self) -> None:
         """The CLI ``ingest`` command should call ``src.ingestion.run_ingestion``."""
-        from src.ingestion import IngestionResult
+        from src.components.knowledge_sources.ingestion import IngestionResult
 
         fake_result = IngestionResult(
             glossary=None,
@@ -374,7 +374,7 @@ class TestIngestCommand:
             file_hashes=[],
         )
         with patch(
-            "src.ingestion.run_ingestion", return_value=fake_result
+            "src.components.knowledge_sources.ingestion.run_ingestion", return_value=fake_result
         ) as mock_run:
             result = runner.invoke(app, [
                 "ingest", "--glossary-only",
@@ -660,11 +660,11 @@ class TestOllamaDownHandling:
 
     def test_translate_ollama_down_exits_2(self, tmp_path: Path) -> None:
         with patch(
-            "src.cli.run_translation",
+            "src.components.interfaces.cli.run_translation",
             side_effect=OllamaConnectionError(
                 "cannot reach Ollama daemon at http://localhost:11434"
             ),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -677,11 +677,11 @@ class TestOllamaDownHandling:
         self, tmp_path: Path
     ) -> None:
         with patch(
-            "src.cli.run_translation",
+            "src.components.interfaces.cli.run_translation",
             side_effect=EmbeddingConnectionError(
                 "cannot reach embedding engine at http://localhost:11434"
             ),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -697,9 +697,9 @@ class TestOllamaDownHandling:
         )
         output_path: Path = tmp_path / "out.jsonl"
         with patch(
-            "src.cli._process_batch",
+            "src.components.interfaces.cli._process_batch",
             side_effect=OllamaConnectionError("daemon down"),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),
             ])
@@ -711,9 +711,9 @@ class TestOllamaDownHandling:
     def test_translate_generic_error_still_exits_1(self) -> None:
         """Non-connection errors keep the existing exit-code-1 behaviour."""
         with patch(
-            "src.cli.run_translation",
+            "src.components.interfaces.cli.run_translation",
             side_effect=RuntimeError("unexpected boom"),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -727,14 +727,14 @@ class TestOllamaDownHandling:
 
 class TestRamGuardCli:
     def test_translate_low_ram_aborts_with_clear_message(self) -> None:
-        from src.exceptions import RAMGuardError
+        from src.components.translation_pipeline.exceptions import RAMGuardError
 
         with patch(
-            "src.cli.run_translation",
+            "src.components.interfaces.cli.run_translation",
             side_effect=RAMGuardError(
                 "Only 0.40 GB of RAM available (minimum 1.5 GB required)."
             ),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -746,7 +746,7 @@ class TestRamGuardCli:
     def test_batch_low_ram_aborts_with_clear_message(
         self, tmp_path: Path
     ) -> None:
-        from src.exceptions import RAMGuardError
+        from src.components.translation_pipeline.exceptions import RAMGuardError
 
         input_path: Path = tmp_path / "in.jsonl"
         input_path.write_text(
@@ -755,9 +755,9 @@ class TestRamGuardCli:
         )
         output_path: Path = tmp_path / "out.jsonl"
         with patch(
-            "src.cli._process_batch",
+            "src.components.interfaces.cli._process_batch",
             side_effect=RAMGuardError("low RAM"),
-        ), patch("src.glossary.load_glossary_index", return_value=None):
+        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),
             ])

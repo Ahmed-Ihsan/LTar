@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.glossary import GlossaryIndex, Term, scan_glossary_hits
+from src.components.knowledge_sources.glossary import GlossaryIndex, Term, scan_glossary_hits
 
 pytestmark = pytest.mark.unit
 

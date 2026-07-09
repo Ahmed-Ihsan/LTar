@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from src.glossary import (
+from src.components.knowledge_sources.glossary import (
     GlossaryIndex,
     Term,
     build_sqlite_index,
@@ -105,7 +105,7 @@ class TestSqliteRoundTrip:
         assert count == 2
 
     def test_missing_db_raises(self, tmp_path: Path) -> None:
-        from src.exceptions import GlossaryError
+        from src.components.translation_pipeline.exceptions import GlossaryError
 
         with pytest.raises(GlossaryError, match="not found"):
             load_glossary_index(tmp_path / "does_not_exist.sqlite")

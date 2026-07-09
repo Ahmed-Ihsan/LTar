@@ -20,14 +20,14 @@ from pathlib import Path
 import pytest
 
 from src.config import AppConfig, load_config
-from src.embeddings import EMBED_DIM
-from src.exceptions import (
+from src.components.infrastructure.embeddings import EMBED_DIM
+from src.components.translation_pipeline.exceptions import (
     OllamaConnectionError,
     OllamaModelNotLoadedError,
     OllamaTimeoutError,
 )
-from src.glossary import GlossaryIndex, Term, load_glossary_file
-from src.state import TranslationState
+from src.components.knowledge_sources.glossary import GlossaryIndex, Term, load_glossary_file
+from src.components.translation_pipeline.models import TranslationState
 
 FIXTURES_DIR: Path = Path(__file__).parent / "fixtures"
 GLOSSARY_SAMPLE: Path = FIXTURES_DIR / "glossary_sample.json"
@@ -163,6 +163,7 @@ def _empty_state(
         "glossary_hits": [],
         "context_chunks": [],
         "tm_hits": [],
+        "web_search_results": [],
         "draft": "",
         "audit": None,
         "revision_count": 0,

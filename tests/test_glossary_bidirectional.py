@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from src.glossary import (
+from src.components.knowledge_sources.glossary import (
     GlossaryIndex,
     Term,
     _derive_reverse_terms,

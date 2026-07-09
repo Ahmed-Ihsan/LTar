@@ -68,7 +68,7 @@ _RAM_BUDGET_TOTAL_GB: float = (
 
 def _project_root(cfg: AppConfig) -> Path:
     """Return the project root (parent of the ``src`` package)."""
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _resolve_path(cfg: AppConfig, rel: str) -> Path:
@@ -357,7 +357,7 @@ def doctor(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Run environment diagnostics: Ollama, models, DB stores, RAM headroom."""
     try:
@@ -853,7 +853,7 @@ def translate(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Translate a single text or file and print output + provenance."""
     try:
@@ -1015,7 +1015,7 @@ def batch(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Translate a JSONL batch sequentially and write JSONL output."""
     if not input_arg.is_file():
@@ -1094,7 +1094,7 @@ def ingest(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Ingest glossary and/or corpus into local stores (wrapper around src.ingestion)."""
     from src.components.knowledge_sources.ingestion import run_ingestion
@@ -1149,7 +1149,7 @@ def tm_build(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Build the Translation Memory SQLite DB from the bilingual corpus."""
     try:
@@ -1192,7 +1192,7 @@ def tm_build_parallel(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Build the TM from a JSONL file of pre-aligned parallel sentence pairs.
 
@@ -1269,7 +1269,7 @@ def tm_add_parallel(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Add parallel sentence pairs to an existing TM (non-destructive).
 
@@ -1340,7 +1340,7 @@ def ui(
     config_path: Annotated[
         Path,
         typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent / "config.yaml",
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Launch a web-based desktop UI for interactive translation + audit trace.
 

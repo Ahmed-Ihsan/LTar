@@ -339,7 +339,7 @@ def _parse_query_result(raw: dict[str, Any]) -> list[ContextChunk]:
 def _default_persist_dir(cfg: AppConfig | None = None) -> Path:
     """Resolve the default ChromaDB persist dir from config (project-relative)."""
     resolved_cfg: AppConfig = cfg if cfg is not None else load_config()
-    project_root: Path = Path(__file__).resolve().parent.parent
+    project_root: Path = Path(__file__).resolve().parent.parent.parent.parent
     return project_root / resolved_cfg.paths.chroma_dir
 
 

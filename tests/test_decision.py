@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.decision import route_tm
-from src.state import TmHit
+from src.components.translation_pipeline.decision import route_tm
+from src.components.translation_pipeline.models import TmHit
 
 pytestmark = pytest.mark.unit
 

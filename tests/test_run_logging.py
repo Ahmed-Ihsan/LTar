@@ -22,8 +22,8 @@ from pathlib import Path
 
 import pytest
 
-from src.run_logging import RunLogger
-from src.state import TranslationState
+from src.components.infrastructure.run_logging import RunLogger
+from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.integration
 
@@ -132,8 +132,8 @@ class TestRunLogger:
 
 
 def _build_chroma(tmp_path: Path, mock_embedder, config) -> str:
-    from src.ingestion import Chunk
-    from src.retrieval import build_chroma_collection
+    from src.components.knowledge_sources.ingestion import Chunk
+    from src.components.knowledge_sources.retrieval import build_chroma_collection
 
     chunks: list[Chunk] = [
         Chunk(
@@ -158,7 +158,7 @@ class TestRunTranslationLogging:
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
     ) -> None:
         """4.3.1 verify: one JSON line per node execution (5 nodes)."""
-        from src.cli import run_translation
+        from src.components.interfaces.cli import run_translation
 
         mock_llm.set_response(
             "translator", "The contract of sale transfers ownership."
@@ -189,19 +189,23 @@ class TestRunTranslationLogging:
         log_file: Path = log_dir / "run_verify.jsonl"
         assert log_file.is_file()
         lines = log_file.read_text(encoding="utf-8").strip().split("\n")
-        # preprocess + tm_lookup + translate + audit + finalize == 5 nodes.
-        assert len(lines) == 5
+        # preprocess + web_search + tm_lookup + translate + audit + finalize
+        # == 6 nodes.
+        assert len(lines) == 6
         nodes = [json.loads(line)["node"] for line in lines]
-        assert nodes == ["preprocess", "tm_lookup", "translate", "auditor", "finalize"]
+        assert nodes == [
+            "preprocess", "web_search", "tm_lookup",
+            "translate", "auditor", "finalize",
+        ]
         # The audit node line carries the verdict.
-        audit_line = json.loads(lines[3])
+        audit_line = json.loads(lines[4])
         assert audit_line["audit_verdict"] == "APPROVE"
 
     def test_without_logger_no_log_file_and_no_error(
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
     ) -> None:
         """Backward compat: omitting run_logger must not create logs or raise."""
-        from src.cli import run_translation
+        from src.components.interfaces.cli import run_translation
 
         mock_llm.set_response("translator", "contract of sale")
         mock_llm.set_response(

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.ingestion import Article, Chunk, approx_token_count, chunk_article
+from src.components.knowledge_sources.ingestion import Article, Chunk, approx_token_count, chunk_article
 
 pytestmark = pytest.mark.unit
 

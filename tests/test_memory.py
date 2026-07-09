@@ -20,8 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.exceptions import RAMGuardError
-from src.memory import (
+from src.components.translation_pipeline.exceptions import RAMGuardError
+from src.components.infrastructure.memory import (
     RAM_GUARD_MIN_GB,
     MemoryInfo,
     check_ram_guard,
@@ -47,7 +47,7 @@ class TestRamGuard:
             total_bytes=8 * 1024 ** 3,
             available_bytes=int(0.5 * 1024 ** 3),  # 0.5 GB free
         )
-        with patch("src.memory.read_memory_info", return_value=low):
+        with patch("src.components.infrastructure.memory.read_memory_info", return_value=low):
             with pytest.raises(RAMGuardError, match="RAM"):
                 check_ram_guard()
 
@@ -56,12 +56,12 @@ class TestRamGuard:
             total_bytes=16 * 1024 ** 3,
             available_bytes=int(4.0 * 1024 ** 3),  # 4 GB free
         )
-        with patch("src.memory.read_memory_info", return_value=ok):
+        with patch("src.components.infrastructure.memory.read_memory_info", return_value=ok):
             check_ram_guard()  # must not raise
 
     def test_does_not_raise_when_memory_unreadable(self) -> None:
         """Cannot measure -> cannot prove low -> proceed (do not block)."""
-        with patch("src.memory.read_memory_info", return_value=None):
+        with patch("src.components.infrastructure.memory.read_memory_info", return_value=None):
             check_ram_guard()  # must not raise
 
     def test_threshold_is_1_5_gb(self) -> None:
@@ -72,7 +72,7 @@ class TestRamGuard:
             total_bytes=8 * 1024 ** 3,
             available_bytes=int(1.49 * 1024 ** 3),
         )
-        with patch("src.memory.read_memory_info", return_value=boundary):
+        with patch("src.components.infrastructure.memory.read_memory_info", return_value=boundary):
             with pytest.raises(RAMGuardError):
                 check_ram_guard()
 
@@ -80,7 +80,7 @@ class TestRamGuard:
 class TestAdapterRamGuard:
     def test_generate_aborts_before_chat_when_ram_low(self) -> None:
         """The guard runs before the daemon call — chat is never contacted."""
-        from src.llm import OllamaEngineAdapter
+        from src.components.infrastructure.llm import OllamaEngineAdapter
 
         fake_client: MagicMock = MagicMock()
         adapter: OllamaEngineAdapter = OllamaEngineAdapter(
@@ -88,7 +88,7 @@ class TestAdapterRamGuard:
             host="http://localhost:11434",
         )
         with patch(
-            "src.llm.check_ram_guard",
+            "src.components.infrastructure.llm.check_ram_guard",
             side_effect=RAMGuardError("only 0.4 GB free; aborting to avoid OOM"),
         ):
             with pytest.raises(RAMGuardError):
@@ -100,7 +100,7 @@ class TestAdapterRamGuard:
 
     def test_generate_proceeds_when_ram_sufficient(self) -> None:
         """When the guard passes, the chat call proceeds normally."""
-        from src.llm import OllamaEngineAdapter
+        from src.components.infrastructure.llm import OllamaEngineAdapter
 
         fake_client: MagicMock = MagicMock()
         fake_response: MagicMock = MagicMock()
@@ -110,7 +110,7 @@ class TestAdapterRamGuard:
             client=fake_client, model="qwen2.5:7b-instruct-q5_K_M",
             host="http://localhost:11434",
         )
-        with patch("src.llm.check_ram_guard", return_value=None):
+        with patch("src.components.infrastructure.llm.check_ram_guard", return_value=None):
             out: str = adapter.generate(
                 "system", "user",
                 model="qwen2.5:7b-instruct-q5_K_M",

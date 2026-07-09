@@ -11,13 +11,13 @@ from pathlib import Path
 
 import pytest
 
-from src.ingestion import Chunk
-from src.retrieval import (
+from src.components.knowledge_sources.ingestion import Chunk
+from src.components.knowledge_sources.retrieval import (
     DEFAULT_COLLECTION,
     build_chroma_collection,
     query_chroma,
 )
-from src.exceptions import ChromaDBCorruptionError
+from src.components.translation_pipeline.exceptions import ChromaDBCorruptionError
 
 pytestmark = pytest.mark.integration
 
@@ -173,7 +173,7 @@ class TestRealOllamaRetrieval:
     """
 
     def test_50_chunks_top1_is_correct_article(self, tmp_path: Path) -> None:
-        from src.embeddings import Embedder
+        from src.components.infrastructure.embeddings import Embedder
 
         chunks: list[Chunk] = []
         topics: list[str] = [

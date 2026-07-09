@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.glossary import load_glossary_file, load_glossary_files
+from src.components.knowledge_sources.glossary import load_glossary_file, load_glossary_files
 
 pytestmark = pytest.mark.unit
 

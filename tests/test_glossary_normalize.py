@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.glossary import normalize, normalize_arabic, normalize_english
+from src.components.knowledge_sources.glossary import normalize, normalize_arabic, normalize_english
 
 pytestmark = pytest.mark.unit
 

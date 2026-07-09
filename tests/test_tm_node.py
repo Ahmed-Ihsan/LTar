@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from src.config import AppConfig
-from src.nodes import tm_bypass_node, tm_lookup_node
-from src.state import TmHit, TranslationState
-from src.tm import TranslationMemory
+from src.components.translation_pipeline.nodes import tm_bypass_node, tm_lookup_node
+from src.components.translation_pipeline.models import TmHit, TranslationState
+from src.components.knowledge_sources.tm import TranslationMemory
 
 pytestmark = pytest.mark.unit
 
@@ -34,6 +34,7 @@ def _state(input_text: str, direction: str = "ar-en") -> TranslationState:
         "glossary_hits": [],
         "context_chunks": [],
         "tm_hits": [],
+        "web_search_results": [],
         "draft": "",
         "audit": None,
         "revision_count": 0,

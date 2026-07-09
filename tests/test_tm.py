@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.tm import TranslationMemory
+from src.components.knowledge_sources.tm import TranslationMemory
 
 pytestmark = pytest.mark.unit
 

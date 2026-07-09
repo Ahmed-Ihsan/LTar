@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.embeddings import EMBED_DIM, Embedder, embed_batch, embed_text
-from src.exceptions import EmbeddingConnectionError, EmbeddingError
+from src.components.infrastructure.embeddings import EMBED_DIM, Embedder, embed_batch, embed_text
+from src.components.translation_pipeline.exceptions import EmbeddingConnectionError, EmbeddingError
 
 pytestmark = pytest.mark.adapter
 

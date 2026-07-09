@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.ingestion import approx_token_count
+from src.components.knowledge_sources.ingestion import approx_token_count
 
 pytestmark = pytest.mark.unit
 

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from src.ingestion import Chunk
-from src.retrieval import (
+from src.components.knowledge_sources.ingestion import Chunk
+from src.components.knowledge_sources.retrieval import (
     add_chunks_to_collection,
     build_chroma_collection,
     query_chroma,

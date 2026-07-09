@@ -21,11 +21,11 @@ import json
 
 import pytest
 
-from src.graph import build_graph, route_audit
-from src.ingestion import Chunk
-from src.nodes import finalize_node
-from src.retrieval import build_chroma_collection
-from src.state import TranslationState
+from src.components.translation_pipeline.graph import build_graph, route_audit
+from src.components.knowledge_sources.ingestion import Chunk
+from src.components.translation_pipeline.nodes import finalize_node
+from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.integration
 
@@ -77,6 +77,8 @@ def _initial_state(input_text: str = "المادة 148: عقد البيع") -> T
         "direction": "ar-en",
         "glossary_hits": [],
         "context_chunks": [],
+        "tm_hits": [],
+        "web_search_results": [],
         "draft": "",
         "audit": None,
         "revision_count": 0,
@@ -144,9 +146,8 @@ class TestGraphCompiles:
         # The four real nodes must all be present (ARCHITECTURE.md §4.2). The
         # Auditor Agent node is named ``auditor`` (not ``audit``) to avoid
         # colliding with the ``audit`` state key under LangGraph 0.2.x.
-        assert {"preprocess", "translate", "auditor", "finalize"}.issubset(
-            node_ids
-        )
+        assert {"preprocess", "web_search", "translate", "auditor",
+                "finalize"}.issubset(node_ids)
 
     def test_expected_topology_edges(
         self, mock_llm, mock_embedder, glossary_index, tmp_path, config
@@ -159,11 +160,12 @@ class TestGraphCompiles:
             config=config,
         )
         edges: dict[str, str] = dict(graph.builder.edges)
-        # Static edges (ARCHITECTURE.md §4.3): START->preprocess,
-        # preprocess->tm_lookup, translate->auditor, tm_bypass->finalize,
+        # Static edges: START->preprocess, preprocess->web_search,
+        # web_search->tm_lookup, translate->auditor, tm_bypass->finalize,
         # finalize->END.
         assert edges["__start__"] == "preprocess"
-        assert edges["preprocess"] == "tm_lookup"
+        assert edges["preprocess"] == "web_search"
+        assert edges["web_search"] == "tm_lookup"
         assert edges["translate"] == "auditor"
         assert edges["tm_bypass"] == "finalize"
         assert edges["finalize"] == "__end__"
@@ -363,7 +365,7 @@ class TestStateMutationOwnership:
 def test_graph_includes_tm_lookup_node_when_enabled(
     config, mock_llm, mock_embedder, glossary_index, tmp_path
 ):
-    from src.graph import build_graph
+    from src.components.translation_pipeline.graph import build_graph
     persist_dir = str(tmp_path / "chroma")
     build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
     corpus_dir = tmp_path / "corpus"
@@ -372,7 +374,7 @@ def test_graph_includes_tm_lookup_node_when_enabled(
         "LAW: قانون\nLANG: ar\n---\n\nARTICLE 1\nعقد البيع\n", encoding="utf-8")
     (corpus_dir / "civil_code_en.txt").write_text(
         "LAW: Code\nLANG: en\n---\n\nARTICLE 1\nContract of sale\n", encoding="utf-8")
-    from src.tm import TranslationMemory
+    from src.components.knowledge_sources.tm import TranslationMemory
     tm = TranslationMemory(db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98)
     tm.build_from_corpus(corpus_dir)
     graph = build_graph(
@@ -411,7 +413,7 @@ def _build_tm(tmp_path):
     (corpus_dir / "civil_code_en.txt").write_text(
         "LAW: Code\nLANG: en\n---\n\nARTICLE 1\nContract of sale\n",
         encoding="utf-8")
-    from src.tm import TranslationMemory
+    from src.components.knowledge_sources.tm import TranslationMemory
     tm = TranslationMemory(
         db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98)
     tm.build_from_corpus(corpus_dir)
@@ -457,7 +459,7 @@ def test_tm_miss_invokes_the_llm(
 
 class TestRouteAfterTm:
     def test_hit_above_threshold_routes_to_bypass(self) -> None:
-        from src.graph import route_after_tm
+        from src.components.translation_pipeline.graph import route_after_tm
         state = _initial_state()
         state["tm_hits"] = [{
             "source_sentence": "s", "target_sentence": "t",
@@ -466,7 +468,7 @@ class TestRouteAfterTm:
         assert route_after_tm(state, threshold=0.98) == "tm_bypass"
 
     def test_no_hit_routes_to_translate(self) -> None:
-        from src.graph import route_after_tm
+        from src.components.translation_pipeline.graph import route_after_tm
         state = _initial_state()
         state["tm_hits"] = []
         assert route_after_tm(state, threshold=0.98) == "translate"

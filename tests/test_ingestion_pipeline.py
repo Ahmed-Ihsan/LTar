@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.ingestion import (
+from src.components.knowledge_sources.ingestion import (
     CorpusSummary,
     FileHash,
     GlossarySummary,

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.nodes import _augment_query_for_retrieval
+from src.components.translation_pipeline.nodes import _augment_query_for_retrieval
 
 pytestmark = pytest.mark.unit
 

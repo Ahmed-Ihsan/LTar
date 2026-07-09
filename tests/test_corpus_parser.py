@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from src.exceptions import CorpusEncodingError, CorpusParseError
-from src.ingestion import Article, iter_articles, parse_corpus_file
+from src.components.translation_pipeline.exceptions import CorpusEncodingError, CorpusParseError
+from src.components.knowledge_sources.ingestion import Article, iter_articles, parse_corpus_file
 
 FIXTURES_DIR: Path = Path(__file__).parent / "fixtures"
 CORPUS_SAMPLE: Path = FIXTURES_DIR / "corpus_sample.txt"

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.glossary import (
+from src.components.knowledge_sources.glossary import (
     GlossaryIndex,
     Term,
     glossary_scan,

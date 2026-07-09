@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.prompts import (
+from src.components.translation_pipeline.prompts import (
     ALL_PROMPT_CONSTANTS,
     AUDITOR_SYSTEM_V1,
     AUDITOR_SYSTEM_V2,
@@ -450,9 +450,12 @@ class TestV4AdditiveOverV3:
     def test_revision_addendum_v4_contains_v3_verbatim(self) -> None:
         assert TRANSLATOR_REVISION_ADDENDUM_V3 in TRANSLATOR_REVISION_ADDENDUM_V4
 
-    def test_user_templates_v4_equal_v3(self) -> None:
-        assert TRANSLATOR_USER_TEMPLATE_V4 == TRANSLATOR_USER_TEMPLATE_V3
-        assert AUDITOR_USER_TEMPLATE_V4 == AUDITOR_USER_TEMPLATE_V3
+    def test_user_templates_v4_contain_v3_plus_web_search(self) -> None:
+        """V4 user templates are V3 + a web search results section."""
+        assert TRANSLATOR_USER_TEMPLATE_V3 in TRANSLATOR_USER_TEMPLATE_V4
+        assert AUDITOR_USER_TEMPLATE_V3 in AUDITOR_USER_TEMPLATE_V4
+        assert "{web_search_results}" in TRANSLATOR_USER_TEMPLATE_V4
+        assert "{web_search_results}" in AUDITOR_USER_TEMPLATE_V4
 
 
 class TestV4ArabicScriptEnforcement:
