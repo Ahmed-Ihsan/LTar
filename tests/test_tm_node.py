@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from src.config import AppConfig
-from src.components.translation_pipeline.nodes import tm_bypass_node, tm_lookup_node
-from src.components.translation_pipeline.models import TmHit, TranslationState
 from src.components.knowledge_sources.tm import TranslationMemory
+from src.components.translation_pipeline.models import TmHit, TranslationState
+from src.components.translation_pipeline.nodes import tm_bypass_node, tm_lookup_node
+from src.config import AppConfig
 
 pytestmark = pytest.mark.unit
 

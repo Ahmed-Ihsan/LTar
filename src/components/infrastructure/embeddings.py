@@ -21,12 +21,12 @@ from typing import Protocol, runtime_checkable
 
 import ollama
 
-from src.config import AppConfig, load_config
 from src.components.translation_pipeline.exceptions import (
     EmbeddingConnectionError,
     EmbeddingError,
     EmbeddingTimeoutError,
 )
+from src.config import AppConfig, load_config
 
 # ``nomic-embed-text`` produces 768-dimensional vectors. Kept here as the
 # single source of truth for the expected embedding dimension (DRY).

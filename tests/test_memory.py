@@ -20,13 +20,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.components.translation_pipeline.exceptions import RAMGuardError
 from src.components.infrastructure.memory import (
     RAM_GUARD_MIN_GB,
     MemoryInfo,
     check_ram_guard,
     read_memory_info,
 )
+from src.components.translation_pipeline.exceptions import RAMGuardError
 
 pytestmark = pytest.mark.adapter
 

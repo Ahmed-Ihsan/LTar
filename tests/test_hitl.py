@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from src.config import AppConfig
 from src.components.interfaces.hitl import HumanReviewer, _save_correction, human_review
 from src.components.translation_pipeline.models import TranslationState
+from src.config import AppConfig
 
 pytestmark = pytest.mark.unit
 

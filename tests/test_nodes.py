@@ -15,17 +15,17 @@ import json
 
 import pytest
 
-from src.components.translation_pipeline.exceptions import OllamaConnectionError, OllamaTimeoutError
 from src.components.knowledge_sources.glossary import GlossaryIndex
 from src.components.knowledge_sources.ingestion import Chunk
+from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.exceptions import OllamaConnectionError, OllamaTimeoutError
+from src.components.translation_pipeline.models import TranslationState
 from src.components.translation_pipeline.nodes import (
     audit_node,
     finalize_node,
     preprocess_node,
     translate_node,
 )
-from src.components.knowledge_sources.retrieval import build_chroma_collection
-from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.unit
 

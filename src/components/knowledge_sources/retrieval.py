@@ -25,13 +25,13 @@ import chromadb
 from chromadb.api.client import SharedSystemClient
 from chromadb.config import Settings
 
+from src.components.infrastructure.embeddings import Embedder, EmbeddingAdapter
 from src.components.knowledge_sources.models import Chunk, ContextChunk
 from src.components.translation_pipeline.exceptions import (
     ChromaDBCorruptionError,
     RetrievalError,
 )
 from src.config import AppConfig, load_config
-from src.embeddings import EmbeddingAdapter, Embedder, embed_text
 
 # Default collection name (DATA_SPEC §4 / offline-architecture §3.1).
 DEFAULT_COLLECTION: str = "iraqi_laws"

@@ -19,15 +19,15 @@ from pathlib import Path
 
 import pytest
 
-from src.config import AppConfig, load_config
 from src.components.infrastructure.embeddings import EMBED_DIM
+from src.components.knowledge_sources.glossary import GlossaryIndex, Term, load_glossary_file
 from src.components.translation_pipeline.exceptions import (
     OllamaConnectionError,
     OllamaModelNotLoadedError,
     OllamaTimeoutError,
 )
-from src.components.knowledge_sources.glossary import GlossaryIndex, Term, load_glossary_file
 from src.components.translation_pipeline.models import TranslationState
+from src.config import AppConfig, load_config
 
 FIXTURES_DIR: Path = Path(__file__).parent / "fixtures"
 GLOSSARY_SAMPLE: Path = FIXTURES_DIR / "glossary_sample.json"

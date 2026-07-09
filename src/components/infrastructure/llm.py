@@ -23,14 +23,14 @@ from typing import Protocol, runtime_checkable
 
 import ollama
 
-from src.config import AppConfig, load_config
+from src.components.infrastructure.memory import check_ram_guard
 from src.components.translation_pipeline.exceptions import (
     LLMRuntimeError,
     OllamaConnectionError,
     OllamaModelNotLoadedError,
     OllamaTimeoutError,
 )
-from src.components.infrastructure.memory import check_ram_guard
+from src.config import AppConfig, load_config
 
 # HTTP 404 from Ollama indicates the requested model is not pulled locally.
 _MODEL_NOT_FOUND_STATUS: int = 404

@@ -42,8 +42,8 @@ from src.components.interfaces.cli import (
 from src.components.interfaces.cli import (
     _provenance_markdown as _provenance_md,
 )
-from src.config import AppConfig
 from src.components.translation_pipeline.models import TranslationState
+from src.config import AppConfig
 
 # Example legal sentences for the dropdown (covers different domains).
 _EXAMPLES: list[dict[str, str]] = [
@@ -164,7 +164,7 @@ class Api:
         try:
             from pathlib import Path
 
-            from src.retrieval import ChromaStore
+            from src.components.knowledge_sources.retrieval import ChromaStore
 
             persist = Path(self._adapters.persist_dir)
             if persist.exists():
@@ -215,8 +215,8 @@ class Api:
                 if hitl_active and reviewer is not None:
                     # Phase 1: run the graph WITHOUT the reviewer to get the
                     # draft, then signal JS to show the review panel.
-                    from src.cli import run_translation_streamed
-                    from src.nodes import finalize_node
+                    from src.components.interfaces.cli import run_translation_streamed
+                    from src.components.translation_pipeline.nodes import finalize_node
 
                     state, history = run_translation_streamed(
                         input_text, direction, effective_cfg,
@@ -240,7 +240,7 @@ class Api:
                         )
 
                     # Phase 2: block until the human submits or approves.
-                    from src.hitl import human_review
+                    from src.components.interfaces.hitl import human_review
 
                     reviewed: TranslationState = human_review(
                         state, effective_cfg,

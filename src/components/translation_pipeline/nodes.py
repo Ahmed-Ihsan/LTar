@@ -29,18 +29,10 @@ import json
 import re
 from typing import Any
 
-from src.config import AppConfig
-from src.glossary import GlossaryIndex, scan_glossary_hits
-from src.legal_search import search_all_sources
-from src.llm import LLMEngineAdapter
-from src.components.translation_pipeline.prompts import (
-    AUDITOR_SYSTEM_V4,
-    AUDITOR_USER_TEMPLATE_V4,
-    TRANSLATOR_REVISION_ADDENDUM_V4,
-    TRANSLATOR_SYSTEM_V4,
-    TRANSLATOR_USER_TEMPLATE_V4,
-)
-from src.retrieval import retrieve_context_chunks
+from src.components.infrastructure.llm import LLMEngineAdapter
+from src.components.knowledge_sources.glossary import GlossaryIndex, scan_glossary_hits
+from src.components.knowledge_sources.legal_search import search_all_sources
+from src.components.knowledge_sources.retrieval import retrieve_context_chunks
 from src.components.translation_pipeline.models import (
     AuditVerdict as StateAuditVerdict,
 )
@@ -57,6 +49,14 @@ from src.components.translation_pipeline.models import (
     TranslationState,
     Verdict,
 )
+from src.components.translation_pipeline.prompts import (
+    AUDITOR_SYSTEM_V4,
+    AUDITOR_USER_TEMPLATE_V4,
+    TRANSLATOR_REVISION_ADDENDUM_V4,
+    TRANSLATOR_SYSTEM_V4,
+    TRANSLATOR_USER_TEMPLATE_V4,
+)
+from src.config import AppConfig
 
 # Source/target language labels per direction (closed set, clean-code §1.1).
 _DIR_LANGS: dict[str, tuple[str, str]] = {

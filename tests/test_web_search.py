@@ -14,9 +14,9 @@ from unittest.mock import patch
 
 import pytest
 
-from src.config import AppConfig
-from src.components.translation_pipeline.nodes import web_search_node
 from src.components.translation_pipeline.models import TranslationState
+from src.components.translation_pipeline.nodes import web_search_node
+from src.config import AppConfig
 
 pytestmark = pytest.mark.unit
 
@@ -61,7 +61,9 @@ class TestWebSearchDisabled:
     def test_disabled_does_not_call_search(self) -> None:
         cfg: AppConfig = _cfg(enabled=False)
         state: TranslationState = _state()
-        with patch("src.components.knowledge_sources.legal_search.search_all_sources") as mock_search:
+        with patch(
+            "src.components.knowledge_sources.legal_search.search_all_sources"
+        ) as mock_search:
             web_search_node(state, cfg=cfg)
             mock_search.assert_not_called()
 
@@ -153,7 +155,9 @@ class TestWebSearchEdgeCases:
     def test_empty_input_returns_empty(self) -> None:
         cfg: AppConfig = _cfg(enabled=True)
         state: TranslationState = _state(input_text="   ")
-        with patch("src.components.knowledge_sources.legal_search.search_all_sources") as mock_search:
+        with patch(
+            "src.components.knowledge_sources.legal_search.search_all_sources"
+        ) as mock_search:
             result: TranslationState = web_search_node(state, cfg=cfg)
             assert result["web_search_results"] == []
             mock_search.assert_not_called()

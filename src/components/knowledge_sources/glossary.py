@@ -681,4 +681,5 @@ def glossary_scan(
 
 
 # Default DB path: db/glossary.sqlite relative to the project root.
-_DEFAULT_GLOSSARY_DB: Path = Path(__file__).resolve().parent.parent.parent.parent / "db" / "glossary.sqlite"
+_PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent.parent
+_DEFAULT_GLOSSARY_DB: Path = _PROJECT_ROOT / "db" / "glossary.sqlite"

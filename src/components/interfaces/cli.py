@@ -25,24 +25,24 @@ from typing import Annotated, TypedDict
 import ollama
 import typer
 
-from src.config import AppConfig, load_config
-from src.components.translation_pipeline.exceptions import (
-    EmbeddingConnectionError,
-    OllamaConnectionError,
-    RAMGuardError,
-)
-from src.components.knowledge_sources.glossary import GlossaryIndex
-from src.components.translation_pipeline.graph import build_graph
-from src.components.interfaces.hitl import HumanReviewer, human_review
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.infrastructure.memory import MemoryInfo, read_memory_info
 from src.components.infrastructure.run_logging import RunLogger
-from src.components.translation_pipeline.models import TranslationState
+from src.components.interfaces.hitl import HumanReviewer, human_review
 from src.components.interfaces.models import (
     Adapters,
     CheckResult,
     UiTranslationResult,
 )
+from src.components.knowledge_sources.glossary import GlossaryIndex
+from src.components.translation_pipeline.exceptions import (
+    EmbeddingConnectionError,
+    OllamaConnectionError,
+    RAMGuardError,
+)
+from src.components.translation_pipeline.graph import build_graph
+from src.components.translation_pipeline.models import TranslationState
+from src.config import AppConfig, load_config
 
 app = typer.Typer(
     add_completion=False,
@@ -110,8 +110,8 @@ def _construct_adapters(cfg: AppConfig) -> Adapters:
     §3.6). Raises :class:`typer.Exit` (code 1) on a glossary load failure.
     """
     from src.components.infrastructure.embeddings import Embedder
-    from src.components.knowledge_sources.glossary import load_glossary_index
     from src.components.infrastructure.llm import OllamaEngineAdapter
+    from src.components.knowledge_sources.glossary import load_glossary_index
 
     persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
     llm = OllamaEngineAdapter(host=cfg.ollama_host)

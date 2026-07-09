@@ -25,10 +25,11 @@ from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from src.config import AppConfig
+from src.components.infrastructure.llm import LLMEngineAdapter
+from src.components.infrastructure.run_logging import RunLogger
+from src.components.knowledge_sources.glossary import GlossaryIndex
 from src.components.translation_pipeline.decision import route_tm
-from src.glossary import GlossaryIndex
-from src.llm import LLMEngineAdapter
+from src.components.translation_pipeline.models import TranslationState
 from src.components.translation_pipeline.nodes import (
     audit_node,
     finalize_node,
@@ -38,8 +39,7 @@ from src.components.translation_pipeline.nodes import (
     translate_node,
     web_search_node,
 )
-from src.run_logging import RunLogger
-from src.components.translation_pipeline.models import TranslationState
+from src.config import AppConfig
 
 # A node callable after dependency binding: ``(state) -> state``.
 _NodeCallable = Callable[[TranslationState], TranslationState]

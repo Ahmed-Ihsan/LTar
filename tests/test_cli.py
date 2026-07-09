@@ -32,9 +32,12 @@ from src.components.interfaces.cli import (
     run_translation,
     run_translation_streamed,
 )
-from src.components.translation_pipeline.exceptions import EmbeddingConnectionError, OllamaConnectionError
 from src.components.knowledge_sources.ingestion import Chunk
 from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.exceptions import (
+    EmbeddingConnectionError,
+    OllamaConnectionError,
+)
 from src.components.translation_pipeline.models import TranslationState
 
 pytestmark = pytest.mark.integration
@@ -664,7 +667,10 @@ class TestOllamaDownHandling:
             side_effect=OllamaConnectionError(
                 "cannot reach Ollama daemon at http://localhost:11434"
             ),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -681,7 +687,10 @@ class TestOllamaDownHandling:
             side_effect=EmbeddingConnectionError(
                 "cannot reach embedding engine at http://localhost:11434"
             ),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -699,7 +708,10 @@ class TestOllamaDownHandling:
         with patch(
             "src.components.interfaces.cli._process_batch",
             side_effect=OllamaConnectionError("daemon down"),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),
             ])
@@ -713,7 +725,10 @@ class TestOllamaDownHandling:
         with patch(
             "src.components.interfaces.cli.run_translation",
             side_effect=RuntimeError("unexpected boom"),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -734,7 +749,10 @@ class TestRamGuardCli:
             side_effect=RAMGuardError(
                 "Only 0.40 GB of RAM available (minimum 1.5 GB required)."
             ),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "translate", "--input", "المادة 148", "--direction", "ar-en",
             ])
@@ -757,7 +775,10 @@ class TestRamGuardCli:
         with patch(
             "src.components.interfaces.cli._process_batch",
             side_effect=RAMGuardError("low RAM"),
-        ), patch("src.components.knowledge_sources.glossary.load_glossary_index", return_value=None):
+        ), patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),
             ])

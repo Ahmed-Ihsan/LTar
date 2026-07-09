@@ -94,6 +94,14 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # datetime.UTC is 3.11-only; the test venv runs 3.10, so timezone.utc is kept
 # for cross-version compatibility (task 4.3.1 logging timestamps).
 "src/components/infrastructure/run_logging.py" = ["UP017"]
+# ingestion.py has a parser section then a CLI section — mid-file imports
+# (E402) are intentional. Typer's Path(__file__) default (B008) is the
+# standard pattern. PLR0913/F841/UP028 are pre-existing.
+"src/components/knowledge_sources/ingestion.py" = ["E402", "B008", "F841", "PLR0913", "UP028"]
+# retrieve_context_chunks / query_chroma take one arg per DI dependency (DIP).
+"src/components/knowledge_sources/retrieval.py" = ["PLR0913"]
+# _term test helper takes one arg per Term field for readability.
+"tests/test_glossary_conflict.py" = ["PLR0913"]
 
 [tool.mypy]
 python_version = "3.11"

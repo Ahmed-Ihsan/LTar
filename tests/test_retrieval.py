@@ -6,14 +6,12 @@ Ollama daemon is required. The real-Ollama path is marked ``slow``.
 """
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
 
 from src.components.knowledge_sources.ingestion import Chunk
 from src.components.knowledge_sources.retrieval import (
-    DEFAULT_COLLECTION,
     build_chroma_collection,
     query_chroma,
 )

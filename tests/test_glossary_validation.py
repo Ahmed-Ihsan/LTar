@@ -9,8 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from src.components.translation_pipeline.exceptions import GlossaryConflictError, GlossaryValidationError
 from src.components.knowledge_sources.glossary import load_glossary_file
+from src.components.translation_pipeline.exceptions import (
+    GlossaryConflictError,
+    GlossaryValidationError,
+)
 
 pytestmark = pytest.mark.unit
 

@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Iterator
+from typing import Annotated
 
-from src.components.knowledge_sources.models import Article, Chunk, Lang
+from src.components.knowledge_sources.models import Article, Chunk
 from src.components.translation_pipeline.exceptions import (
     CorpusEncodingError,
     CorpusParseError,
@@ -529,17 +530,17 @@ import gc
 import hashlib
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import typer
 
-from src.config import AppConfig, load_config
 from src.components.knowledge_sources.glossary import (
     GlossaryConflictError,
     GlossaryValidationError,
     build_sqlite_index,
     load_glossary_files,
 )
+from src.config import AppConfig, load_config
 
 # ``retrieval`` and ``embeddings`` are imported lazily inside the CLI functions
 # to avoid a circular import: retrieval.py imports ``Chunk`` from this module at
@@ -667,7 +668,7 @@ def _write_manifest(
 
     manifest: dict[str, object] = {
         "version": _MANIFEST_VERSION,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "content_hash": content_hash,
         "glossary": {
             "file_count": result.glossary.file_count if result.glossary else 0,
@@ -801,7 +802,7 @@ def run_ingestion(
     for checking ``error_count`` and setting the exit code.
     """
     # Lazy imports to avoid circular import (retrieval imports Chunk from here).
-    from src.embeddings import Embedder
+    from src.components.infrastructure.embeddings import Embedder
     from src.components.knowledge_sources.retrieval import build_chroma_collection
 
     start_time: float = time.monotonic()

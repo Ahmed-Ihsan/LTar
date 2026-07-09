@@ -21,11 +21,11 @@ import json
 
 import pytest
 
-from src.components.translation_pipeline.graph import build_graph, route_audit
 from src.components.knowledge_sources.ingestion import Chunk
-from src.components.translation_pipeline.nodes import finalize_node
 from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.graph import build_graph, route_audit
 from src.components.translation_pipeline.models import TranslationState
+from src.components.translation_pipeline.nodes import finalize_node
 
 pytestmark = pytest.mark.integration
 
