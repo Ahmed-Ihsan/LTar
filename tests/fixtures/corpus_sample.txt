@@ -1,0 +1,19 @@
+LAW: Iraqi Civil Code
+SOURCE: Al-Waqa'i al-Iraqiya No. 40, 1951
+LANG: en
+---
+
+ARTICLE 1
+This Code shall be cited as the Civil Code and shall come into force on the date of its publication in the Official Gazette.
+
+ARTICLE 2
+Legal provisions are either textual or interpretive. Textual provisions are those whose meaning is clear on their face; interpretive provisions are those whose meaning becomes clear through reasoning and reference to the context in which they appear.
+
+ARTICLE 3
+The provisions of this Code apply to all civil matters that fall within its scope. Matters not expressly governed by this Code are subject to the general principles of civil law and, in their absence, to Islamic jurisprudence most consistent with the provisions of this Code.
+
+ARTICLE 148
+Contract of sale is a contract under which one of the parties undertakes to transfer to the other party the ownership of a specific thing in exchange for a price certain in money. The obligation of means distinguished from the obligation of result governs the seller's duty of care.
+
+ARTICLE 148 bis
+The provisions of the preceding article apply mutatis mutandis to the contract of exchange, save that the price in an exchange consists of a thing rather than money.

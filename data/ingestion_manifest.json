@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-07T12:20:25.932910+00:00",
+  "content_hash": "50462db2252c19e31d41693e21d4f8d2f38cb3a24235226c756cf709661302a2",
+  "glossary": {
+    "file_count": 4,
+    "term_count": 169,
+    "files": [
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\civil_code.json",
+        "sha256": "c1d24e4163f173e7f26a30ffcc94dcc7a189e1dac64bfdee0211d158044ac226",
+        "size": 5504
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\civil_procedure_code.json",
+        "sha256": "c2421e5f1168254ea81159f62d0b613e196b3ef86db70015ed1165ed7ff4e91b",
+        "size": 4947
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\penal_code.json",
+        "sha256": "12846bac6fc1925a99b167bdccb2c8ec646755ed2efac3745ccd1d045815c41f",
+        "size": 3807
+      },
+      {
+        "path": "C:\\Users\\demha\\OneDrive\\Desktop\\test\\translater\\data\\glossary\\un_international.json",
+        "sha256": "b4cdfc65068d3d3464f61259f4b030024c7f4b8dd7b2c6b83c56003cade42968",
+        "size": 23015
+      }
+    ]
+  },
+  "corpus": {
+    "file_count": 0,
+    "law_count": 0,
+    "article_count": 0,
+    "chunk_count": 0,
+    "files": []
+  },
+  "chroma": {
+    "collection": "iraqi_laws",
+    "embeddings_written": 0
+  },
+  "models": {
+    "llm_model": "gemma3:4b",
+    "embed_model": "nomic-embed-text"
+  },
+  "duration_seconds": 0.12
+}

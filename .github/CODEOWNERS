@@ -1,0 +1,11 @@
+# Default owner for the entire repository
+* @demha
+
+# Source code
+/src/ @demha
+/tests/ @demha
+
+# Configuration
+/config.yaml @demha
+/pyproject.toml @demha
+/requirements.txt @demha

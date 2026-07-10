@@ -1,0 +1,49 @@
+LAW: Iraqi Civil Code
+SOURCE: Al-Waqa'i al-Iraqiya No. 40, 1951
+LANG: en
+---
+
+ARTICLE 1
+The provisions of this Code shall apply to all civil matters not specifically governed by other laws. Civil matters are those arising from contracts, torts, property, and family relations among persons.
+
+ARTICLE 2
+A contract is the meeting of an offer and an acceptance in a manner that produces an obligation. A contract is valid only if its parties have legal capacity and its object is lawful and possible.
+
+ARTICLE 3
+Legal capacity is the fitness of a person to acquire rights and to assume obligations. Full legal capacity is attained upon reaching the age of majority, which is eighteen years.
+
+ARTICLE 4
+Every person must exercise their rights and perform their obligations in good faith. Good faith requires honesty in dealings and the absence of intent to harm others.
+
+ARTICLE 5
+A contract of sale is an agreement whereby one party transfers ownership of a specific thing to another party in exchange for a price. The seller is bound to deliver the thing sold and to warrant it against defects.
+
+ARTICLE 6
+The obligations of the seller are to deliver the sold property in the condition agreed upon, to transfer ownership free of any rights of third parties, and to warrant the buyer against latent defects discovered after delivery.
+
+ARTICLE 7
+The obligations of the buyer are to accept delivery of the sold property and to pay the price at the time and place agreed upon in the contract. If no time is fixed, payment shall be made at the time of delivery.
+
+ARTICLE 8
+A lease contract is an agreement whereby one party grants another the right to use a specific property for a determined period in exchange for a rent. The lessor must deliver the leased property in a state fit for its intended use.
+
+ARTICLE 9
+A mortgage is a real right established on immovable property as security for a debt. The mortgagee may, upon default of the debtor, have the mortgaged property sold and recover the debt from the proceeds.
+
+ARTICLE 10
+Liability for harmful acts arises when a person causes damage to another by fault. The person causing the damage is liable to repair it. Repair includes restoring the situation to its prior state or paying compensation.
+
+ARTICLE 11
+An obligation of means is one where the debtor undertakes to exercise the diligence of a reasonable person in the performance of the obligation, without guaranteeing a specific result.
+
+ARTICLE 12
+An obligation of result is one where the debtor undertakes to achieve a specific result. The debtor is released only by proving that the failure to achieve the result is due to a cause not attributable to the debtor.
+
+ARTICLE 13
+Commercial partnership is a contract whereby two or more persons contribute property or labor to a common enterprise and share the profits and losses. Partners are jointly liable for the debts of the partnership.
+
+ARTICLE 14
+The contract of mandate is one whereby one party undertakes to perform a juridical act on behalf of another party. The mandatary must act within the limits of the mandate and account for the performance of the mandate.
+
+ARTICLE 15
+Prescription is the acquisition of a right or the extinction of an obligation by the lapse of time. The prescriptive period for civil actions is fifteen years unless the law provides otherwise.

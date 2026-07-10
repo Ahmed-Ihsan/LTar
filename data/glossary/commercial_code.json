@@ -1,0 +1,927 @@
+{
+  "domain": "commercial_code",
+  "version": "2.0.0",
+  "last_updated": "2026-07-07",
+  "terms": [
+    {
+      "source_term": "قانون التجارة",
+      "source_lang": "ar",
+      "target_term": "Commercial Code",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "Law No. 30 of 1984",
+      "note": "Iraqi Commercial Code. Regulates commercial activities in socialist, mixed, and private sectors.",
+      "priority": 10
+    },
+    {
+      "source_term": "قانون الشركات",
+      "source_lang": "ar",
+      "target_term": "Companies Law",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "Law No. 21 of 1997",
+      "note": "Iraqi Companies Law. Organizes companies, protects creditors and shareholders.",
+      "priority": 10
+    },
+    {
+      "source_term": "التاجر",
+      "source_lang": "ar",
+      "target_term": "merchant",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "7",
+      "note": "Person professionally practicing commercial activities in own name and account.",
+      "priority": 10
+    },
+    {
+      "source_term": "الأهلية التجارية",
+      "source_lang": "ar",
+      "target_term": "commercial capacity",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "8",
+      "note": "Legal capacity to engage in commercial activities. Full capacity at age 18.",
+      "priority": 9
+    },
+    {
+      "source_term": "السجل التجاري",
+      "source_lang": "ar",
+      "target_term": "commercial register",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "9, 26",
+      "note": "Public register at Chambers of Commerce. Merchants must register.",
+      "priority": 10
+    },
+    {
+      "source_term": "المحل التجاري",
+      "source_lang": "ar",
+      "target_term": "commercial establishment",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "24",
+      "note": "Physical place where merchant conducts commercial activities.",
+      "priority": 8
+    },
+    {
+      "source_term": "العلامة التجارية",
+      "source_lang": "ar",
+      "target_term": "trademark",
+      "target_lang": "en",
+      "law_ref": "Trademarks Law",
+      "article_ref": "1",
+      "note": "Sign distinguishing goods of one undertaking from others. Words, letters, colors, etc.",
+      "priority": 9
+    },
+    {
+      "source_term": "البراءة",
+      "source_lang": "ar",
+      "target_term": "patent",
+      "target_lang": "en",
+      "law_ref": "Patents Law No. 65 of 1970",
+      "article_ref": "",
+      "note": "Certificate for novel, inventive, industrially applicable invention. 20 years protection.",
+      "priority": 8
+    },
+    {
+      "source_term": "الوكالة التجارية",
+      "source_lang": "ar",
+      "target_term": "commercial agency",
+      "target_lang": "en",
+      "law_ref": "Commercial Agency Law No. 51 of 2000",
+      "article_ref": "3",
+      "note": "Commercial business by agent for foreign person. Must be Iraqi with commercial office.",
+      "priority": 10
+    },
+    {
+      "source_term": "السمسرة",
+      "source_lang": "ar",
+      "target_term": "brokerage",
+      "target_lang": "en",
+      "law_ref": "Brokerage Law No. 58 of 1987",
+      "article_ref": "",
+      "note": "Broker acts as intermediary. Requires license from Chamber of Commerce.",
+      "priority": 7
+    },
+    {
+      "source_term": "الكمبيالة",
+      "source_lang": "ar",
+      "target_term": "bill of exchange",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "133",
+      "note": "Commercial document: drawer promises to pay specified sum at specified time.",
+      "priority": 9
+    },
+    {
+      "source_term": "السند لأمر",
+      "source_lang": "ar",
+      "target_term": "promissory note",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "133",
+      "note": "Written promise to pay sum at specified time. Must contain mandatory elements.",
+      "priority": 9
+    },
+    {
+      "source_term": "الشيك",
+      "source_lang": "ar",
+      "target_term": "check",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Negotiable instrument for payment. Widely used in Iraqi business.",
+      "priority": 9
+    },
+    {
+      "source_term": "الاعتماد المستندي",
+      "source_lang": "ar",
+      "target_term": "letter of credit",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Bank undertakes to pay seller upon presentation of compliant documents.",
+      "priority": 8
+    },
+    {
+      "source_term": "الحساب الجاري",
+      "source_lang": "ar",
+      "target_term": "current account",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Agreement recording payments in single account for benefit of payer.",
+      "priority": 8
+    },
+    {
+      "source_term": "الإفلاس",
+      "source_lang": "ar",
+      "target_term": "bankruptcy",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Collective execution on assets of merchant who ceased paying debts.",
+      "priority": 10
+    },
+    {
+      "source_term": "التصفية",
+      "source_lang": "ar",
+      "target_term": "liquidation",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Legal process terminating company: settle debts, distribute surplus.",
+      "priority": 10
+    },
+    {
+      "source_term": "التوقف عن الدفع",
+      "source_lang": "ar",
+      "target_term": "cessation of payment",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Merchant stops paying commercial debts. Triggers bankruptcy.",
+      "priority": 9
+    },
+    {
+      "source_term": "التصفية الاختيارية",
+      "source_lang": "ar",
+      "target_term": "voluntary liquidation",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Initiated by partners or majority of shares. If fails, referred to judiciary.",
+      "priority": 8
+    },
+    {
+      "source_term": "التصفية الإجبارية",
+      "source_lang": "ar",
+      "target_term": "compulsory liquidation",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Court-ordered. Liquidator appointed by court.",
+      "priority": 8
+    },
+    {
+      "source_term": "شركة التضامن",
+      "source_lang": "ar",
+      "target_term": "general partnership",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "2-25 natural persons. Joint, personal, unlimited liability. Min capital IQD 50,000.",
+      "priority": 10
+    },
+    {
+      "source_term": "شركة التوصية البسيطة",
+      "source_lang": "ar",
+      "target_term": "limited partnership",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "2-5 partners. Personal consideration. Capital of money and labor.",
+      "priority": 9
+    },
+    {
+      "source_term": "شركة المحاصة",
+      "source_lang": "ar",
+      "target_term": "silent partnership",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Not a company in public. Participates in practical life silently.",
+      "priority": 7
+    },
+    {
+      "source_term": "الشركة المساهمة",
+      "source_lang": "ar",
+      "target_term": "joint stock company",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "5+ persons. Public subscription by shares. Liability limited to share value.",
+      "priority": 10
+    },
+    {
+      "source_term": "الشركة ذات المسؤولية المحدودة",
+      "source_lang": "ar",
+      "target_term": "limited liability company",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "2-25 persons. Liability limited to share value. May be single-person.",
+      "priority": 10
+    },
+    {
+      "source_term": "الشركة المختلطة",
+      "source_lang": "ar",
+      "target_term": "mixed company",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "7",
+      "note": "State sector + private sector. State contribution >= 25%.",
+      "priority": 9
+    },
+    {
+      "source_term": "الجمعية العامة",
+      "source_lang": "ar",
+      "target_term": "general assembly",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "85",
+      "note": "Supreme governing body. Amends contract, changes capital, dismisses board.",
+      "priority": 10
+    },
+    {
+      "source_term": "مجلس الإدارة",
+      "source_lang": "ar",
+      "target_term": "board of directors",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "103",
+      "note": "Administrative body setting policies. 9 original members in mixed JSC.",
+      "priority": 10
+    },
+    {
+      "source_term": "المدير العام",
+      "source_lang": "ar",
+      "target_term": "general manager",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "27",
+      "note": "Manages company. University degree required. Appointed by Council of Ministers.",
+      "priority": 9
+    },
+    {
+      "source_term": "رأس المال",
+      "source_lang": "ar",
+      "target_term": "capital",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "29",
+      "note": "Divided into shares. Losses >= 75% require capital change or liquidation.",
+      "priority": 10
+    },
+    {
+      "source_term": "الأسهم",
+      "source_lang": "ar",
+      "target_term": "shares",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "Units of capital. Liability limited to nominal value.",
+      "priority": 10
+    },
+    {
+      "source_term": "الحصص",
+      "source_lang": "ar",
+      "target_term": "quotas",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Capital portions in partnerships. Joint, personal, unlimited liability.",
+      "priority": 9
+    },
+    {
+      "source_term": "السندات",
+      "source_lang": "ar",
+      "target_term": "bonds",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "77",
+      "note": "JSC may issue nominal bonds. Loan certificates to bondholders.",
+      "priority": 8
+    },
+    {
+      "source_term": "الاكتتاب",
+      "source_lang": "ar",
+      "target_term": "subscription",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "21",
+      "note": "Process of acquiring shares through public subscription.",
+      "priority": 9
+    },
+    {
+      "source_term": "التأسيس",
+      "source_lang": "ar",
+      "target_term": "incorporation",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "21",
+      "note": "Establishing a company. Registrar publishes and issues certificate.",
+      "priority": 10
+    },
+    {
+      "source_term": "الاندماج",
+      "source_lang": "ar",
+      "target_term": "merger",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Combining two or more companies into single entity.",
+      "priority": 8
+    },
+    {
+      "source_term": "التحويل",
+      "source_lang": "ar",
+      "target_term": "conversion",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "12",
+      "note": "Transforming company from one legal form to another.",
+      "priority": 8
+    },
+    {
+      "source_term": "المشروع الفردي",
+      "source_lang": "ar",
+      "target_term": "individual enterprise",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "Single natural person. Personal, unlimited liability.",
+      "priority": 7
+    },
+    {
+      "source_term": "الاسم التجاري",
+      "source_lang": "ar",
+      "target_term": "trade name",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "21",
+      "note": "Must distinguish activity. Cannot use non-Arabic names or misleading statements.",
+      "priority": 9
+    },
+    {
+      "source_term": "الوكيل التجاري",
+      "source_lang": "ar",
+      "target_term": "commercial agent",
+      "target_lang": "en",
+      "law_ref": "Commercial Agency Law No. 51 of 2000",
+      "article_ref": "",
+      "note": "Must be Iraqi, have commercial office, be chamber member, have registered trade name.",
+      "priority": 9
+    },
+    {
+      "source_term": "المسجل",
+      "source_lang": "ar",
+      "target_term": "registrar",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "1",
+      "note": "Registrar of Companies. Decisions based on Companies Law.",
+      "priority": 9
+    },
+    {
+      "source_term": "المصفي",
+      "source_lang": "ar",
+      "target_term": "liquidator",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Person entrusted with liquidating company. Appointed by partners or court.",
+      "priority": 8
+    },
+    {
+      "source_term": "الشركة الخاصة",
+      "source_lang": "ar",
+      "target_term": "private company",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "8",
+      "note": "Private capital. State sector may participate by less than 25%.",
+      "priority": 9
+    },
+    {
+      "source_term": "الأرباح",
+      "source_lang": "ar",
+      "target_term": "profits",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Increase of revenues over expenses per profit and loss account.",
+      "priority": 8
+    },
+    {
+      "source_term": "الخسائر",
+      "source_lang": "ar",
+      "target_term": "losses",
+      "target_lang": "en",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Losses >= 75% of capital require capital change or liquidation.",
+      "priority": 8
+    },
+    {
+      "source_term": "الفوائد",
+      "source_lang": "ar",
+      "target_term": "interest",
+      "target_lang": "en",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Consideration for use of money or capital.",
+      "priority": 7
+    },
+    {
+      "source_term": "Commercial Code",
+      "source_lang": "en",
+      "target_term": "قانون التجارة",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "Law No. 30 of 1984",
+      "note": "Iraqi Commercial Code.",
+      "priority": 10
+    },
+    {
+      "source_term": "Companies Law",
+      "source_lang": "en",
+      "target_term": "قانون الشركات",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "Law No. 21 of 1997",
+      "note": "Iraqi Companies Law.",
+      "priority": 10
+    },
+    {
+      "source_term": "merchant",
+      "source_lang": "en",
+      "target_term": "التاجر",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "7",
+      "note": "Professional commercial activities in own name.",
+      "priority": 10
+    },
+    {
+      "source_term": "commercial capacity",
+      "source_lang": "en",
+      "target_term": "الأهلية التجارية",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "8",
+      "note": "Capacity to engage in commerce. Age 18.",
+      "priority": 9
+    },
+    {
+      "source_term": "commercial register",
+      "source_lang": "en",
+      "target_term": "السجل التجاري",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "9, 26",
+      "note": "Public register at Chambers of Commerce.",
+      "priority": 10
+    },
+    {
+      "source_term": "commercial establishment",
+      "source_lang": "en",
+      "target_term": "المحل التجاري",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "24",
+      "note": "Physical place of commercial activity.",
+      "priority": 8
+    },
+    {
+      "source_term": "trademark",
+      "source_lang": "en",
+      "target_term": "العلامة التجارية",
+      "target_lang": "ar",
+      "law_ref": "Trademarks Law",
+      "article_ref": "1",
+      "note": "Sign distinguishing goods.",
+      "priority": 9
+    },
+    {
+      "source_term": "patent",
+      "source_lang": "en",
+      "target_term": "البراءة",
+      "target_lang": "ar",
+      "law_ref": "Patents Law No. 65 of 1970",
+      "article_ref": "",
+      "note": "20 years protection for inventions.",
+      "priority": 8
+    },
+    {
+      "source_term": "commercial agency",
+      "source_lang": "en",
+      "target_term": "الوكالة التجارية",
+      "target_lang": "ar",
+      "law_ref": "Commercial Agency Law No. 51 of 2000",
+      "article_ref": "3",
+      "note": "Agent for foreign person. Must be Iraqi.",
+      "priority": 10
+    },
+    {
+      "source_term": "brokerage",
+      "source_lang": "en",
+      "target_term": "السمسرة",
+      "target_lang": "ar",
+      "law_ref": "Brokerage Law No. 58 of 1987",
+      "article_ref": "",
+      "note": "Intermediary in commercial transactions.",
+      "priority": 7
+    },
+    {
+      "source_term": "bill of exchange",
+      "source_lang": "en",
+      "target_term": "الكمبيالة",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "133",
+      "note": "Drawer promises to pay specified sum.",
+      "priority": 9
+    },
+    {
+      "source_term": "promissory note",
+      "source_lang": "en",
+      "target_term": "السند لأمر",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "133",
+      "note": "Written promise to pay.",
+      "priority": 9
+    },
+    {
+      "source_term": "check",
+      "source_lang": "en",
+      "target_term": "الشيك",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Negotiable payment instrument.",
+      "priority": 9
+    },
+    {
+      "source_term": "letter of credit",
+      "source_lang": "en",
+      "target_term": "الاعتماد المستندي",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Bank pays seller upon compliant documents.",
+      "priority": 8
+    },
+    {
+      "source_term": "current account",
+      "source_lang": "en",
+      "target_term": "الحساب الجاري",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Single account recording payments.",
+      "priority": 8
+    },
+    {
+      "source_term": "bankruptcy",
+      "source_lang": "en",
+      "target_term": "الإفلاس",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Collective execution on merchant's assets.",
+      "priority": 10
+    },
+    {
+      "source_term": "liquidation",
+      "source_lang": "en",
+      "target_term": "التصفية",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Terminate company, settle debts, distribute surplus.",
+      "priority": 10
+    },
+    {
+      "source_term": "cessation of payment",
+      "source_lang": "en",
+      "target_term": "التوقف عن الدفع",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Merchant stops paying debts. Triggers bankruptcy.",
+      "priority": 9
+    },
+    {
+      "source_term": "voluntary liquidation",
+      "source_lang": "en",
+      "target_term": "التصفية الاختيارية",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "By partners or majority. Fails -> judiciary.",
+      "priority": 8
+    },
+    {
+      "source_term": "compulsory liquidation",
+      "source_lang": "en",
+      "target_term": "التصفية الإجبارية",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Court-ordered. Court-appointed liquidator.",
+      "priority": 8
+    },
+    {
+      "source_term": "general partnership",
+      "source_lang": "en",
+      "target_term": "شركة التضامن",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "2-25 persons. Joint, unlimited liability.",
+      "priority": 10
+    },
+    {
+      "source_term": "limited partnership",
+      "source_lang": "en",
+      "target_term": "شركة التوصية البسيطة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "2-5 partners. Money and labor capital.",
+      "priority": 9
+    },
+    {
+      "source_term": "silent partnership",
+      "source_lang": "en",
+      "target_term": "شركة المحاصة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Not public. Silent participation.",
+      "priority": 7
+    },
+    {
+      "source_term": "joint stock company",
+      "source_lang": "en",
+      "target_term": "الشركة المساهمة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "5+ persons. Public subscription. Limited to share value.",
+      "priority": 10
+    },
+    {
+      "source_term": "limited liability company",
+      "source_lang": "en",
+      "target_term": "الشركة ذات المسؤولية المحدودة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "2-25 persons. Limited to share value.",
+      "priority": 10
+    },
+    {
+      "source_term": "mixed company",
+      "source_lang": "en",
+      "target_term": "الشركة المختلطة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "7",
+      "note": "State + private. State >= 25%.",
+      "priority": 9
+    },
+    {
+      "source_term": "general assembly",
+      "source_lang": "en",
+      "target_term": "الجمعية العامة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "85",
+      "note": "Supreme body. All shareholders/partners.",
+      "priority": 10
+    },
+    {
+      "source_term": "board of directors",
+      "source_lang": "en",
+      "target_term": "مجلس الإدارة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "103",
+      "note": "Administrative body. Sets policies.",
+      "priority": 10
+    },
+    {
+      "source_term": "general manager",
+      "source_lang": "en",
+      "target_term": "المدير العام",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "27",
+      "note": "Manages company. University degree.",
+      "priority": 9
+    },
+    {
+      "source_term": "capital",
+      "source_lang": "en",
+      "target_term": "رأس المال",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "29",
+      "note": "Divided into shares. 75% loss triggers action.",
+      "priority": 10
+    },
+    {
+      "source_term": "shares",
+      "source_lang": "en",
+      "target_term": "الأسهم",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "Capital units. Limited liability.",
+      "priority": 10
+    },
+    {
+      "source_term": "quotas",
+      "source_lang": "en",
+      "target_term": "الحصص",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Partnership capital portions.",
+      "priority": 9
+    },
+    {
+      "source_term": "bonds",
+      "source_lang": "en",
+      "target_term": "السندات",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "77",
+      "note": "JSC may issue nominal bonds.",
+      "priority": 8
+    },
+    {
+      "source_term": "subscription",
+      "source_lang": "en",
+      "target_term": "الاكتتاب",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "21",
+      "note": "Acquiring shares via public subscription.",
+      "priority": 9
+    },
+    {
+      "source_term": "incorporation",
+      "source_lang": "en",
+      "target_term": "التأسيس",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "21",
+      "note": "Establishing a company.",
+      "priority": 10
+    },
+    {
+      "source_term": "merger",
+      "source_lang": "en",
+      "target_term": "الاندماج",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Combining companies into one.",
+      "priority": 8
+    },
+    {
+      "source_term": "conversion",
+      "source_lang": "en",
+      "target_term": "التحويل",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "12",
+      "note": "Change legal form.",
+      "priority": 8
+    },
+    {
+      "source_term": "individual enterprise",
+      "source_lang": "en",
+      "target_term": "المشروع الفردي",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "6",
+      "note": "Single person. Unlimited liability.",
+      "priority": 7
+    },
+    {
+      "source_term": "trade name",
+      "source_lang": "en",
+      "target_term": "الاسم التجاري",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "21",
+      "note": "Must be Arabic, not misleading.",
+      "priority": 9
+    },
+    {
+      "source_term": "commercial agent",
+      "source_lang": "en",
+      "target_term": "الوكيل التجاري",
+      "target_lang": "ar",
+      "law_ref": "Commercial Agency Law No. 51 of 2000",
+      "article_ref": "",
+      "note": "Must be Iraqi with office and chamber membership.",
+      "priority": 9
+    },
+    {
+      "source_term": "registrar",
+      "source_lang": "en",
+      "target_term": "المسجل",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "1",
+      "note": "Registrar of Companies.",
+      "priority": 9
+    },
+    {
+      "source_term": "liquidator",
+      "source_lang": "en",
+      "target_term": "المصفي",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Person liquidating the company.",
+      "priority": 8
+    },
+    {
+      "source_term": "private company",
+      "source_lang": "en",
+      "target_term": "الشركة الخاصة",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "8",
+      "note": "Private capital. State < 25%.",
+      "priority": 9
+    },
+    {
+      "source_term": "profits",
+      "source_lang": "en",
+      "target_term": "الأرباح",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "Revenue over expenses.",
+      "priority": 8
+    },
+    {
+      "source_term": "losses",
+      "source_lang": "en",
+      "target_term": "الخسائر",
+      "target_lang": "ar",
+      "law_ref": "Companies Law",
+      "article_ref": "",
+      "note": "75% loss triggers capital change or liquidation.",
+      "priority": 8
+    },
+    {
+      "source_term": "interest",
+      "source_lang": "en",
+      "target_term": "الفوائد",
+      "target_lang": "ar",
+      "law_ref": "Commercial Code",
+      "article_ref": "",
+      "note": "Consideration for use of money.",
+      "priority": 7
+    }
+  ]
+}

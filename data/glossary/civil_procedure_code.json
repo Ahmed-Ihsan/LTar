@@ -1,0 +1,827 @@
+{
+  "domain": "civil_procedure_code",
+  "version": "2.0.0",
+  "last_updated": "2026-07-07",
+  "terms": [
+    {
+      "source_term": "Civil Procedure Code",
+      "source_lang": "en",
+      "target_term": "قانون المرافعات المدنية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Iraqi law name. NEVER use the Maghrebi term 'المسطرة' — that is Moroccan, not Iraqi.",
+      "priority": 10
+    },
+    {
+      "source_term": "قانون المرافعات المدنية",
+      "source_lang": "ar",
+      "target_term": "Civil Procedure Code",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Iraqi law name. The Maghrebi term 'المسطرة' is NOT used in Iraqi law.",
+      "priority": 10
+    },
+    {
+      "source_term": "Civil Litigation Law",
+      "source_lang": "en",
+      "target_term": "قانون المرافعات المدنية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "",
+      "note": "Synonym for Civil Procedure Code. NEVER use the Maghrebi term 'المسطرة' — that is Moroccan, not Iraqi.",
+      "priority": 10
+    },
+    {
+      "source_term": "Court of First Instance",
+      "source_lang": "en",
+      "target_term": "محكمة البداية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Iraqi court of first instance. Do NOT translate as 'basic court' or 'primary court'.",
+      "priority": 10
+    },
+    {
+      "source_term": "محكمة البداية",
+      "source_lang": "ar",
+      "target_term": "Court of First Instance",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Iraqi court of first instance. Do NOT translate as 'basic court' or 'primary court'.",
+      "priority": 10
+    },
+    {
+      "source_term": "basic court",
+      "source_lang": "en",
+      "target_term": "محكمة البداية",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "5",
+      "note": "Informal English rendering of محكمة البداية. Use 'Court of First Instance' in formal EN→AR; this entry catches the informal source term.",
+      "priority": 7
+    },
+    {
+      "source_term": "صحيفة الدعوى",
+      "source_lang": "ar",
+      "target_term": "statement of claim",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Must contain names of parties, subject matter, facts and legal grounds.",
+      "priority": 9
+    },
+    {
+      "source_term": "محكمة الاستئناف",
+      "source_lang": "ar",
+      "target_term": "court of appeal",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "6",
+      "note": "Reviews judgment on questions of fact and law.",
+      "priority": 8
+    },
+    {
+      "source_term": "محكمة التنفيذ",
+      "source_lang": "ar",
+      "target_term": "execution court",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "8",
+      "note": "Carries out execution of judgments; may compel compliance.",
+      "priority": 8
+    },
+    {
+      "source_term": "التدابير المؤقتة",
+      "source_lang": "ar",
+      "target_term": "interim measures",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "9",
+      "note": "Ordered before final judgment to preserve status quo or prevent irreparable harm.",
+      "priority": 7
+    },
+    {
+      "source_term": "عبء الإثبات",
+      "source_lang": "ar",
+      "target_term": "burden of proof",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "4",
+      "note": "Rests on the party making the allegation.",
+      "priority": 8
+    },
+    {
+      "source_term": "statement of claim",
+      "source_lang": "en",
+      "target_term": "صحيفة الدعوى",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Initiates proceedings; must contain names, subject, facts, legal grounds.",
+      "priority": 9
+    },
+    {
+      "source_term": "court of appeal",
+      "source_lang": "en",
+      "target_term": "محكمة الاستئناف",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "6",
+      "note": "Reviews on fact and law; may confirm, modify, reverse, or remand.",
+      "priority": 8
+    },
+    {
+      "source_term": "burden of proof",
+      "source_lang": "en",
+      "target_term": "عبء الإثبات",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "4",
+      "note": "Rests on the party making the allegation.",
+      "priority": 8
+    },
+    {
+      "source_term": "محكمة التمييز",
+      "source_lang": "ar",
+      "target_term": "Court of Cassation",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "Judicial Authority Law No. 160 of 1979",
+      "note": "Highest appellate court in Iraqi ordinary judiciary. Reviews for legal errors only.",
+      "priority": 10
+    },
+    {
+      "source_term": "محكمة الصلح",
+      "source_lang": "ar",
+      "target_term": "conciliation court",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "Judicial Authority Law No. 160 of 1979",
+      "note": "Lower courts with limited jurisdiction over minor civil and criminal matters.",
+      "priority": 9
+    },
+    {
+      "source_term": "الدعوى",
+      "source_lang": "ar",
+      "target_term": "lawsuit",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Formal initiation of legal proceedings. Request to claim a right before the judiciary.",
+      "priority": 10
+    },
+    {
+      "source_term": "المدعي",
+      "source_lang": "ar",
+      "target_term": "plaintiff",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Party who initiates the lawsuit.",
+      "priority": 10
+    },
+    {
+      "source_term": "المدعى عليه",
+      "source_lang": "ar",
+      "target_term": "defendant",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Party against whom the lawsuit is filed.",
+      "priority": 10
+    },
+    {
+      "source_term": "الخصومة",
+      "source_lang": "ar",
+      "target_term": "litigation",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "1-10",
+      "note": "Legal dispute and procedural relationship between parties before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "المرافعة",
+      "source_lang": "ar",
+      "target_term": "pleading",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "130-160",
+      "note": "Oral presentation of arguments and evidence before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "الحكم",
+      "source_lang": "ar",
+      "target_term": "judgment",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "170-200",
+      "note": "Final decision of the court on the merits. Enforceable.",
+      "priority": 10
+    },
+    {
+      "source_term": "القرار",
+      "source_lang": "ar",
+      "target_term": "court order",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "201-220",
+      "note": "Court ruling on procedural matters, distinct from final judgment.",
+      "priority": 9
+    },
+    {
+      "source_term": "الحجز التحفظي",
+      "source_lang": "ar",
+      "target_term": "precautionary attachment",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "231-250",
+      "note": "Provisional measure to seize debtor's assets before final judgment.",
+      "priority": 8
+    },
+    {
+      "source_term": "المعارضة",
+      "source_lang": "ar",
+      "target_term": "opposition",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "185-195",
+      "note": "Remedy to contest a default judgment issued in defendant's absence.",
+      "priority": 8
+    },
+    {
+      "source_term": "الاستئناف",
+      "source_lang": "ar",
+      "target_term": "appeal",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "185-195",
+      "note": "Ordinary method of challenging first-instance judgments before Court of Appeal.",
+      "priority": 10
+    },
+    {
+      "source_term": "التمييز",
+      "source_lang": "ar",
+      "target_term": "cassation",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "196-210",
+      "note": "Extraordinary remedy challenging Court of Appeal decisions on questions of law.",
+      "priority": 10
+    },
+    {
+      "source_term": "إعادة النظر",
+      "source_lang": "ar",
+      "target_term": "retrial",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "270",
+      "note": "Extraordinary remedy to reopen final judgments (new evidence, contradictory judgments).",
+      "priority": 8
+    },
+    {
+      "source_term": "قاضي الأمور المستعجلة",
+      "source_lang": "ar",
+      "target_term": "judge of urgent matters",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "231-250",
+      "note": "Specialized judge for urgent provisional measures to prevent irreparable harm.",
+      "priority": 9
+    },
+    {
+      "source_term": "قاضي التنفيذ",
+      "source_lang": "ar",
+      "target_term": "execution judge",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "251-300",
+      "note": "Judge responsible for enforcing court judgments and orders.",
+      "priority": 9
+    },
+    {
+      "source_term": "قاضي التحقيق",
+      "source_lang": "ar",
+      "target_term": "investigating judge",
+      "target_lang": "en",
+      "law_ref": "Criminal Procedure Code No. 23 of 1971",
+      "article_ref": "",
+      "note": "Judicial officer conducting investigations in criminal proceedings.",
+      "priority": 7
+    },
+    {
+      "source_term": "التبليغ",
+      "source_lang": "ar",
+      "target_term": "service of process",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "13-20",
+      "note": "Formal delivery of court documents to parties by bailiffs or registered mail.",
+      "priority": 9
+    },
+    {
+      "source_term": "التكليف بالحضور",
+      "source_lang": "ar",
+      "target_term": "summons",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "13-20",
+      "note": "Formal notice requiring a party to appear before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "التأجيل",
+      "source_lang": "ar",
+      "target_term": "adjournment",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "130-160",
+      "note": "Postponement of a hearing to a later date.",
+      "priority": 8
+    },
+    {
+      "source_term": "إحالة الدعوى",
+      "source_lang": "ar",
+      "target_term": "referral of case",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Transfer of a case from one court to another (jurisdictional issues).",
+      "priority": 8
+    },
+    {
+      "source_term": "البينة",
+      "source_lang": "ar",
+      "target_term": "evidence",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "",
+      "note": "Any means of proof: documents, testimony, presumptions, etc.",
+      "priority": 9
+    },
+    {
+      "source_term": "الشهادة",
+      "source_lang": "ar",
+      "target_term": "testimony",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "76-85",
+      "note": "Oral statements by witnesses under oath.",
+      "priority": 9
+    },
+    {
+      "source_term": "اليمين",
+      "source_lang": "ar",
+      "target_term": "oath",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "108-120",
+      "note": "Solemn declaration, either decisive or supplementary.",
+      "priority": 8
+    },
+    {
+      "source_term": "القرائن",
+      "source_lang": "ar",
+      "target_term": "presumptions",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "98-105",
+      "note": "Inferences from known facts. Legal or judicial.",
+      "priority": 8
+    },
+    {
+      "source_term": "الإقرار",
+      "source_lang": "ar",
+      "target_term": "admission",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "90-97",
+      "note": "Party's acknowledgment of unfavorable facts.",
+      "priority": 8
+    },
+    {
+      "source_term": "الخبرة",
+      "source_lang": "ar",
+      "target_term": "expert opinion",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "121-130",
+      "note": "Technical analysis by court-appointed experts.",
+      "priority": 8
+    },
+    {
+      "source_term": "المعاينة",
+      "source_lang": "ar",
+      "target_term": "judicial inspection",
+      "target_lang": "en",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "131-140",
+      "note": "Court's direct examination of physical evidence or premises.",
+      "priority": 7
+    },
+    {
+      "source_term": "الدفع الشكلي",
+      "source_lang": "ar",
+      "target_term": "procedural objection",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Objection challenging procedural defects or jurisdiction. Must be raised before merits.",
+      "priority": 9
+    },
+    {
+      "source_term": "الدفع الموضوعي",
+      "source_lang": "ar",
+      "target_term": "substantive defense",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Defense addressing the merits (right does not exist or is extinguished).",
+      "priority": 9
+    },
+    {
+      "source_term": "سقوط الخصومة",
+      "source_lang": "ar",
+      "target_term": "lapse of proceedings",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "216-220",
+      "note": "Termination due to inactivity (typically three years). Case must be refiled.",
+      "priority": 8
+    },
+    {
+      "source_term": "عدم القبول",
+      "source_lang": "ar",
+      "target_term": "inadmissibility",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "88",
+      "note": "Procedural bar: lack of legal interest, prior judgment, etc.",
+      "priority": 9
+    },
+    {
+      "source_term": "عدم الاختصاص",
+      "source_lang": "ar",
+      "target_term": "lack of jurisdiction",
+      "target_lang": "en",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Defense that court lacks authority (territorial, subject-matter, monetary).",
+      "priority": 9
+    },
+    {
+      "source_term": "التنازع الاختصاص",
+      "source_lang": "ar",
+      "target_term": "jurisdictional conflict",
+      "target_lang": "en",
+      "law_ref": "Judicial Authority Law No. 160 of 1979",
+      "article_ref": "",
+      "note": "Dispute between courts over authority to hear a case.",
+      "priority": 7
+    },
+    {
+      "source_term": "Court of Cassation",
+      "source_lang": "en",
+      "target_term": "محكمة التمييز",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "Judicial Authority Law No. 160 of 1979",
+      "note": "Highest appellate court. Reviews for legal errors only.",
+      "priority": 10
+    },
+    {
+      "source_term": "conciliation court",
+      "source_lang": "en",
+      "target_term": "محكمة الصلح",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "Judicial Authority Law No. 160 of 1979",
+      "note": "Lower courts with limited jurisdiction over minor matters.",
+      "priority": 9
+    },
+    {
+      "source_term": "lawsuit",
+      "source_lang": "en",
+      "target_term": "الدعوى",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Formal initiation of legal proceedings.",
+      "priority": 10
+    },
+    {
+      "source_term": "plaintiff",
+      "source_lang": "en",
+      "target_term": "المدعي",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Party who initiates the lawsuit.",
+      "priority": 10
+    },
+    {
+      "source_term": "defendant",
+      "source_lang": "en",
+      "target_term": "المدعى عليه",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "2",
+      "note": "Party against whom the lawsuit is filed.",
+      "priority": 10
+    },
+    {
+      "source_term": "litigation",
+      "source_lang": "en",
+      "target_term": "الخصومة",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "1-10",
+      "note": "Legal dispute before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "pleading",
+      "source_lang": "en",
+      "target_term": "المرافعة",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "130-160",
+      "note": "Oral presentation of arguments before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "judgment",
+      "source_lang": "en",
+      "target_term": "الحكم",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "170-200",
+      "note": "Final decision on the merits. Enforceable.",
+      "priority": 10
+    },
+    {
+      "source_term": "court order",
+      "source_lang": "en",
+      "target_term": "القرار",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "201-220",
+      "note": "Ruling on procedural matters.",
+      "priority": 9
+    },
+    {
+      "source_term": "precautionary attachment",
+      "source_lang": "en",
+      "target_term": "الحجز التحفظي",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "231-250",
+      "note": "Provisional seizure of assets before final judgment.",
+      "priority": 8
+    },
+    {
+      "source_term": "opposition",
+      "source_lang": "en",
+      "target_term": "المعارضة",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "185-195",
+      "note": "Remedy to contest default judgment.",
+      "priority": 8
+    },
+    {
+      "source_term": "appeal",
+      "source_lang": "en",
+      "target_term": "الاستئناف",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "185-195",
+      "note": "Challenge first-instance judgments before Court of Appeal.",
+      "priority": 10
+    },
+    {
+      "source_term": "cassation",
+      "source_lang": "en",
+      "target_term": "التمييز",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "196-210",
+      "note": "Challenge Court of Appeal decisions on questions of law.",
+      "priority": 10
+    },
+    {
+      "source_term": "retrial",
+      "source_lang": "en",
+      "target_term": "إعادة النظر",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "270",
+      "note": "Reopen final judgments in specific circumstances.",
+      "priority": 8
+    },
+    {
+      "source_term": "judge of urgent matters",
+      "source_lang": "en",
+      "target_term": "قاضي الأمور المستعجلة",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "231-250",
+      "note": "Urgent provisional measures judge.",
+      "priority": 9
+    },
+    {
+      "source_term": "execution judge",
+      "source_lang": "en",
+      "target_term": "قاضي التنفيذ",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "251-300",
+      "note": "Judge enforcing court judgments.",
+      "priority": 9
+    },
+    {
+      "source_term": "investigating judge",
+      "source_lang": "en",
+      "target_term": "قاضي التحقيق",
+      "target_lang": "ar",
+      "law_ref": "Criminal Procedure Code No. 23 of 1971",
+      "article_ref": "",
+      "note": "Conducts criminal investigations.",
+      "priority": 7
+    },
+    {
+      "source_term": "service of process",
+      "source_lang": "en",
+      "target_term": "التبليغ",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "13-20",
+      "note": "Formal delivery of court documents.",
+      "priority": 9
+    },
+    {
+      "source_term": "summons",
+      "source_lang": "en",
+      "target_term": "التكليف بالحضور",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "13-20",
+      "note": "Notice requiring appearance before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "adjournment",
+      "source_lang": "en",
+      "target_term": "التأجيل",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "130-160",
+      "note": "Postponement of a hearing.",
+      "priority": 8
+    },
+    {
+      "source_term": "referral of case",
+      "source_lang": "en",
+      "target_term": "إحالة الدعوى",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Transfer of case between courts.",
+      "priority": 8
+    },
+    {
+      "source_term": "evidence",
+      "source_lang": "en",
+      "target_term": "البينة",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "",
+      "note": "Means of proof before the court.",
+      "priority": 9
+    },
+    {
+      "source_term": "testimony",
+      "source_lang": "en",
+      "target_term": "الشهادة",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "76-85",
+      "note": "Witness statements under oath.",
+      "priority": 9
+    },
+    {
+      "source_term": "oath",
+      "source_lang": "en",
+      "target_term": "اليمين",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "108-120",
+      "note": "Solemn declaration, decisive or supplementary.",
+      "priority": 8
+    },
+    {
+      "source_term": "presumptions",
+      "source_lang": "en",
+      "target_term": "القرائن",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "98-105",
+      "note": "Inferences from known facts. Legal or judicial.",
+      "priority": 8
+    },
+    {
+      "source_term": "admission",
+      "source_lang": "en",
+      "target_term": "الإقرار",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "90-97",
+      "note": "Acknowledgment of unfavorable facts.",
+      "priority": 8
+    },
+    {
+      "source_term": "expert opinion",
+      "source_lang": "en",
+      "target_term": "الخبرة",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "121-130",
+      "note": "Technical analysis by court-appointed experts.",
+      "priority": 8
+    },
+    {
+      "source_term": "judicial inspection",
+      "source_lang": "en",
+      "target_term": "المعاينة",
+      "target_lang": "ar",
+      "law_ref": "Evidence Law No. 107 of 1979",
+      "article_ref": "131-140",
+      "note": "Court's direct examination of evidence.",
+      "priority": 7
+    },
+    {
+      "source_term": "procedural objection",
+      "source_lang": "en",
+      "target_term": "الدفع الشكلي",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Challenge procedural defects or jurisdiction.",
+      "priority": 9
+    },
+    {
+      "source_term": "substantive defense",
+      "source_lang": "en",
+      "target_term": "الدفع الموضوعي",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Defense on the merits.",
+      "priority": 9
+    },
+    {
+      "source_term": "lapse of proceedings",
+      "source_lang": "en",
+      "target_term": "سقوط الخصومة",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "216-220",
+      "note": "Termination due to inactivity.",
+      "priority": 8
+    },
+    {
+      "source_term": "inadmissibility",
+      "source_lang": "en",
+      "target_term": "عدم القبول",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "88",
+      "note": "Procedural bar preventing hearing.",
+      "priority": 9
+    },
+    {
+      "source_term": "lack of jurisdiction",
+      "source_lang": "en",
+      "target_term": "عدم الاختصاص",
+      "target_lang": "ar",
+      "law_ref": "Civil Procedure Code",
+      "article_ref": "73-77",
+      "note": "Court lacks authority to hear the case.",
+      "priority": 9
+    },
+    {
+      "source_term": "jurisdictional conflict",
+      "source_lang": "en",
+      "target_term": "التنازع الاختصاص",
+      "target_lang": "ar",
+      "law_ref": "Judicial Authority Law No. 160 of 1979",
+      "article_ref": "",
+      "note": "Dispute between courts over authority.",
+      "priority": 7
+    }
+  ]
+}

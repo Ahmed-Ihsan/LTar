@@ -1,0 +1,129 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iraqi-legal-translation-agent"
+version = "0.1.0"
+description = "Local, offline-first Agentic RAG system for translating Iraqi legal texts (Arabic <-> English)."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Iraqi Legal Translation Agent" }]
+keywords = ["translation", "legal", "iraqi", "rag", "langgraph", "ollama"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: Microsoft :: Windows",
+    "Intended Audience :: Legal Industry",
+    "Topic :: Text Processing :: Translation",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "langgraph>=0.2,<0.3",
+    "langchain-community>=0.3,<0.4",
+    "chromadb>=0.5,<0.6",
+    "ollama>=0.3,<0.5",
+    "typer>=0.12,<0.14",
+    "click>=8.0,<8.2",
+    "rich>=13.7,<14",
+    "pydantic>=2.6,<3",
+    "pyyaml>=6.0,<7",
+    "pywebview>=5.0,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-cov>=5,<6",
+    "ruff>=0.5,<0.8",
+    "mypy>=1.10,<2",
+    "radon>=6,<7",
+]
+gradio = [
+    "gradio>=4.0,<5",
+]
+
+[project.scripts]
+iraqi-translate = "src.app:main"
+
+[tool.setuptools]
+packages = [
+    "src",
+    "src.config",
+    "src.components",
+    "src.components.translation_pipeline",
+    "src.components.knowledge_sources",
+    "src.components.infrastructure",
+    "src.components.interfaces",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt constants hold the canonical PROMPTS.md text verbatim; wrapping would
+# alter prompt wording (prompts are versioned code, PROMPTS.md §5).
+"src/components/translation_pipeline/prompts.py" = ["E501"]
+# web_ui.py holds a single embedded HTML/CSS/JS document (no external assets);
+# long lines are inline SVG attributes and compact CSS one-liners that wrapping
+# would harm readability of, not Python code.
+"src/components/interfaces/web_ui.py" = ["E501"]
+# web_frontend.py holds the embedded HTML/CSS/JS asset (no external files);
+# long lines are inline SVG attributes and compact CSS one-liners.
+"src/components/interfaces/web_frontend.py" = ["E501"]
+# The LLMEngineAdapter.generate signature is fixed by ARCHITECTURE.md §5.3
+# (system, user, model, temperature, max_tokens, timeout) — 6 args is the
+# mandated adapter contract, not an over-engineered function.
+"src/components/infrastructure/llm.py" = ["PLR0913"]
+# Test helpers and the mock LLM adapter mirror the mandated protocol signature;
+# the _state builder takes one arg per state field for readability.
+"tests/conftest.py" = ["PLR0913"]
+"tests/test_nodes.py" = ["PLR0913"]
+# The local _SequenceMockLLM.generate mirrors the mandated LLMEngineAdapter
+# protocol signature (6 args, ARCHITECTURE.md §5.3) for REVISE-then-APPROVE
+# audit-trace tests; run_translation_streamed takes 7 args for DI (DIP).
+"tests/test_cli.py" = ["PLR0913"]
+# Typer commands require Path(__file__) defaults (standard Typer pattern,
+# unavoidable B008). run_translation / _process_batch take 7 args for
+# dependency injection (DIP, engineering-principles §1.5).
+"src/components/interfaces/cli.py" = ["B008", "PLR0913"]
+# Orchestration seam: run_translation / run_translation_streamed /
+# _translate_for_ui / _process_batch take one arg per injected dependency
+# (DIP, engineering-principles §1.5) — moved from cli.py.
+"src/components/interfaces/orchestration.py" = ["PLR0913"]
+# TM commands require Path(__file__) defaults (standard Typer pattern, B008)
+# — moved from cli.py.
+"src/components/interfaces/tm_commands.py" = ["B008"]
+# build_graph takes one arg per injected dependency (DIP, engineering-principles
+# §1.5) — run_logger is the task 4.3.1 logging seam.
+"src/components/translation_pipeline/graph.py" = ["PLR0913"]
+# datetime.UTC is 3.11-only; the test venv runs 3.10, so timezone.utc is kept
+# for cross-version compatibility (task 4.3.1 logging timestamps).
+"src/components/infrastructure/run_logging.py" = ["UP017"]
+# ingestion.py has a parser section then a CLI section — mid-file imports
+# (E402) are intentional. Typer's Path(__file__) default (B008) is the
+# standard pattern. PLR0913/F841/UP028 are pre-existing. datetime.UTC is
+# 3.11-only; the test venv runs 3.10, so timezone.utc is kept for
+# cross-version compatibility (task 4.3.1 logging timestamps).
+"src/components/knowledge_sources/ingestion.py" = ["E402", "B008", "F841", "I001", "PLR0913", "UP017", "UP028"]
+# ingestion_runner.py has the Typer CLI with Path(__file__) default (B008).
+# ingestion.py re-exports manifest names at module level (F401).
+"src/components/knowledge_sources/ingestion_runner.py" = ["B008", "PLR0913"]
+# manifest.py uses timezone.utc for 3.10 cross-version compatibility (UP017).
+"src/components/knowledge_sources/manifest.py" = ["UP017"]
+# retrieve_context_chunks / query_chroma take one arg per DI dependency (DIP).
+"src/components/knowledge_sources/retrieval.py" = ["PLR0913"]
+# _term test helper takes one arg per Term field for readability.
+"tests/test_glossary_conflict.py" = ["PLR0913"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

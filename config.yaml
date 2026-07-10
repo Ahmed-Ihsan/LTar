@@ -1,0 +1,66 @@
+# Iraqi Legal Translation Agent — runtime configuration.
+# Defaults target the 8 GB RAM offline profile (see README.md §3).
+# All paths are relative to the project root.
+
+# --- LLM / embedding runtime ---
+llm_backend: ollama          # ollama | llamacpp
+ollama_host: http://localhost:11434
+llamacpp_url: http://localhost:8080
+
+# Model names (must be pulled via `ollama pull` before running).
+llm_model: gemma3:4b
+embed_model: nomic-embed-text
+
+# --- Paths (relative to project root) ---
+paths:
+  data_dir: data
+  corpus_dir: data/corpus
+  glossary_dir: data/glossary
+  raw_dir: data/raw
+  db_dir: db
+  glossary_db: db/glossary.sqlite
+  chroma_dir: db/chroma
+
+# --- Ingestion / retrieval tuning ---
+chunk_size: 512              # target tokens per chunk
+chunk_overlap: 64            # overlap tokens between adjacent chunks
+top_k: 3                     # context chunks retrieved per query
+embedding_batch_size: 32     # max texts per embed call (RAM cap)
+chroma_add_batch: 64         # max chunks per ChromaDB add (flush threshold)
+
+# --- Agent loop ---
+max_revisions: 1             # translator<->auditor revision cap
+context_window: 8192         # LLM context window in tokens
+translator_temperature: 0.0
+auditor_temperature: 0.0
+translator_max_tokens: 2048
+auditor_max_tokens: 2048
+llm_timeout: 120.0           # seconds per generation
+
+# --- ChromaDB HNSW index tuning (small corpus, low RAM) ---
+chroma:
+  space: cosine              # nomic-embed-text is cosine-normalized
+  hnsw_M: 8
+  construction_ef: 64
+  search_ef: 32
+
+# --- Translation Memory (TM) ---
+tm_enabled: true
+tm_similarity_threshold: 0.98
+tm_db: db/tm.sqlite
+
+# --- Human-in-the-loop (HITL) ---
+# When true, the pipeline pauses after the audit loop for human review.
+# The human can approve the draft or edit it; edits go back through the
+# auditor and corrections are saved to hitl_feedback_dir as JSONL for
+# fine-tuning / TM enrichment.
+hitl_enabled: false
+hitl_feedback_dir: data/feedback
+
+# --- Web search (Iraqi legal sources) ---
+# When true, the pipeline searches Iraqi legal databases (Ministry of Justice,
+# National Library, Dijlex, UR Portal) during translation to ground the
+# translator with real law names, article text, and official terminology.
+# Disabled by default — requires internet access and adds ~5-15s per translation.
+web_search_enabled: false
+web_search_max_results: 5
