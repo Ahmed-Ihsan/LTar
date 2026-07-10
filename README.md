@@ -14,8 +14,11 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 
 - Arabic → English and English → Arabic translation of Iraqi legal clauses.
 - Term-level enforcement via an Exact-Match Glossary that overrides LLM output before and after generation.
-- Retrieval-Augmented Generation over a corpus of Iraqi laws (Civil Code, Penal Code, Civil Procedure Code, etc.).
+- Retrieval-Augmented Generation over a corpus of Iraqi laws (Civil Code, Penal Code, Civil Procedure Code, Commercial Code, etc.).
 - Two-stage quality control: Translator produces a draft, Auditor either approves or returns it for revision with a structured critique.
+- Translation Memory (TM) for instant reuse of previously translated sentences.
+- Human-in-the-loop (HITL) review with correction persistence for future fine-tuning.
+- Web search integration for Iraqi legal sources (optional).
 - Deterministic, reproducible runs — no network dependency, no telemetry, no third-party calls.
 
 ---
@@ -24,20 +27,23 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 
 | Layer | Technology | Version / Constraint |
 |---|---|---|
-| Language | Python | 3.11.x (exact minor required) |
-| Agent Orchestration | LangGraph | `langgraph >= 0.2` |
+| Language | Python | 3.11.x (test venv runs 3.10) |
+| Agent Orchestration | LangGraph | `langgraph >= 0.2, < 0.3` |
 | LLM Runtime | Ollama | Local daemon, `ollama serve` |
-| LLM Model | `qwen2.5:7b-instruct-q5_K_M` or `llama3.1:8b-instruct-q4_K_M` | Quantized, ≤ 5 GB footprint |
+| LLM Model | `gemma3:4b` | Quantized, ≤ 2 GB footprint |
 | Embeddings | `nomic-embed-text` via Ollama | 768-dim, CPU-friendly |
 | Vector Store | ChromaDB | `chromadb >= 0.5`, persistent local directory |
-| Relational Store | SQLite3 (stdlib) | Glossary exact-match index |
+| Relational Store | SQLite3 (stdlib) | Glossary + Translation Memory |
 | Glossary Source | JSON files | Human-editable, version-controlled |
-| CLI / UI | `Typer` + `Rich` (CLI), optional `Gradio` (UI) | Local only |
-| Packaging | `uv` or `pip` + `venv` | No conda dependency |
+| CLI | Typer + Rich | Local only |
+| Desktop UI | pywebview (web_ui) + Tkinter (tk_ui) | Native window, no browser |
+| MCP Server | FastMCP | Optional, for IDE integration |
+| Config | Pydantic + PyYAML | Typed, validated |
+| Dev Tooling | pytest, ruff, mypy (strict), radon | — |
 
 ### Why these choices
 
-- **Ollama + quantized 7B/8B model**: fits the 8 GB RAM envelope alongside the embedding model and ChromaDB process. Larger models (14B+) are explicitly out of scope.
+- **Ollama + quantized 4B model**: fits the 8 GB RAM envelope alongside the embedding model and ChromaDB process. Larger models (14B+) are explicitly out of scope.
 - **ChromaDB**: embedded, file-backed, no server process — minimizes resident memory.
 - **SQLite + JSON glossary**: deterministic override layer that does not depend on the LLM, guaranteeing term consistency even when the model drifts.
 - **LangGraph**: explicit state machine for the Translate → Audit → Revise loop, with conditional edges and bounded retry.
@@ -51,11 +57,11 @@ The system is designed against a **hard 8 GB RAM** ceiling. The following budget
 | Component | Target RSS | Notes |
 |---|---|---|
 | OS + desktop shell | ~1.8 GB | Windows 11 baseline |
-| Ollama LLM (q5_K_M 7B) | ~3.0 GB | Mapped, not fully resident |
+| Ollama LLM (gemma3:4b) | ~0.9 GB | GPU offload |
 | Ollama embed model | ~0.3 GB | `nomic-embed-text` |
 | ChromaDB (embedded) | ~0.5 GB | Persistent client, no server |
 | Python interpreter + app | ~0.4 GB | LangGraph, Typer, libs |
-| **Headroom** | **~2.0 GB** | Reserved for chunk ingestion spikes |
+| **Headroom** | **~4.1 GB** | Reserved for chunk ingestion spikes |
 
 ### Hard Rules
 
@@ -72,39 +78,40 @@ The system is designed against a **hard 8 GB RAM** ceiling. The following budget
 ```
 translater/
 ├── README.md
-├── ARCHITECTURE.md
-├── PROMPTS.md
-├── DATA_SPEC.md
-├── TODO.md
 ├── requirements.txt
 ├── pyproject.toml
-├── config.yaml
+├── pytest.ini
+├── config.yaml                  # Runtime configuration
+├── run.bat                      # Windows launcher (interactive menu)
 ├── data/
-│   ├── glossary/
+│   ├── glossary/                # JSON glossary sources
 │   │   ├── civil_code.json
+│   │   ├── civil_procedure_code.json
 │   │   ├── penal_code.json
-│   │   └── procedural_terms.json
-│   ├── corpus/
-│   │   ├── civil_code_en.txt
-│   │   ├── civil_code_ar.txt
-│   │   └── ...
-│   └── raw/
-├── db/
+│   │   ├── commercial_code.json
+│   │   └── un_international.json
+│   ├── corpus/                  # Iraqi legal text (AR + EN)
+│   └── raw/                     # Raw uploads (gitignored)
+├── db/                          # Generated databases (gitignored)
 │   ├── glossary.sqlite
-│   └── chroma/              # ChromaDB persistent directory
+│   ├── tm.sqlite
+│   └── chroma/
+├── openspec/                    # Spec-driven development (source of truth)
+│   ├── config.yaml
+│   ├── specs/                   # Current system behavior specs
+│   └── changes/                 # Change proposals
 ├── src/
-│   ├── __init__.py
-│   ├── cli.py
-│   ├── config.py
-│   ├── glossary.py
-│   ├── ingestion.py
-│   ├── embeddings.py
-│   ├── retrieval.py
-│   ├── graph.py             # LangGraph definition
-│   ├── nodes.py             # translator + auditor nodes
-│   ├── state.py             # TypedDict state schema
-│   └── prompts.py
-└── tests/
+│   ├── app.py                   # DI entry point + console script
+│   ├── config/                  # Configuration package
+│   │   ├── config.py            # load_config, AppConfig, ConfigError
+│   │   ├── cli.py               # Typer CLI for config utilities
+│   │   └── models.py            # PathsConfig, ChromaConfig (Pydantic)
+│   └── components/              # 4 bounded-context components
+│       ├── infrastructure/      # LLM adapter, embeddings, memory, logging
+│       ├── knowledge_sources/   # Glossary, retrieval, TM, legal search, ingestion
+│       ├── translation_pipeline/ # LangGraph state machine, nodes, prompts
+│       └── interfaces/          # CLI, web UI, Tkinter UI, HITL, MCP server
+└── tests/                       # 390 tests
 ```
 
 ---
@@ -121,7 +128,7 @@ translater/
 ### 5.2 Install Ollama Models
 
 ```powershell
-ollama pull qwen2.5:7b-instruct-q5_K_M
+ollama pull gemma3:4b
 ollama pull nomic-embed-text
 ```
 
@@ -138,6 +145,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 5.4 Configure
@@ -147,36 +155,89 @@ Edit `config.yaml` to set model names, paths, and chunk parameters. Defaults tar
 ### 5.5 Ingest the Corpus
 
 ```powershell
-python -m src.ingestion --rebuild
+python -m src.app ingest
 ```
 
-This parses `data/corpus/*`, chunks according to `DATA_SPEC.md`, embeds via Ollama, and writes to `db/chroma/`. It also loads `data/glossary/*.json` into `db/glossary.sqlite`.
+This parses `data/corpus/*`, chunks the text, embeds via Ollama, and writes to `db/chroma/`. It also loads `data/glossary/*.json` into `db/glossary.sqlite`.
 
 ### 5.6 Run the Agent
 
-CLI (default interface):
+**Quick start (Windows):** Double-click `run.bat` for an interactive menu.
+
+**CLI commands:**
 
 ```powershell
-python -m src.cli translate --input "المادة ١ من القانون المدني" --direction ar-en
+# Check environment
+python -m src.app doctor
+
+# Translate a single sentence
+python -m src.app translate --input "المادة ١" --direction ar-en
+python -m src.app translate --input "Article 1" --direction en-ar
+
+# Batch translate from JSONL
+python -m src.app batch --input data/batch.jsonl --output data/results.jsonl
+
+# Build Translation Memory from corpus
+python -m src.app tm-build
+
+# Launch desktop UI (pywebview)
+python -m src.app ui
 ```
 
-Optional Gradio UI:
-
-```powershell
-python -m src.cli ui
-```
+> **Note:** On Windows, set UTF-8 encoding for Arabic output:
+> ```powershell
+> $env:PYTHONIOENCODING='utf-8'
+> ```
 
 ### 5.7 Verify the Installation
 
 ```powershell
-python -m src.cli doctor
+python -m src.app doctor
 ```
 
 The `doctor` command checks: Ollama daemon reachable, required models present, ChromaDB directory initialized, glossary SQLite populated, RAM headroom estimate.
 
 ---
 
-## 6. Non-Goals
+## 6. Architecture
+
+The system follows a **component-based architecture** with 4 bounded contexts:
+
+| Component | Responsibility |
+|---|---|
+| `infrastructure` | LLM engine adapter, embeddings, RAM guard, run logging |
+| `knowledge_sources` | Glossary, ChromaDB retrieval, Translation Memory, legal search, ingestion |
+| `translation_pipeline` | LangGraph state machine, translator/auditor nodes, prompts, parsers |
+| `interfaces` | CLI, pywebview UI, Tkinter UI, HITL review, MCP server |
+
+**Design principles:** SOLID — each component depends on protocols (PEP 544), not concretions. Adapters are injected via keyword-only args. TypedDicts for state, Pydantic for config, versioned prompts (V1–V4).
+
+See `openspec/` for detailed specs and change proposals.
+
+---
+
+## 7. Development
+
+```powershell
+# Run tests
+pytest --tb=short -q
+
+# Lint
+ruff check src/ tests/
+
+# Type-check
+mypy src/
+
+# Complexity
+radon cc src/ -a
+
+# Spec validation
+openspec validate --all
+```
+
+---
+
+## 8. Non-Goals
 
 - No cloud LLM calls. No OpenAI, Anthropic, or any remote inference.
 - No multi-tenant serving. Single-user, single-session.
@@ -185,7 +246,7 @@ The `doctor` command checks: Ollama daemon reachable, required models present, C
 
 ---
 
-## 7. License & Data Handling
+## 9. License & Data Handling
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 
