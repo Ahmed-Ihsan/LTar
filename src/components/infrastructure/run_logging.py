@@ -85,24 +85,9 @@ class RunLogger:
         raising, so the preprocess node (which runs before ``draft`` / ``audit``
         exist) logs cleanly.
         """
-        audit: object = state.get("audit")
-        verdict: str | None = (
-            audit.get("verdict")
-            if isinstance(audit, dict) else None
-        )
-        record: dict[str, object] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "run_id": self._run_id,
-            "node": node_name,
-            "latency_ms": round(float(latency_ms), 3),
-            "input_length": len(state.get("input_text") or ""),
-            "glossary_hit_count": len(state.get("glossary_hits") or []),
-            "chunk_count": len(state.get("context_chunks") or []),
-            "draft_length": len(state.get("draft") or ""),
-            "audit_verdict": verdict,
-            "revision_count": int(state.get("revision_count") or 0),
-        }
-        self._fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        snapshot: dict[str, object] = _extract_state_snapshot(state)
+        line: str = _serialize_record(node_name, latency_ms, self._run_id, snapshot)
+        self._fh.write(line + "\n")
         self._fh.flush()
 
     def close(self) -> None:
@@ -115,3 +100,38 @@ class RunLogger:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+def _extract_state_snapshot(state: TranslationState) -> dict[str, object]:
+    """Project the mandated metric fields from ``state`` into a flat dict.
+
+    A field that a node has not yet populated is recorded as ``0`` / ``None``
+    rather than raising, so the preprocess node (which runs before ``draft`` /
+    ``audit`` exist) logs cleanly.
+    """
+    audit: object = state.get("audit")
+    verdict: str | None = (
+        audit.get("verdict") if isinstance(audit, dict) else None
+    )
+    return {
+        "input_length": len(state.get("input_text") or ""),
+        "glossary_hit_count": len(state.get("glossary_hits") or []),
+        "chunk_count": len(state.get("context_chunks") or []),
+        "draft_length": len(state.get("draft") or ""),
+        "audit_verdict": verdict,
+        "revision_count": int(state.get("revision_count") or 0),
+    }
+
+
+def _serialize_record(
+    node_name: str, latency_ms: float, run_id: str, snapshot: dict[str, object]
+) -> str:
+    """Serialize a single node execution record to a JSON string."""
+    record: dict[str, object] = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "run_id": run_id,
+        "node": node_name,
+        "latency_ms": round(float(latency_ms), 3),
+    }
+    record.update(snapshot)
+    return json.dumps(record, ensure_ascii=False)

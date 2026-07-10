@@ -20,8 +20,10 @@ share/python-wheels/
 venv/
 env/
 ENV/
-.devin
-.dev
+
+# --- Devin / AI agents ---
+.dev/
+.devin/
 
 # --- Testing & coverage ---
 .pytest_cache/
@@ -39,9 +41,7 @@ coverage.xml
 *.manifest
 
 # --- Runtime data (generated, not source) ---
-db/glossary.sqlite
-db/tm.sqlite
-db/chroma/
+db/
 logs/
 *.log
 

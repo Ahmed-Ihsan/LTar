@@ -17,9 +17,23 @@ from typing import Any
 _LAZY: dict[str, str] = {
     "Adapters": f"{__name__}.models",
     "CheckResult": f"{__name__}.models",
+    "KnowledgeAdapters": f"{__name__}.models",
+    "LLMAdapters": f"{__name__}.models",
     "UiTranslationResult": f"{__name__}.models",
     "HumanReviewer": f"{__name__}.hitl",
     "human_review": f"{__name__}.hitl",
+    # config_loader (extracted from cli.py — SRP)
+    "config_loader": f"{__name__}.config_loader",
+    "load_or_exit": f"{__name__}.config_loader",
+    # diagnostics (extracted from cli.py — SRP)
+    "diagnostics": f"{__name__}.diagnostics",
+    # orchestration (extracted from cli.py — SRP)
+    "orchestration": f"{__name__}.orchestration",
+    # tm_commands (extracted from cli.py — SRP)
+    "tm_commands": f"{__name__}.tm_commands",
+    # web_frontend (extracted from web_ui.py — SRP)
+    "web_frontend": f"{__name__}.web_frontend",
+    # cli
     "app": f"{__name__}.cli",
     "batch": f"{__name__}.cli",
     "doctor": f"{__name__}.cli",

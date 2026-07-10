@@ -578,3 +578,86 @@ ALL_PROMPT_CONSTANTS: dict[str, str] = {
     "AUDITOR_SYSTEM_V4": AUDITOR_SYSTEM_V4,
     "AUDITOR_USER_TEMPLATE_V4": AUDITOR_USER_TEMPLATE_V4,
 }
+
+
+# ---------------------------------------------------------------------------
+# PromptVersion protocol — extensible prompt versioning (OCP)
+# ---------------------------------------------------------------------------
+# Each prompt version (V1–V4) is a frozen dataclass implementing the
+# PromptVersion protocol. Nodes receive the prompt version as a keyword-only
+# argument (default: V4) instead of importing V4 constants directly. Adding V5
+# requires adding a new PromptV5 and updating DEFAULT_PROMPT_VERSION — no
+# changes to nodes.py (OCP, engineering-principles §1.2).
+
+from dataclasses import dataclass  # noqa: E402
+from typing import Protocol, runtime_checkable  # noqa: E402
+
+
+@runtime_checkable
+class PromptVersion(Protocol):
+    """Contract for a versioned prompt set (OCP — add V5 without editing nodes)."""
+
+    @property
+    def shared_system_rules(self) -> str: ...
+    @property
+    def translator_system(self) -> str: ...
+    @property
+    def translator_revision_addendum(self) -> str: ...
+    @property
+    def translator_user_template(self) -> str: ...
+    @property
+    def auditor_system(self) -> str: ...
+    @property
+    def auditor_user_template(self) -> str: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PromptV1:
+    """V1 prompt set — baseline (PROMPTS.md §1–§3)."""
+
+    shared_system_rules: str = SHARED_SYSTEM_RULES_V1
+    translator_system: str = TRANSLATOR_SYSTEM_V1
+    translator_revision_addendum: str = TRANSLATOR_REVISION_ADDENDUM_V1
+    translator_user_template: str = TRANSLATOR_USER_TEMPLATE_V1
+    auditor_system: str = AUDITOR_SYSTEM_V1
+    auditor_user_template: str = AUDITOR_USER_TEMPLATE_V1
+
+
+@dataclass(frozen=True, slots=True)
+class PromptV2:
+    """V2 prompt set — professional legal translation enhancement."""
+
+    shared_system_rules: str = SHARED_SYSTEM_RULES_V2
+    translator_system: str = TRANSLATOR_SYSTEM_V2
+    translator_revision_addendum: str = TRANSLATOR_REVISION_ADDENDUM_V2
+    translator_user_template: str = TRANSLATOR_USER_TEMPLATE_V2
+    auditor_system: str = AUDITOR_SYSTEM_V2
+    auditor_user_template: str = AUDITOR_USER_TEMPLATE_V2
+
+
+@dataclass(frozen=True, slots=True)
+class PromptV3:
+    """V3 prompt set — EN→AR translation quality improvements."""
+
+    shared_system_rules: str = SHARED_SYSTEM_RULES_V3
+    translator_system: str = TRANSLATOR_SYSTEM_V3
+    translator_revision_addendum: str = TRANSLATOR_REVISION_ADDENDUM_V3
+    translator_user_template: str = TRANSLATOR_USER_TEMPLATE_V3
+    auditor_system: str = AUDITOR_SYSTEM_V3
+    auditor_user_template: str = AUDITOR_USER_TEMPLATE_V3
+
+
+@dataclass(frozen=True, slots=True)
+class PromptV4:
+    """V4 prompt set — Arabic-script enforcement (anti-romanization)."""
+
+    shared_system_rules: str = SHARED_SYSTEM_RULES_V4
+    translator_system: str = TRANSLATOR_SYSTEM_V4
+    translator_revision_addendum: str = TRANSLATOR_REVISION_ADDENDUM_V4
+    translator_user_template: str = TRANSLATOR_USER_TEMPLATE_V4
+    auditor_system: str = AUDITOR_SYSTEM_V4
+    auditor_user_template: str = AUDITOR_USER_TEMPLATE_V4
+
+
+DEFAULT_PROMPT_VERSION: PromptVersion = PromptV4()
+"""The default prompt version used by nodes (V4 — current production set)."""

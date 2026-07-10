@@ -27,12 +27,12 @@ from dataclasses import dataclass
 from tkinter import DISABLED, NORMAL, Tk, messagebox, ttk
 from typing import Any
 
-from src.components.interfaces.cli import (
+from src.components.interfaces.cli import _new_run_logger
+from src.components.interfaces.models import Adapters, UiTranslationResult
+from src.components.interfaces.orchestration import (
     _audit_trace_markdown,
-    _new_run_logger,
     _translate_for_ui,
 )
-from src.components.interfaces.models import Adapters, UiTranslationResult
 from src.config import AppConfig
 
 

@@ -276,19 +276,10 @@ class TranslationMemory:
         self._conn.commit()
         return len(pairs)
 
-    def lookup(self, sentence: str, direction: str) -> TmHit | None:
-        """Look up a source sentence; return a TmHit if above threshold.
-
-        Two-stage: trigram index filters to top-K candidates, then
-        ``SequenceMatcher`` verifies only those. Falls back to full scan
-        if the trigram index is empty (backward compat with old DBs).
-        """
-        source_lang: str = direction.split("-")[0]
-        query_trigrams: set[str] = _extract_trigrams(sentence)
-        if not query_trigrams:
-            return None
-
-        # Stage 1: fast trigram-based candidate filtering.
+    def _trigram_candidates(
+        self, query_trigrams: set[str], source_lang: str
+    ) -> list[int]:
+        """Stage 1: fast trigram-based candidate filtering."""
         placeholders: str = ",".join("?" * len(query_trigrams))
         candidates = self._conn.execute(
             f"""
@@ -301,31 +292,42 @@ class TranslationMemory:
             """,
             (source_lang, *query_trigrams, _MAX_CANDIDATES),
         ).fetchall()
+        return [c[0] for c in candidates]
 
-        if not candidates:
-            # Fallback: no trigram index (old DB) → full scan.
-            rows = self._conn.execute(
-                "SELECT id, source_sentence, target_sentence FROM tm_entries "
-                "WHERE source_lang = ?",
-                (source_lang,),
-            ).fetchall()
-            candidate_ids: list[int] = [r[0] for r in rows]
-            candidate_map: dict[int, tuple[str, str]] = {
-                r[0]: (r[1], r[2]) for r in rows
-            }
-        else:
-            candidate_ids = [c[0] for c in candidates]
-            if not candidate_ids:
-                return None
-            placeholders_ids: str = ",".join("?" * len(candidate_ids))
-            rows = self._conn.execute(
-                f"SELECT id, source_sentence, target_sentence FROM tm_entries "
-                f"WHERE id IN ({placeholders_ids})",
-                candidate_ids,
-            ).fetchall()
-            candidate_map = {r[0]: (r[1], r[2]) for r in rows}
+    def _full_scan_candidates(
+        self, source_lang: str
+    ) -> tuple[list[int], dict[int, tuple[str, str]]]:
+        """Fallback: full scan when the trigram index is empty (old DB)."""
+        rows = self._conn.execute(
+            "SELECT id, source_sentence, target_sentence FROM tm_entries "
+            "WHERE source_lang = ?",
+            (source_lang,),
+        ).fetchall()
+        candidate_ids: list[int] = [r[0] for r in rows]
+        candidate_map: dict[int, tuple[str, str]] = {
+            r[0]: (r[1], r[2]) for r in rows
+        }
+        return candidate_ids, candidate_map
 
-        # Stage 2: precise SequenceMatcher verification on candidates only.
+    def _load_candidate_map(
+        self, candidate_ids: list[int]
+    ) -> dict[int, tuple[str, str]]:
+        """Load source/target sentences for the given candidate IDs."""
+        placeholders_ids: str = ",".join("?" * len(candidate_ids))
+        rows = self._conn.execute(
+            f"SELECT id, source_sentence, target_sentence FROM tm_entries "
+            f"WHERE id IN ({placeholders_ids})",
+            candidate_ids,
+        ).fetchall()
+        return {r[0]: (r[1], r[2]) for r in rows}
+
+    def _verify_candidates(
+        self,
+        sentence: str,
+        candidate_ids: list[int],
+        candidate_map: dict[int, tuple[str, str]],
+    ) -> TmHit | None:
+        """Stage 2: precise SequenceMatcher verification on candidates only."""
         best_ratio: float = 0.0
         best_source: str = ""
         best_target: str = ""
@@ -350,6 +352,30 @@ class TranslationMemory:
             char_start=0,
             char_end=len(sentence),
         )
+
+    def lookup(self, sentence: str, direction: str) -> TmHit | None:
+        """Look up a source sentence; return a TmHit if above threshold.
+
+        Two-stage: trigram index filters to top-K candidates, then
+        ``SequenceMatcher`` verifies only those. Falls back to full scan
+        if the trigram index is empty (backward compat with old DBs).
+        """
+        source_lang: str = direction.split("-")[0]
+        query_trigrams: set[str] = _extract_trigrams(sentence)
+        if not query_trigrams:
+            return None
+
+        candidate_ids: list[int] = self._trigram_candidates(
+            query_trigrams, source_lang
+        )
+
+        if not candidate_ids:
+            # Fallback: no trigram index (old DB) → full scan.
+            candidate_ids, candidate_map = self._full_scan_candidates(source_lang)
+        else:
+            candidate_map = self._load_candidate_map(candidate_ids)
+
+        return self._verify_candidates(sentence, candidate_ids, candidate_map)
 
     def list_all(self) -> list[dict[str, str]]:
         """Return all entries as dicts (for testing / inspection)."""

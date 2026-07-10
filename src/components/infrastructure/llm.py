@@ -24,16 +24,8 @@ from typing import Protocol, runtime_checkable
 import ollama
 
 from src.components.infrastructure.memory import check_ram_guard
-from src.components.translation_pipeline.exceptions import (
-    LLMRuntimeError,
-    OllamaConnectionError,
-    OllamaModelNotLoadedError,
-    OllamaTimeoutError,
-)
-from src.config import AppConfig, load_config
-
-# HTTP 404 from Ollama indicates the requested model is not pulled locally.
-_MODEL_NOT_FOUND_STATUS: int = 404
+from src.components.infrastructure.ollama_errors import translate_engine_error
+from src.components.translation_pipeline.exceptions import LLMRuntimeError
 
 
 @runtime_checkable
@@ -68,38 +60,6 @@ class LLMEngineAdapter(Protocol):
         ...
 
 
-def _translate_engine_error(
-    err: BaseException, model: str, host: str
-) -> LLMRuntimeError:
-    """Map an Ollama/httpx engine exception to a domain ``LLMRuntimeError``.
-
-    Implements the catch matrix (clean-code §3.2): 404 response errors become
-    :class:`OllamaModelNotLoadedError`, connection failures become
-    :class:`OllamaConnectionError`, timeouts become
-    :class:`OllamaTimeoutError`, anything else becomes a generic
-    :class:`LLMRuntimeError` carrying the model name and host for diagnosis.
-    """
-    if isinstance(err, ollama.ResponseError):
-        if err.status_code == _MODEL_NOT_FOUND_STATUS:
-            return OllamaModelNotLoadedError(
-                f"model '{model}' not loaded on Ollama at {host}: {err}"
-            )
-        return OllamaConnectionError(
-            f"Ollama response error (status={err.status_code}) at {host}: {err}"
-        )
-    if isinstance(err, TimeoutError) or "timeout" in str(err).lower():
-        return OllamaTimeoutError(
-            f"Ollama request to {host} timed out (model={model}): {err}"
-        )
-    if isinstance(err, (ConnectionError, OSError)):
-        return OllamaConnectionError(
-            f"cannot reach Ollama daemon at {host} (model={model}): {err}"
-        )
-    return LLMRuntimeError(
-        f"unexpected Ollama error (model={model}, host={host}): {err}"
-    )
-
-
 class OllamaEngineAdapter:
     """Real Ollama LLM adapter (clean-code §2.4: manages client state).
 
@@ -116,20 +76,18 @@ class OllamaEngineAdapter:
         self,
         client: ollama.Client | None = None,
         *,
-        model: str | None = None,
-        host: str | None = None,
+        model: str,
+        host: str,
     ) -> None:
         """Build an LLM engine adapter.
 
-        If ``client`` is omitted, a new :class:`ollama.Client` is created from
-        the resolved ``host`` (defaults to the config ``ollama_host``). If
-        ``model`` is omitted, the config ``llm_model`` is used. Resolving
-        defaults from config keeps model names out of node/caller code (DRY,
-        engineering-principles §2.2.4).
+        ``model`` and ``host`` are mandatory (DIP — no ``load_config()``
+        fallback). If ``client`` is omitted, a new :class:`ollama.Client` is
+        created from ``host``. Callers (e.g. ``_construct_adapters`` in
+        ``cli.py``) resolve config values and pass them explicitly.
         """
-        cfg: AppConfig = load_config()
-        self._model: str = model if model is not None else cfg.llm_model
-        self._host: str = host if host is not None else cfg.ollama_host
+        self._model: str = model
+        self._host: str = host
         self._client: ollama.Client = (
             client if client is not None else ollama.Client(host=self._host)
         )
@@ -207,7 +165,7 @@ class OllamaEngineAdapter:
                     messages=messages, model=model, options=options,
                     timeout=timeout, first_err=err,
                 )
-            raise _translate_engine_error(err, model, self._host) from err
+            raise translate_engine_error(err, model=model, host=self._host, kind="llm") from err
         return self._extract_content(response, model)
 
     def _retry_on_timeout(
@@ -228,10 +186,9 @@ class OllamaEngineAdapter:
                 keep_alive=timeout * 2,
             )
         except Exception as err:
-            translated: LLMRuntimeError = _translate_engine_error(
-                err, model, self._host
-            )
-            raise translated from first_err
+            raise translate_engine_error(
+                err, model=model, host=self._host, kind="llm"
+            ) from first_err
         return self._extract_content(response, model)
 
     @staticmethod

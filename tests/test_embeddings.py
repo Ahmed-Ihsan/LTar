@@ -83,5 +83,5 @@ class TestRealOllamaEmbedder:
         assert all(len(v) == EMBED_DIM for v in vecs)
 
     def test_real_embed_empty_returns_empty(self) -> None:
-        embedder = Embedder()
+        embedder = Embedder(model="nomic-embed-text", host="http://localhost:11434")
         assert embedder.embed_batch([], batch_size=32) == []

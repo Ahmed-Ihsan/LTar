@@ -1,70 +1,160 @@
 # AGENTS.md — Iraqi Legal Translation Agent
 
-Project-specific guidance for any agent working in this repo.
+## OpenSpec — Source of Truth
 
-## Environment (this host)
+This project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development.
+**All AI agents working on this project MUST consult the OpenSpec files before making changes.**
 
-- The project targets Python `>=3.11,<3.12` (see `pyproject.toml`), but the
-  host has no Python 3.11. A Python 3.10 venv with all deps installed lives at
-  `.venv310/`. **Always use `.venv310\Scripts\python.exe`** to run tests/tools:
-  ```powershell
-  .\.venv310\Scripts\python.exe -m pytest tests/ -q
-  .\.venv310\Scripts\python.exe -m ruff check <files>
-  ```
-- PowerShell is the shell. Do **not** use `&&` to chain commands — use `;`.
-- `py -3.11` is not available; `py -3.10` lacks the deps (langgraph etc.).
+### Where the specs live
 
-## Verification commands
+```
+openspec/
+├── config.yaml                          # Project context, tech stack, constraints, per-artifact rules
+├── specs/                               # Source-of-truth specs (current system behavior)
+│   ├── config/spec.md                   # Configuration loading & validation (5 requirements)
+│   ├── translation_pipeline/spec.md     # LangGraph state machine, nodes, prompts, exceptions (9 requirements)
+│   ├── knowledge_sources/spec.md        # Glossary, retrieval, TM, legal search, ingestion (6 requirements)
+│   ├── infrastructure/spec.md           # LLM adapter, embeddings, memory/RAM guard, run logging (4 requirements)
+│   └── interfaces/spec.md               # CLI, web UI, Tkinter UI, MCP server, HITL (7 requirements)
+└── changes/                             # Change proposals (in-progress & archived)
+    └── refactor-to-component-architecture/
+        ├── proposal.md                  # WHY the change, scope, migration path, rollback plan
+        ├── design.md                    # Target architecture, dependency diagram, decisions
+        ├── tasks.md                     # Ordered task list (101 tasks)
+        └── specs/                       # Delta specs (ADDED/MODIFIED/REMOVED requirements)
+```
 
-- Full suite: `.\.venv310\Scripts\python.exe -m pytest tests/ -q`
-  - Expected: ~192 passed, 3 deselected (the 3 `@pytest.mark.slow` real-Ollama
-    tests need a running daemon and are excluded from the default run).
-- Lint: `.\.venv310\Scripts\python.exe -m ruff check <changed files>`
-  - NOTE: several pre-existing untouched files (e.g. `tests/test_retrieval.py`)
-    have ruff errors (unused imports). Only lint the files you changed.
-- No `mypy`/`radon` are wired into a CI gate here; ruff is the gate.
-- TM build: `.\.venv310\Scripts\python.exe -m src.cli tm-build`
-  - Builds `db/tm.sqlite` from `data/corpus` aligned ar/en article pairs.
+### Rules for AI agents
 
-## Architecture / conventions (enforced by `.devin/skills/*`)
+1. **Read before you write.** Before implementing any feature, bugfix, or refactor, read the relevant
+   spec(s) in `openspec/specs/<capability>/spec.md`. The specs are the authoritative description of
+   expected behavior — each requirement has Given/When/Then scenarios.
 
-- **Adapter boundary**: engine exceptions (`ollama.ResponseError`,
-  `httpx.*`) are caught inside adapters (`src/llm.py`, `src/embeddings.py`) and
-  re-raised as domain exceptions from `src/exceptions.py`. Nodes and the CLI
-  only ever see domain exceptions.
-- **Dependency injection**: the CLI (`src/cli.py`) is the only place concrete
-  adapters are constructed (engineering-principles §3.6). `run_translation` /
-  `run_translation_streamed` are the orchestration seams; tests inject
-  `mock_llm` / `mock_embedder` / in-memory `GlossaryIndex` / temp ChromaDB
-  (testing-verification §3.4) — no Ollama daemon, no network in CI.
-- **OCP**: node functions in `src/nodes.py` are closed for modification; new
-  cross-cutting concerns (logging, etc.) are added at the orchestration seam
-  (`src/graph.py` / `src/cli.py`).
-- **Single source of truth**: `src/memory.py` owns system-memory reading
-  (`MemoryInfo`, `read_memory_info`, `check_ram_guard`); both `src/cli.py`
-  (doctor) and `src/llm.py` (RAM guard) import from it.
+2. **Check for active changes.** Run `openspec list` to see in-progress change proposals. If a change
+   exists that affects your task, read its `proposal.md`, `design.md`, and `tasks.md` first. Follow
+   the task list in `tasks.md` when executing the change.
 
-## CLI exit codes (task 4.3 hardening)
+3. **Specs are the contract.** Every requirement in a spec MUST be preserved unless a change proposal
+   explicitly marks it as MODIFIED or REMOVED. Do not silently change behavior that a spec documents.
 
-- `0` — success.
-- `1` — generic error (config, missing file, empty input, translation error).
-- `2` — Ollama daemon unreachable (`OllamaConnectionError` /
-  `EmbeddingConnectionError`).
-- `3` — RAM guard abort (`RAMGuardError`, < 1.5 GB free before an LLM call).
+4. **New work needs a change proposal.** For any non-trivial change (new feature, refactor, behavior
+   modification), create an OpenSpec change first:
+   ```
+   openspec new change <change-name> --goal "<one-sentence goal>"
+   ```
+   Then write `proposal.md` → `specs/` (delta) → `design.md` → `tasks.md` in that order.
+   Validate with `openspec validate <change-name>` before implementing.
 
-## Structured logging (task 4.3.1)
+5. **Validate after changes.** After implementing, run:
+   ```
+   openspec validate --all
+   ```
+   All specs and changes must pass. If a change is complete, archive it:
+   ```
+   openspec archive <change-name>
+   ```
 
-- `src/run_logging.py::RunLogger` writes `logs/run_<run_id>.jsonl` (one JSON
-  line per node execution). `run_id` defaults to a UTC timestamp.
-- The CLI `translate` / `batch` / `ui` commands auto-create a `RunLogger`
-  pointing at `<project_root>/logs`. The seam is opt-in: passing
-  `run_logger=None` (the default) runs the pipeline with no logging.
+6. **Use the project context.** `openspec/config.yaml` contains the tech stack, hard constraints
+   (8 GB RAM, no cloud calls, single-user), conventions (DI via keyword-only args, TypedDicts for
+   state, Pydantic for config, versioned prompts), and per-artifact rules. Follow these.
 
-## LangGraph gotcha
+### Current active change
 
-- `StateGraph.add_node` calls `get_type_hints(action)`. If you wrap a node
-  callable with `functools.wraps`, the copied string annotations are evaluated
-  against the wrapper's globals and can raise `NameError`. Wrap nodes with an
-  **annotation-free** inner function (see `_wrap_with_logging` in `src/graph.py`).
-- The Auditor node is named `"auditor"` (not `"audit"`) because LangGraph 0.2.x
-  forbids a node name that collides with a state key (`audit` is a state field).
+| Change | Status | Tasks |
+|---|---|---|
+| `refactor-to-component-architecture` | In progress | 0/101 |
+
+This change restructures the 21 flat `src/` modules into 4 bounded-context components + a config
+package, each with a `models.py`. See `openspec/changes/refactor-to-component-architecture/` for
+the full proposal, design, and task list. **Do not start implementing without reading the design.**
+
+### Useful OpenSpec commands
+
+| Command | Purpose |
+|---|---|
+| `openspec list --specs` | List all source-of-truth specs |
+| `openspec list` | List all change proposals |
+| `openspec validate --all` | Validate all specs and changes |
+| `openspec validate <change-name>` | Validate a single change |
+| `openspec status --change <name>` | Show artifact completion status |
+| `openspec show <name>` | Display a change or spec |
+| `openspec new change <name> --goal "..."` | Create a new change proposal |
+| `openspec archive <name>` | Archive a completed change into specs |
+| `openspec context` | Print working context and root |
+
+---
+
+## Project Overview
+
+Local, offline-first Agentic RAG system for translating Iraqi legal texts (Arabic ⇄ English).
+LangGraph orchestrates a Translate → Audit → Revise loop with deterministic glossary enforcement,
+ChromaDB retrieval, Translation Memory, and dual-agent quality assurance.
+
+## Tech Stack
+
+- **Language:** Python 3.11.x (exact minor; test venv runs 3.10)
+- **Agent orchestration:** LangGraph >= 0.2, < 0.3
+- **LLM runtime:** Ollama (local daemon), qwen2.5:7b-instruct-q5_K_M
+- **Embeddings:** nomic-embed-text via Ollama (768-dim)
+- **Vector store:** ChromaDB >= 0.5 (PersistentClient only)
+- **Relational store:** SQLite3 (stdlib) — glossary + TM
+- **CLI:** Typer >= 0.12 + Rich >= 13.7
+- **Desktop UI:** pywebview (web_ui) + Tkinter (tk_ui)
+- **MCP server:** FastMCP
+- **Config:** Pydantic >= 2.6 + PyYAML
+- **Dev tooling:** pytest, ruff (line-length 100), mypy (strict), radon
+
+## Hard Constraints
+
+- 8 GB RAM hard ceiling; never load models > 8B params
+- ChromaDB PersistentClient only — never client/server mode
+- Concurrent in-flight requests = 1 (no parallel translation jobs)
+- Embedding batch size capped at 32; LLM context window capped at 8192 tokens
+- No cloud LLM calls, no telemetry, no third-party network calls
+- Single-user, single-session
+
+## Conventions
+
+- Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
+- Dependency Injection via keyword-only args (DIP)
+- Protocols (PEP 544) for adapter seams: `LLMEngineAdapter`, `EmbeddingAdapter`, `HumanReviewer`
+- TypedDicts (PEP 692) for LangGraph state; Pydantic models for configuration only
+- Prompts are versioned constants (V1–V4); V4 is current default
+- Exception hierarchy rooted at `LegalTranslationError`
+- Bilingual scenarios (Arabic + English) in specs where applicable
+
+## Verification Commands
+
+```powershell
+# Tests
+pytest --tb=short -q
+
+# Lint
+ruff check src/ tests/
+
+# Type-check
+mypy src/
+
+# Complexity
+radon cc src/ -a
+
+# OpenSpec validation
+openspec validate --all
+
+# Smoke test
+python -m src.cli doctor
+python -m src.cli translate --input "المادة ١" --direction ar-en
+```
+
+## Current Architecture (flat src/ — being refactored)
+
+```
+src/
+├── cli.py, config.py, state.py, graph.py, nodes.py, decision.py
+├── prompts.py, exceptions.py, glossary.py, retrieval.py, tm.py
+├── legal_search.py, ingestion.py, llm.py, embeddings.py, memory.py
+├── run_logging.py, hitl.py, web_ui.py, tk_ui.py, mcp_server.py
+└── __init__.py
+```
+
+See `openspec/changes/refactor-to-component-architecture/design.md` for the target component + models architecture.

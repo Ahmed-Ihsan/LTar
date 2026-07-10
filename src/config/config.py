@@ -4,14 +4,14 @@ Loads and validates ``config.yaml`` into a typed ``AppConfig`` model.
 Single source of truth for all runtime parameters (chunk size, overlap,
 top-k, max revisions, context window, model names, paths).
 
-Run ``python -m src.config.config load`` to print the parsed configuration.
+The CLI (Typer ``app`` and ``load`` command) has been extracted to
+``cli.py`` (SRP). Run ``python -m src.config.cli load`` to print the
+parsed configuration.
 """
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
 
-import typer
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
@@ -116,36 +116,3 @@ def load_config(path: Path | None = None) -> AppConfig:
         return AppConfig.model_validate(raw)
     except Exception as e:
         raise ConfigError(f"config validation failed: {e}") from e
-
-
-app = typer.Typer(
-    add_completion=False,
-    rich_markup_mode=None,  # plain Click help; rich panels break on piped Windows stdout
-    help="Configuration utilities.",
-)
-
-
-@app.callback()
-def _config_main(ctx: typer.Context) -> None:
-    """Configuration utilities for loading and validating config.yaml."""
-    _ = ctx
-
-
-@app.command()
-def load(
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = DEFAULT_CONFIG_PATH,
-) -> None:
-    """Load and print the parsed configuration as JSON."""
-    try:
-        cfg: AppConfig = load_config(config_path)
-    except ConfigError as e:
-        typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-    typer.echo(cfg.model_dump_json(indent=2))
-
-
-if __name__ == "__main__":
-    app()

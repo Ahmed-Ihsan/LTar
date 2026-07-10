@@ -19,6 +19,8 @@ a web search failure).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from dataclasses import dataclass
 from urllib.parse import urlencode
 
 import httpx
@@ -44,6 +46,18 @@ _HEADERS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True, frozen=True)
+class SearchSource:
+    """A registered legal search source (OCP).
+
+    Add new sources by appending to ``_SOURCES`` — no edits to
+    ``search_all_sources`` required.
+    """
+
+    name: str
+    search: Callable[[str, int], list[SearchHit]]
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +135,7 @@ def search_dijlex(query: str, max_results: int = 10) -> list[SearchHit]:
         if not title_el or not link_el:
             continue
         title: str = _clean_text(title_el.get_text())
-        href: str = link_el.get("href", "")
+        href: str = str(link_el.get("href", ""))
         if href and not href.startswith("http"):
             href = f"https://dijlex.com{href}"
         snippet: str = _clean_text(snippet_el.get_text()) if snippet_el else ""
@@ -138,7 +152,7 @@ def search_dijlex(query: str, max_results: int = 10) -> list[SearchHit]:
             if text and len(text) > 5 and ("law" in text.lower()
                                            or "قانون" in text
                                            or "مادة" in text):
-                href = a["href"]
+                href = str(a["href"])
                 if href and not href.startswith("http"):
                     href = f"https://dijlex.com{href}"
                 hits.append(SearchHit(
@@ -174,7 +188,7 @@ def search_moj(query: str, max_results: int = 10) -> list[SearchHit]:
     seen_urls: set[str] = set()
 
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href: str = str(a["href"])
         text: str = _clean_text(a.get_text())
         if not href or not text or len(text) < 5:
             continue
@@ -269,7 +283,7 @@ def search_ur_portal(query: str, max_results: int = 10) -> list[SearchHit]:
         if not text or len(text) < 3:
             continue
         if query_lower in text.lower() or query in text:
-            href: str = a["href"]
+            href: str = str(a["href"])
             if href and not href.startswith("http"):
                 href = f"https://ur.gov.iq{href}"
             hits.append(SearchHit(
@@ -318,7 +332,7 @@ def search_national_library(query: str, max_results: int = 10) -> list[SearchHit
     seen_urls: set[str] = set()
 
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href: str = str(a["href"])
         if "fullrecr" not in href:
             continue
         text: str = _clean_text(a.get_text())
@@ -346,16 +360,23 @@ def search_national_library(query: str, max_results: int = 10) -> list[SearchHit
 # 5. Aggregated search — all sources at once
 # ---------------------------------------------------------------------------
 
+_SOURCES: list[SearchSource] = [
+    SearchSource(name="Dijlex", search=search_dijlex),
+    SearchSource(name="Iraq MoJ", search=search_moj),
+    SearchSource(name="UR Portal", search=search_ur_portal),
+    SearchSource(name="Iraq NLA", search=search_national_library),
+]
+
 
 def search_all_sources(
     query: str, max_results_per_source: int = 5,
 ) -> list[SearchHit]:
     """Search ALL Iraqi legal sources and aggregate results.
 
-    Calls each source search function and combines the hits. Use this for
-    broad searches when you don't know which source has the answer.
+    Iterates over the ``_SOURCES`` registry (OCP — adding a new source only
+    requires appending a :class:`SearchSource` entry, no function edits).
     """
     all_hits: list[SearchHit] = []
-    for fn in (search_dijlex, search_moj, search_ur_portal, search_national_library):
-        all_hits.extend(fn(query, max_results=max_results_per_source))
+    for source in _SOURCES:
+        all_hits.extend(source.search(query, max_results_per_source))
     return all_hits

@@ -24,6 +24,8 @@ from datetime import datetime, timezone  # noqa: UP017
 from pathlib import Path
 from typing import Protocol
 
+from src.components.infrastructure.llm import LLMEngineAdapter
+from src.components.knowledge_sources.tm import TranslationMemory
 from src.components.translation_pipeline.models import TranslationState
 from src.components.translation_pipeline.nodes import audit_node
 from src.config import AppConfig
@@ -47,13 +49,52 @@ class HumanReviewer(Protocol):
         ...
 
 
+def _handle_review_decision(
+    state: TranslationState,
+    cfg: AppConfig,
+    *,
+    original_draft: str,
+    edited: str,
+    tm: TranslationMemory | None,
+) -> TranslationState:
+    """Process a human edit: save correction, update TM, return edited state."""
+    _save_correction(state, cfg, original_draft=original_draft, edited_draft=edited)
+    if tm is not None:
+        _save_to_tm(state, cfg, edited_draft=edited, tm=tm)
+    return {**state, "draft": edited}
+
+
+def _re_audit_if_edited(
+    edited_state: TranslationState,
+    cfg: AppConfig,
+    *,
+    llm: LLMEngineAdapter,
+) -> TranslationState:
+    """Re-audit the edited draft (advisory — human is final authority)."""
+    re_audited: TranslationState = audit_node(edited_state, llm=llm, cfg=cfg)
+
+    audit: object = re_audited.get("audit")
+    is_approve: bool = (
+        isinstance(audit, dict) and audit.get("verdict") == "APPROVE"
+    )
+    if not is_approve:
+        warnings: list[str] = list(re_audited.get("warnings", []))
+        warnings.append(
+            "Human-edited draft was re-audited; auditor found issues but "
+            "the human edit is retained (human is final authority)."
+        )
+        re_audited = {**re_audited, "warnings": warnings}
+
+    return re_audited
+
+
 def human_review(
     state: TranslationState,
     cfg: AppConfig,
     *,
-    llm: object,
+    llm: LLMEngineAdapter,
     reviewer: HumanReviewer,
-    tm: object | None = None,
+    tm: TranslationMemory | None = None,
 ) -> TranslationState:
     """Run the human review step and re-audit if the draft was edited.
 
@@ -76,34 +117,10 @@ def human_review(
     if not edited.strip() or edited.strip() == original_draft.strip():
         return state
 
-    # Human edited the draft — save the correction for teaching.
-    _save_correction(state, cfg, original_draft=original_draft, edited_draft=edited)
-
-    # Insert the human-corrected pair into the TM for immediate reuse.
-    # Future translations of the same source sentence will hit the TM and
-    # bypass the LLM entirely — no retraining needed.
-    if tm is not None:
-        _save_to_tm(state, cfg, edited_draft=edited, tm=tm)
-
-    # Re-audit the edited draft (advisory — human is final authority).
-    edited_state: TranslationState = {**state, "draft": edited}
-    re_audited: TranslationState = audit_node(
-        edited_state, llm=llm, cfg=cfg  # type: ignore[arg-type]
+    edited_state: TranslationState = _handle_review_decision(
+        state, cfg, original_draft=original_draft, edited=edited, tm=tm
     )
-
-    audit: object = re_audited.get("audit")
-    is_approve: bool = (
-        isinstance(audit, dict) and audit.get("verdict") == "APPROVE"
-    )
-    if not is_approve:
-        warnings: list[str] = list(re_audited.get("warnings", []))
-        warnings.append(
-            "Human-edited draft was re-audited; auditor found issues but "
-            "the human edit is retained (human is final authority)."
-        )
-        re_audited = {**re_audited, "warnings": warnings}
-
-    return re_audited
+    return _re_audit_if_edited(edited_state, cfg, llm=llm)
 
 
 def _save_correction(
@@ -131,7 +148,7 @@ def _save_correction(
         verdict = str(audit.get("verdict", "N/A"))
         critique = str(audit.get("critique", ""))
 
-    record: dict = {
+    record: dict[str, object] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),  # noqa: UP017
         "input_text": state.get("input_text", ""),
         "direction": state.get("direction", ""),
@@ -160,7 +177,7 @@ def _save_to_tm(
     cfg: AppConfig,
     *,
     edited_draft: str,
-    tm: object,
+    tm: TranslationMemory,
 ) -> None:
     """Insert the human-corrected (source → target) pair into the TM.
 
@@ -181,6 +198,4 @@ def _save_to_tm(
         (source_text, edited_draft, source_lang, target_lang),
         (edited_draft, source_text, target_lang, source_lang),
     ]
-    # add_parallel is a method on TranslationMemory; it accepts a list of
-    # (source, target, source_lang, target_lang) tuples.
-    tm.add_parallel(pairs)  # type: ignore[attr-defined]
+    tm.add_parallel(pairs)

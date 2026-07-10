@@ -1,7 +1,7 @@
 {
   "domain": "penal_code",
-  "version": "1.0.0",
-  "last_updated": "2026-07-02",
+  "version": "2.0.0",
+  "last_updated": "2026-07-07",
   "terms": [
     {
       "source_term": "Penal Code",
@@ -121,6 +121,1106 @@
       "law_ref": "Penal Code",
       "article_ref": "9",
       "note": "Lawful act; proportionate response to unlawful attack.",
+      "priority": 8
+    },
+    {
+      "source_term": "الجناية",
+      "source_lang": "ar",
+      "target_term": "felony",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Most serious crime: death, life imprisonment, or 5-15 years imprisonment.",
+      "priority": 10
+    },
+    {
+      "source_term": "الجنحة",
+      "source_lang": "ar",
+      "target_term": "misdemeanor",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "26",
+      "note": "Intermediate crime: detention 3 months to 5 years, or fine.",
+      "priority": 10
+    },
+    {
+      "source_term": "المخالفة",
+      "source_lang": "ar",
+      "target_term": "infraction",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "27",
+      "note": "Least serious crime: detention 24 hours to 3 months, or fine up to 30 dinars.",
+      "priority": 10
+    },
+    {
+      "source_term": "القتل الخطأ",
+      "source_lang": "ar",
+      "target_term": "manslaughter",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "411",
+      "note": "Killing through negligence, recklessness, or failure to observe laws. Up to 7 years.",
+      "priority": 10
+    },
+    {
+      "source_term": "الإيذاء العمد",
+      "source_lang": "ar",
+      "target_term": "intentional assault",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "412-415",
+      "note": "Intentional wounding, beating, or harm. Aggravated or simple.",
+      "priority": 9
+    },
+    {
+      "source_term": "الإيذاء الخطأ",
+      "source_lang": "ar",
+      "target_term": "negligent assault",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "416",
+      "note": "Harming another through negligence, recklessness, or lack of precaution.",
+      "priority": 8
+    },
+    {
+      "source_term": "خيانة الأمانة",
+      "source_lang": "ar",
+      "target_term": "breach of trust",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "466-468",
+      "note": "Misappropriation of funds or goods placed in custody. Dishonorable offense.",
+      "priority": 10
+    },
+    {
+      "source_term": "التزوير",
+      "source_lang": "ar",
+      "target_term": "forgery",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "286",
+      "note": "Altering truth in a document with intent to deceive. Material or abstract methods.",
+      "priority": 10
+    },
+    {
+      "source_term": "الرشوة",
+      "source_lang": "ar",
+      "target_term": "bribery",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "307",
+      "note": "Public official accepting gift to perform or refrain from official duty.",
+      "priority": 10
+    },
+    {
+      "source_term": "الاختلاس",
+      "source_lang": "ar",
+      "target_term": "embezzlement",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "315-321",
+      "note": "Misappropriation of public funds by officials. Dishonorable offense.",
+      "priority": 10
+    },
+    {
+      "source_term": "استغلال الوظيفة",
+      "source_lang": "ar",
+      "target_term": "abuse of position",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "318-319",
+      "note": "Public officials abusing position for personal benefit. Corruption crime.",
+      "priority": 9
+    },
+    {
+      "source_term": "إفشاء الأسرار",
+      "source_lang": "ar",
+      "target_term": "disclosure of secrets",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "333-334",
+      "note": "Unauthorized disclosure by officials or persons in trust.",
+      "priority": 8
+    },
+    {
+      "source_term": "القذف",
+      "source_lang": "ar",
+      "target_term": "defamation",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "433-435",
+      "note": "Imputing facts harmful to honor or reputation. Court may order publication of judgment.",
+      "priority": 9
+    },
+    {
+      "source_term": "السب",
+      "source_lang": "ar",
+      "target_term": "insult",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "433-435",
+      "note": "Using insulting language toward another person.",
+      "priority": 9
+    },
+    {
+      "source_term": "الابتزاز",
+      "source_lang": "ar",
+      "target_term": "blackmail",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "432",
+      "note": "Threat crime, defamation, or disclosure depending on material element.",
+      "priority": 8
+    },
+    {
+      "source_term": "التهديد",
+      "source_lang": "ar",
+      "target_term": "threat",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "432",
+      "note": "Threatening harm to person, honor, or property.",
+      "priority": 8
+    },
+    {
+      "source_term": "الخطف",
+      "source_lang": "ar",
+      "target_term": "kidnapping",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "421-423",
+      "note": "Unlawful seizure or deprivation of freedom. Penalties up to life imprisonment or death.",
+      "priority": 10
+    },
+    {
+      "source_term": "الحرق العمد",
+      "source_lang": "ar",
+      "target_term": "arson",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Intentional setting fire to property endangering lives or property.",
+      "priority": 8
+    },
+    {
+      "source_term": "إتلاف الممتلكات",
+      "source_lang": "ar",
+      "target_term": "destruction of property",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Willful destruction or damage to property of others.",
+      "priority": 7
+    },
+    {
+      "source_term": "جرائم الشرف",
+      "source_lang": "ar",
+      "target_term": "honor crimes",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "409",
+      "note": "Killing spouse/relative upon finding them in adultery. Penalty reduced to max 3 years.",
+      "priority": 9
+    },
+    {
+      "source_term": "جرائم الآداب",
+      "source_lang": "ar",
+      "target_term": "moral offenses",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "393-404",
+      "note": "Rape, indecent assault, fornication, pornography. Article 393 addresses rape.",
+      "priority": 9
+    },
+    {
+      "source_term": "الزنا",
+      "source_lang": "ar",
+      "target_term": "adultery",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "393-394",
+      "note": "Article 394 addresses fornication and consensual acts with minors.",
+      "priority": 8
+    },
+    {
+      "source_term": "الاتجار بالبشر",
+      "source_lang": "ar",
+      "target_term": "human trafficking",
+      "target_lang": "en",
+      "law_ref": "Anti-Human Trafficking Law No. 28 of 2012",
+      "article_ref": "",
+      "note": "Separate law. Includes exploitation for begging, forced prostitution.",
+      "priority": 8
+    },
+    {
+      "source_term": "المسؤولية الجنائية",
+      "source_lang": "ar",
+      "target_term": "criminal responsibility",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Obligation to bear legal consequences of crime. Requires material and mental elements.",
+      "priority": 10
+    },
+    {
+      "source_term": "العمد",
+      "source_lang": "ar",
+      "target_term": "intent",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "34",
+      "note": "Crime is intentional if criminal intent is present.",
+      "priority": 10
+    },
+    {
+      "source_term": "الخطأ",
+      "source_lang": "ar",
+      "target_term": "negligence",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "35",
+      "note": "Unintentional crime through negligence, recklessness, or lack of precaution.",
+      "priority": 10
+    },
+    {
+      "source_term": "السبببية",
+      "source_lang": "ar",
+      "target_term": "causation",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "29",
+      "note": "Causal link between act and result. Theory of equivalence of causes.",
+      "priority": 10
+    },
+    {
+      "source_term": "الظروف المشددة",
+      "source_lang": "ar",
+      "target_term": "aggravating circumstances",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "51",
+      "note": "Circumstances increasing penalty severity. Material ones apply to all participants.",
+      "priority": 9
+    },
+    {
+      "source_term": "الظروف المخففة",
+      "source_lang": "ar",
+      "target_term": "mitigating circumstances",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "132-134",
+      "note": "Characteristics allowing penalty reduction within legal limits.",
+      "priority": 9
+    },
+    {
+      "source_term": "الأعذار المعفية من العقاب",
+      "source_lang": "ar",
+      "target_term": "exculpatory excuses",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "138",
+      "note": "Circumstances resulting in complete exemption from punishment. Limited by law.",
+      "priority": 9
+    },
+    {
+      "source_term": "الأعذار القانونية",
+      "source_lang": "ar",
+      "target_term": "legal excuses",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "128-131",
+      "note": "Statutory excuses mandating penalty reduction. General and special.",
+      "priority": 9
+    },
+    {
+      "source_term": "المحاولة",
+      "source_lang": "ar",
+      "target_term": "attempt",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "30",
+      "note": "Beginning execution with intent but failing due to circumstances beyond control.",
+      "priority": 9
+    },
+    {
+      "source_term": "التحريض",
+      "source_lang": "ar",
+      "target_term": "incitement",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "48(1)",
+      "note": "Inciting another to commit a crime which is committed based on such incitement.",
+      "priority": 9
+    },
+    {
+      "source_term": "المساعدة",
+      "source_lang": "ar",
+      "target_term": "assistance",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "48(3)",
+      "note": "Providing weapons, tools, or means used in committing the crime.",
+      "priority": 9
+    },
+    {
+      "source_term": "سقوط العقوبة",
+      "source_lang": "ar",
+      "target_term": "extinction of penalty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "14",
+      "note": "Penalty ceases to be enforceable: death, time, or other legal causes.",
+      "priority": 8
+    },
+    {
+      "source_term": "العفو",
+      "source_lang": "ar",
+      "target_term": "amnesty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "General amnesty extinguishes prosecution. Special pardon may reduce penalties.",
+      "priority": 8
+    },
+    {
+      "source_term": "إعادة الاعتبار",
+      "source_lang": "ar",
+      "target_term": "rehabilitation",
+      "target_lang": "en",
+      "law_ref": "Criminal Procedure Code",
+      "article_ref": "",
+      "note": "Removes effects of conviction. Requires completion of sentence or pardon.",
+      "priority": 7
+    },
+    {
+      "source_term": "العقوبة الأصلية",
+      "source_lang": "ar",
+      "target_term": "principal penalty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "85",
+      "note": "Main penalties: death, life imprisonment, temporary imprisonment, detention, fine.",
+      "priority": 10
+    },
+    {
+      "source_term": "العقوبة التبعية",
+      "source_lang": "ar",
+      "target_term": "accessory penalty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Penalties attaching by operation of law (disqualification from rights).",
+      "priority": 8
+    },
+    {
+      "source_term": "العقوبة التكميلية",
+      "source_lang": "ar",
+      "target_term": "supplementary penalty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Additional penalties imposed by court (e.g., confiscation).",
+      "priority": 8
+    },
+    {
+      "source_term": "المصادرة",
+      "source_lang": "ar",
+      "target_term": "confiscation",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "State deprives ownership of property without compensation. General or special.",
+      "priority": 9
+    },
+    {
+      "source_term": "غرامة",
+      "source_lang": "ar",
+      "target_term": "fine",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "91",
+      "note": "Payment to public treasury. Min half dinar, max 500 dinars.",
+      "priority": 10
+    },
+    {
+      "source_term": "الحبس",
+      "source_lang": "ar",
+      "target_term": "detention",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "88-89",
+      "note": "Severe: 24h-5 years. Simple: 24h-1 year. For misdemeanors and infractions.",
+      "priority": 10
+    },
+    {
+      "source_term": "السجن",
+      "source_lang": "ar",
+      "target_term": "imprisonment",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Life (20 years or until death) or temporary (5-15 years). For felonies.",
+      "priority": 10
+    },
+    {
+      "source_term": "الإعدام",
+      "source_lang": "ar",
+      "target_term": "death penalty",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Capital punishment for most serious felonies. Reinstated 2004.",
+      "priority": 10
+    },
+    {
+      "source_term": "القصد الجرمي",
+      "source_lang": "ar",
+      "target_term": "criminal intent",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "33",
+      "note": "Directing will to commit the act. Simple or with premeditation.",
+      "priority": 10
+    },
+    {
+      "source_term": "سبق الإصرار",
+      "source_lang": "ar",
+      "target_term": "premeditation",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "33(3)",
+      "note": "Determined thinking to commit crime before execution, far from anger.",
+      "priority": 8
+    },
+    {
+      "source_term": "فاعل",
+      "source_lang": "ar",
+      "target_term": "principal",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "47",
+      "note": "Person who commits the crime alone or with others.",
+      "priority": 9
+    },
+    {
+      "source_term": "شريك",
+      "source_lang": "ar",
+      "target_term": "accomplice",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "48",
+      "note": "Person who incites, agrees, or provides means/assistance.",
+      "priority": 9
+    },
+    {
+      "source_term": "الجرائم المخلة بالشرف",
+      "source_lang": "ar",
+      "target_term": "dishonorable crimes",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "21(1)(f)",
+      "note": "Theft, embezzlement, forgery, breach of trust, fraud, bribery, rape.",
+      "priority": 8
+    },
+    {
+      "source_term": "السجن المؤبد",
+      "source_lang": "ar",
+      "target_term": "life imprisonment",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "20 years or until death. For most serious felonies.",
+      "priority": 10
+    },
+    {
+      "source_term": "السجن المؤقت",
+      "source_lang": "ar",
+      "target_term": "temporary imprisonment",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "5 to 15 years. For felonies.",
+      "priority": 10
+    },
+    {
+      "source_term": "الحبس الشديد",
+      "source_lang": "ar",
+      "target_term": "severe detention",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "88",
+      "note": "3 months to 5 years. For misdemeanors.",
+      "priority": 9
+    },
+    {
+      "source_term": "الحبس البسيط",
+      "source_lang": "ar",
+      "target_term": "simple detention",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "89",
+      "note": "24 hours to 1 year. For infractions and some misdemeanors.",
+      "priority": 9
+    },
+    {
+      "source_term": "التدابير الاحترازية",
+      "source_lang": "ar",
+      "target_term": "precautionary measures",
+      "target_lang": "en",
+      "law_ref": "Penal Code",
+      "article_ref": "103-120",
+      "note": "Measures restricting liberty based on danger to public welfare.",
+      "priority": 8
+    },
+    {
+      "source_term": "felony",
+      "source_lang": "en",
+      "target_term": "الجناية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Most serious crime category.",
+      "priority": 10
+    },
+    {
+      "source_term": "misdemeanor",
+      "source_lang": "en",
+      "target_term": "الجنحة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "26",
+      "note": "Intermediate crime: 3 months to 5 years.",
+      "priority": 10
+    },
+    {
+      "source_term": "infraction",
+      "source_lang": "en",
+      "target_term": "المخالفة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "27",
+      "note": "Least serious: up to 3 months or fine.",
+      "priority": 10
+    },
+    {
+      "source_term": "manslaughter",
+      "source_lang": "en",
+      "target_term": "القتل الخطأ",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "411",
+      "note": "Negligent killing. Up to 7 years.",
+      "priority": 10
+    },
+    {
+      "source_term": "intentional assault",
+      "source_lang": "en",
+      "target_term": "الإيذاء العمد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "412-415",
+      "note": "Intentional wounding or harm.",
+      "priority": 9
+    },
+    {
+      "source_term": "negligent assault",
+      "source_lang": "en",
+      "target_term": "الإيذاء الخطأ",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "416",
+      "note": "Harm through negligence.",
+      "priority": 8
+    },
+    {
+      "source_term": "breach of trust",
+      "source_lang": "en",
+      "target_term": "خيانة الأمانة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "466-468",
+      "note": "Misappropriation of funds in custody.",
+      "priority": 10
+    },
+    {
+      "source_term": "forgery",
+      "source_lang": "en",
+      "target_term": "التزوير",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "286",
+      "note": "Altering truth in documents with intent to deceive.",
+      "priority": 10
+    },
+    {
+      "source_term": "bribery",
+      "source_lang": "en",
+      "target_term": "الرشوة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "307",
+      "note": "Official accepting gift for official duty.",
+      "priority": 10
+    },
+    {
+      "source_term": "embezzlement",
+      "source_lang": "en",
+      "target_term": "الاختلاس",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "315-321",
+      "note": "Misappropriation of public funds by officials.",
+      "priority": 10
+    },
+    {
+      "source_term": "abuse of position",
+      "source_lang": "en",
+      "target_term": "استغلال الوظيفة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "318-319",
+      "note": "Officials abusing position for personal benefit.",
+      "priority": 9
+    },
+    {
+      "source_term": "disclosure of secrets",
+      "source_lang": "en",
+      "target_term": "إفشاء الأسرار",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "333-334",
+      "note": "Unauthorized disclosure by officials.",
+      "priority": 8
+    },
+    {
+      "source_term": "defamation",
+      "source_lang": "en",
+      "target_term": "القذف",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "433-435",
+      "note": "Imputing facts harmful to honor.",
+      "priority": 9
+    },
+    {
+      "source_term": "insult",
+      "source_lang": "en",
+      "target_term": "السب",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "433-435",
+      "note": "Insulting language toward another.",
+      "priority": 9
+    },
+    {
+      "source_term": "blackmail",
+      "source_lang": "en",
+      "target_term": "الابتزاز",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "432",
+      "note": "Extortion by threat or disclosure.",
+      "priority": 8
+    },
+    {
+      "source_term": "threat",
+      "source_lang": "en",
+      "target_term": "التهديد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "432",
+      "note": "Threatening harm to person, honor, or property.",
+      "priority": 8
+    },
+    {
+      "source_term": "kidnapping",
+      "source_lang": "en",
+      "target_term": "الخطف",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "421-423",
+      "note": "Unlawful seizure. Up to life imprisonment or death.",
+      "priority": 10
+    },
+    {
+      "source_term": "arson",
+      "source_lang": "en",
+      "target_term": "الحرق العمد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Intentional fire endangering lives or property.",
+      "priority": 8
+    },
+    {
+      "source_term": "destruction of property",
+      "source_lang": "en",
+      "target_term": "إتلاف الممتلكات",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Willful property damage.",
+      "priority": 7
+    },
+    {
+      "source_term": "honor crimes",
+      "source_lang": "en",
+      "target_term": "جرائم الشرف",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "409",
+      "note": "Killing spouse in adultery. Max 3 years.",
+      "priority": 9
+    },
+    {
+      "source_term": "moral offenses",
+      "source_lang": "en",
+      "target_term": "جرائم الآداب",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "393-404",
+      "note": "Rape, indecent assault, fornication.",
+      "priority": 9
+    },
+    {
+      "source_term": "adultery",
+      "source_lang": "en",
+      "target_term": "الزنا",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "393-394",
+      "note": "Fornication and consensual acts.",
+      "priority": 8
+    },
+    {
+      "source_term": "human trafficking",
+      "source_lang": "en",
+      "target_term": "الاتجار بالبشر",
+      "target_lang": "ar",
+      "law_ref": "Anti-Human Trafficking Law No. 28 of 2012",
+      "article_ref": "",
+      "note": "Exploitation for begging, forced prostitution.",
+      "priority": 8
+    },
+    {
+      "source_term": "criminal responsibility",
+      "source_lang": "en",
+      "target_term": "المسؤولية الجنائية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Bearing legal consequences of crime.",
+      "priority": 10
+    },
+    {
+      "source_term": "intent",
+      "source_lang": "en",
+      "target_term": "العمد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "34",
+      "note": "Criminal intent present.",
+      "priority": 10
+    },
+    {
+      "source_term": "negligence",
+      "source_lang": "en",
+      "target_term": "الخطأ",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "35",
+      "note": "Unintentional crime through error.",
+      "priority": 10
+    },
+    {
+      "source_term": "causation",
+      "source_lang": "en",
+      "target_term": "السبببية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "29",
+      "note": "Causal link. Equivalence of causes.",
+      "priority": 10
+    },
+    {
+      "source_term": "aggravating circumstances",
+      "source_lang": "en",
+      "target_term": "الظروف المشددة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "51",
+      "note": "Increase penalty severity.",
+      "priority": 9
+    },
+    {
+      "source_term": "mitigating circumstances",
+      "source_lang": "en",
+      "target_term": "الظروف المخففة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "132-134",
+      "note": "Allow penalty reduction.",
+      "priority": 9
+    },
+    {
+      "source_term": "exculpatory excuses",
+      "source_lang": "en",
+      "target_term": "الأعذار المعفية من العقاب",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "138",
+      "note": "Complete exemption from punishment.",
+      "priority": 9
+    },
+    {
+      "source_term": "legal excuses",
+      "source_lang": "en",
+      "target_term": "الأعذار القانونية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "128-131",
+      "note": "Mandatory penalty reduction.",
+      "priority": 9
+    },
+    {
+      "source_term": "attempt",
+      "source_lang": "en",
+      "target_term": "المحاولة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "30",
+      "note": "Begun execution, failed beyond control.",
+      "priority": 9
+    },
+    {
+      "source_term": "incitement",
+      "source_lang": "en",
+      "target_term": "التحريض",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "48(1)",
+      "note": "Inciting another to commit crime.",
+      "priority": 9
+    },
+    {
+      "source_term": "assistance",
+      "source_lang": "en",
+      "target_term": "المساعدة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "48(3)",
+      "note": "Providing means for crime.",
+      "priority": 9
+    },
+    {
+      "source_term": "extinction of penalty",
+      "source_lang": "en",
+      "target_term": "سقوط العقوبة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "14",
+      "note": "Penalty unenforceable.",
+      "priority": 8
+    },
+    {
+      "source_term": "amnesty",
+      "source_lang": "en",
+      "target_term": "العفو",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Extinguishes prosecution or reduces penalties.",
+      "priority": 8
+    },
+    {
+      "source_term": "rehabilitation",
+      "source_lang": "en",
+      "target_term": "إعادة الاعتبار",
+      "target_lang": "ar",
+      "law_ref": "Criminal Procedure Code",
+      "article_ref": "",
+      "note": "Removes effects of conviction.",
+      "priority": 7
+    },
+    {
+      "source_term": "principal penalty",
+      "source_lang": "en",
+      "target_term": "العقوبة الأصلية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "85",
+      "note": "Death, imprisonment, detention, fine.",
+      "priority": 10
+    },
+    {
+      "source_term": "accessory penalty",
+      "source_lang": "en",
+      "target_term": "العقوبة التبعية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Attach by operation of law.",
+      "priority": 8
+    },
+    {
+      "source_term": "supplementary penalty",
+      "source_lang": "en",
+      "target_term": "العقوبة التكميلية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "Additional penalties (e.g., confiscation).",
+      "priority": 8
+    },
+    {
+      "source_term": "confiscation",
+      "source_lang": "en",
+      "target_term": "المصادرة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "",
+      "note": "State deprives ownership without compensation.",
+      "priority": 9
+    },
+    {
+      "source_term": "fine",
+      "source_lang": "en",
+      "target_term": "غرامة",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "91",
+      "note": "Payment to treasury. Half to 500 dinars.",
+      "priority": 10
+    },
+    {
+      "source_term": "detention",
+      "source_lang": "en",
+      "target_term": "الحبس",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "88-89",
+      "note": "Severe: 24h-5y. Simple: 24h-1y.",
+      "priority": 10
+    },
+    {
+      "source_term": "imprisonment",
+      "source_lang": "en",
+      "target_term": "السجن",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Life (20y) or temporary (5-15y).",
+      "priority": 10
+    },
+    {
+      "source_term": "death penalty",
+      "source_lang": "en",
+      "target_term": "الإعدام",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "Capital punishment. Reinstated 2004.",
+      "priority": 10
+    },
+    {
+      "source_term": "criminal intent",
+      "source_lang": "en",
+      "target_term": "القصد الجرمي",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "33",
+      "note": "Will to commit the criminal act.",
+      "priority": 10
+    },
+    {
+      "source_term": "premeditation",
+      "source_lang": "en",
+      "target_term": "سبق الإصرار",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "33(3)",
+      "note": "Determined thinking before execution.",
+      "priority": 8
+    },
+    {
+      "source_term": "principal",
+      "source_lang": "en",
+      "target_term": "فاعل",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "47",
+      "note": "Person who commits the crime.",
+      "priority": 9
+    },
+    {
+      "source_term": "accomplice",
+      "source_lang": "en",
+      "target_term": "شريك",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "48",
+      "note": "Incites, agrees, or assists.",
+      "priority": 9
+    },
+    {
+      "source_term": "dishonorable crimes",
+      "source_lang": "en",
+      "target_term": "الجرائم المخلة بالشرف",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "21(1)(f)",
+      "note": "Theft, embezzlement, forgery, fraud, bribery, rape.",
+      "priority": 8
+    },
+    {
+      "source_term": "life imprisonment",
+      "source_lang": "en",
+      "target_term": "السجن المؤبد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "20 years or until death.",
+      "priority": 10
+    },
+    {
+      "source_term": "temporary imprisonment",
+      "source_lang": "en",
+      "target_term": "السجن المؤقت",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "25",
+      "note": "5 to 15 years.",
+      "priority": 10
+    },
+    {
+      "source_term": "severe detention",
+      "source_lang": "en",
+      "target_term": "الحبس الشديد",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "88",
+      "note": "3 months to 5 years.",
+      "priority": 9
+    },
+    {
+      "source_term": "simple detention",
+      "source_lang": "en",
+      "target_term": "الحبس البسيط",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "89",
+      "note": "24 hours to 1 year.",
+      "priority": 9
+    },
+    {
+      "source_term": "precautionary measures",
+      "source_lang": "en",
+      "target_term": "التدابير الاحترازية",
+      "target_lang": "ar",
+      "law_ref": "Penal Code",
+      "article_ref": "103-120",
+      "note": "Restricting liberty based on danger to public welfare.",
       "priority": 8
     }
   ]

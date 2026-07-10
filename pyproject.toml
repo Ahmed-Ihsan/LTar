@@ -72,6 +72,9 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # long lines are inline SVG attributes and compact CSS one-liners that wrapping
 # would harm readability of, not Python code.
 "src/components/interfaces/web_ui.py" = ["E501"]
+# web_frontend.py holds the embedded HTML/CSS/JS asset (no external files);
+# long lines are inline SVG attributes and compact CSS one-liners.
+"src/components/interfaces/web_frontend.py" = ["E501"]
 # The LLMEngineAdapter.generate signature is fixed by ARCHITECTURE.md §5.3
 # (system, user, model, temperature, max_tokens, timeout) — 6 args is the
 # mandated adapter contract, not an over-engineered function.
@@ -88,6 +91,13 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # unavoidable B008). run_translation / _process_batch take 7 args for
 # dependency injection (DIP, engineering-principles §1.5).
 "src/components/interfaces/cli.py" = ["B008", "PLR0913"]
+# Orchestration seam: run_translation / run_translation_streamed /
+# _translate_for_ui / _process_batch take one arg per injected dependency
+# (DIP, engineering-principles §1.5) — moved from cli.py.
+"src/components/interfaces/orchestration.py" = ["PLR0913"]
+# TM commands require Path(__file__) defaults (standard Typer pattern, B008)
+# — moved from cli.py.
+"src/components/interfaces/tm_commands.py" = ["B008"]
 # build_graph takes one arg per injected dependency (DIP, engineering-principles
 # §1.5) — run_logger is the task 4.3.1 logging seam.
 "src/components/translation_pipeline/graph.py" = ["PLR0913"]
@@ -96,8 +106,15 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 "src/components/infrastructure/run_logging.py" = ["UP017"]
 # ingestion.py has a parser section then a CLI section — mid-file imports
 # (E402) are intentional. Typer's Path(__file__) default (B008) is the
-# standard pattern. PLR0913/F841/UP028 are pre-existing.
-"src/components/knowledge_sources/ingestion.py" = ["E402", "B008", "F841", "PLR0913", "UP028"]
+# standard pattern. PLR0913/F841/UP028 are pre-existing. datetime.UTC is
+# 3.11-only; the test venv runs 3.10, so timezone.utc is kept for
+# cross-version compatibility (task 4.3.1 logging timestamps).
+"src/components/knowledge_sources/ingestion.py" = ["E402", "B008", "F841", "I001", "PLR0913", "UP017", "UP028"]
+# ingestion_runner.py has the Typer CLI with Path(__file__) default (B008).
+# ingestion.py re-exports manifest names at module level (F401).
+"src/components/knowledge_sources/ingestion_runner.py" = ["B008", "PLR0913"]
+# manifest.py uses timezone.utc for 3.10 cross-version compatibility (UP017).
+"src/components/knowledge_sources/manifest.py" = ["UP017"]
 # retrieve_context_chunks / query_chroma take one arg per DI dependency (DIP).
 "src/components/knowledge_sources/retrieval.py" = ["PLR0913"]
 # _term test helper takes one arg per Term field for readability.

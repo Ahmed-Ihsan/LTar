@@ -10,8 +10,9 @@ state-machine projections (TypedDicts) live in
 """
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 Lang = Literal["ar", "en"]
 """Language of a glossary term or corpus article: Arabic or English."""
@@ -38,6 +39,65 @@ class Term:
     article_ref: str | None = None
     note: str | None = None
     priority: int = 0
+
+    @classmethod
+    def from_row(
+        cls,
+        row: sqlite3.Row,
+        source_term_norm: str,
+    ) -> Term:
+        """Construct a :class:`Term` from a SQLite row (DRY factory).
+
+        The row must have columns matching the term fields (excluding
+        ``source_term_norm``, which is passed separately because it is the
+        indexed lookup key, not stored as a column in all schemas).
+        """
+        return cls(
+            source_term=row["source_term"],
+            source_lang=row["source_lang"],
+            target_term=row["target_term"],
+            target_lang=row["target_lang"],
+            law_ref=row["law_ref"],
+            domain=row["domain"],
+            source_term_norm=source_term_norm,
+            file_path=row["file_path"],
+            file_order=row["file_order"],
+            article_ref=row["article_ref"] if "article_ref" in row.keys() else None,
+            note=row["note"] if "note" in row.keys() else None,
+            priority=row["priority"] if "priority" in row.keys() else 0,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, object],
+        domain: str,
+        file_path: str,
+        file_order: int,
+        source_term_norm: str,
+    ) -> Term:
+        """Construct a :class:`Term` from a validated raw dict (DRY factory)."""
+        source_lang: Lang = cast(Lang, data["source_lang"])
+        target_lang: Lang = cast(Lang, data["target_lang"])
+        article_ref_raw: object = data.get("article_ref")
+        note_raw: object = data.get("note")
+        article_ref: str | None = article_ref_raw if isinstance(article_ref_raw, str) else None
+        note: str | None = note_raw if isinstance(note_raw, str) else None
+        priority: int = int(str(data.get("priority", 0)))
+        return cls(
+            source_term=str(data["source_term"]),
+            source_lang=source_lang,
+            target_term=str(data["target_term"]),
+            target_lang=target_lang,
+            law_ref=str(data["law_ref"]),
+            domain=domain,
+            source_term_norm=source_term_norm,
+            file_path=file_path,
+            file_order=file_order,
+            article_ref=article_ref,
+            note=note,
+            priority=priority,
+        )
 
 
 @dataclass(slots=True, frozen=True)

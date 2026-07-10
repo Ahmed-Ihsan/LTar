@@ -25,9 +25,16 @@ from typing import Any
 
 from langgraph.graph import END, StateGraph
 
+from src.components.infrastructure.embeddings import EmbeddingAdapter
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.infrastructure.run_logging import RunLogger
 from src.components.knowledge_sources.glossary import GlossaryIndex
+from src.components.knowledge_sources.tm import TranslationMemory
+from src.components.translation_pipeline.adapters import (
+    ContextRetrieverAdapter,
+    GlossaryScannerAdapter,
+    WebSearcherAdapter,
+)
 from src.components.translation_pipeline.decision import route_tm
 from src.components.translation_pipeline.models import TranslationState
 from src.components.translation_pipeline.nodes import (
@@ -38,6 +45,10 @@ from src.components.translation_pipeline.nodes import (
     tm_lookup_node,
     translate_node,
     web_search_node,
+)
+from src.components.translation_pipeline.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    PromptVersion,
 )
 from src.config import AppConfig
 
@@ -137,7 +148,7 @@ def _wrap_with_logging(
     An annotation-free wrapper makes ``get_type_hints`` return ``{}`` so the
     state schema declared on the :class:`StateGraph` is used instead.
     """
-    def _logged(state):  # type: ignore[no-untyped-def]
+    def _logged(state: TranslationState) -> TranslationState:
         start: float = time.perf_counter()
         result = fn(state)
         latency_ms: float = (time.perf_counter() - start) * 1000.0
@@ -154,20 +165,25 @@ def build_graph(
     llm: LLMEngineAdapter,
     cfg: AppConfig,
     glossary_index: GlossaryIndex | None = None,
-    embedder: object | None = None,
+    embedder: EmbeddingAdapter | None = None,
     persist_dir: str | None = None,
     run_logger: RunLogger | None = None,
-    tm: object | None = None,
+    tm: TranslationMemory | None = None,
+    prompts: PromptVersion = DEFAULT_PROMPT_VERSION,
 ) -> Any:
     """Wire the four nodes into a compiled :class:`StateGraph` and return it.
 
     Dependencies are injected and bound with ``functools.partial`` so each
     node closure has the signature ``(state) -> state`` that LangGraph
-    requires, while still receiving its engines (DIP,
+    requires, while still receiving their engines (DIP,
     engineering-principles §1.5). ``glossary_index`` / ``embedder`` /
-    ``persist_dir`` default to ``None`` — ``preprocess_node`` then falls back
-    to the real SQLite/ChromaDB stores (production); tests pass deterministic
-    fakes (testing-verification §3.4).
+    ``persist_dir`` default to ``None`` — the adapters then fall back to the
+    real SQLite/ChromaDB stores (production); tests pass deterministic fakes
+    (testing-verification §3.4).
+
+    ``prompts`` (task 9.2) defaults to ``DEFAULT_PROMPT_VERSION`` (V4); passing
+    an earlier version (V1–V3) runs the pipeline with that prompt set — no
+    node code changes required (OCP, engineering-principles §1.2).
 
     ``run_logger`` (task 4.3.1), when supplied, wraps every node so one
     structured JSON line is emitted per node execution to
@@ -179,28 +195,57 @@ def build_graph(
     """
     graph: StateGraph = StateGraph(TranslationState)
 
+    _bind_nodes(
+        graph, cfg=cfg, llm=llm, glossary_index=glossary_index,
+        embedder=embedder, persist_dir=persist_dir, tm=tm,
+        prompts=prompts, run_logger=run_logger,
+    )
+    _add_edges(graph, cfg=cfg)
+
+    return graph.compile()
+
+
+def _bind_nodes(
+    graph: StateGraph,
+    *,
+    cfg: AppConfig,
+    llm: LLMEngineAdapter,
+    glossary_index: GlossaryIndex | None,
+    embedder: EmbeddingAdapter | None,
+    persist_dir: str | None,
+    tm: TranslationMemory | None,
+    prompts: PromptVersion,
+    run_logger: RunLogger | None,
+) -> None:
+    """Create adapters, bind dependencies, and register all node callables."""
+
     def _bind(name: str, fn: _NodeCallable) -> _NodeCallable:
         """Bind a node name to a (possibly logged) callable for add_node."""
         if run_logger is not None:
             return _wrap_with_logging(name, fn, run_logger)
         return fn
 
+    # Create protocol-typed adapters (composition root — DIP).
+    scanner = GlossaryScannerAdapter(index=glossary_index)
+    retriever = ContextRetrieverAdapter(
+        embedder=embedder, persist_dir=persist_dir, cfg=cfg
+    )
+    searcher: WebSearcherAdapter | None = (
+        WebSearcherAdapter(max_results_per_source=cfg.web_search_max_results)
+        if cfg.web_search_enabled
+        else None
+    )
+
     graph.add_node(
         PREPROCESS_NODE,
         _bind(
             PREPROCESS_NODE,
-            partial(
-                preprocess_node,
-                glossary_index=glossary_index,
-                embedder=embedder,
-                persist_dir=persist_dir,
-                cfg=cfg,
-            ),
+            partial(preprocess_node, scanner=scanner, retriever=retriever),
         ),
     )
     graph.add_node(
         WEB_SEARCH_NODE,
-        _bind(WEB_SEARCH_NODE, partial(web_search_node, cfg=cfg)),
+        _bind(WEB_SEARCH_NODE, partial(web_search_node, cfg=cfg, searcher=searcher)),
     )
     graph.add_node(
         TM_LOOKUP_NODE,
@@ -212,17 +257,26 @@ def build_graph(
     )
     graph.add_node(
         TRANSLATE_NODE,
-        _bind(TRANSLATE_NODE, partial(translate_node, llm=llm, cfg=cfg)),
+        _bind(
+            TRANSLATE_NODE,
+            partial(translate_node, llm=llm, cfg=cfg, prompts=prompts),
+        ),
     )
     graph.add_node(
         AUDIT_NODE,
-        _bind(AUDIT_NODE, partial(audit_node, llm=llm, cfg=cfg)),
+        _bind(
+            AUDIT_NODE,
+            partial(audit_node, llm=llm, cfg=cfg, prompts=prompts),
+        ),
     )
     graph.add_node(
         FINALIZE_NODE,
         _bind(FINALIZE_NODE, partial(finalize_node, cfg=cfg)),
     )
 
+
+def _add_edges(graph: StateGraph, *, cfg: AppConfig) -> None:
+    """Wire the graph topology: edges and conditional routing."""
     graph.set_entry_point(PREPROCESS_NODE)
     graph.add_edge(PREPROCESS_NODE, WEB_SEARCH_NODE)
     graph.add_edge(WEB_SEARCH_NODE, TM_LOOKUP_NODE)
@@ -242,5 +296,3 @@ def build_graph(
         {_ROUTE_FINALIZE: _ROUTE_FINALIZE, _ROUTE_TRANSLATE: _ROUTE_TRANSLATE},
     )
     graph.add_edge(FINALIZE_NODE, END)
-
-    return graph.compile()

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-09
+goal: Achieve zero mypy strict errors across all src/ modules by fixing 66
+  pre-existing type errors

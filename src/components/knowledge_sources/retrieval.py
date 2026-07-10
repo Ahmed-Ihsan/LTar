@@ -103,15 +103,13 @@ class ChromaStore:
         persist_dir: Path,
         *,
         collection_name: str = DEFAULT_COLLECTION,
-        embedder: EmbeddingAdapter | None = None,
-        cfg: AppConfig | None = None,
+        embedder: EmbeddingAdapter,
+        cfg: AppConfig,
     ) -> None:
         self._persist_dir: Path = persist_dir
         self._collection_name: str = collection_name
-        self._cfg: AppConfig = cfg if cfg is not None else load_config()
-        self._embedder: EmbeddingAdapter = (
-            embedder if embedder is not None else Embedder()
-        )
+        self._cfg: AppConfig = cfg
+        self._embedder: EmbeddingAdapter = embedder
         self._client: chromadb.api.ClientAPI | None = None
         self._collection: chromadb.Collection | None = None
 
@@ -345,6 +343,39 @@ def _default_persist_dir(cfg: AppConfig | None = None) -> Path:
     return project_root / resolved_cfg.paths.chroma_dir
 
 
+def _resolve_embedder_and_cfg(
+    embedder: EmbeddingAdapter | None, cfg: AppConfig | None
+) -> tuple[AppConfig, EmbeddingAdapter]:
+    """Resolve optional embedder and cfg to mandatory values (DIP seam).
+
+    When ``cfg`` is ``None``, loads config. When ``embedder`` is ``None``,
+    creates a real :class:`Embedder` using the resolved config's model and host.
+    """
+    resolved_cfg: AppConfig = cfg if cfg is not None else load_config()
+    resolved_embedder: EmbeddingAdapter = (
+        embedder if embedder is not None
+        else Embedder(model=resolved_cfg.embed_model, host=resolved_cfg.ollama_host)
+    )
+    return resolved_cfg, resolved_embedder
+
+
+def _create_store(
+    persist_dir: Path,
+    *,
+    embedder: EmbeddingAdapter | None = None,
+    collection_name: str = DEFAULT_COLLECTION,
+    cfg: AppConfig | None = None,
+) -> ChromaStore:
+    """Shared factory: resolve embedder/cfg and construct a ChromaStore (DRY)."""
+    resolved_cfg, resolved_embedder = _resolve_embedder_and_cfg(embedder, cfg)
+    return ChromaStore(
+        persist_dir=persist_dir,
+        collection_name=collection_name,
+        embedder=resolved_embedder,
+        cfg=resolved_cfg,
+    )
+
+
 def build_chroma_collection(
     chunks: list[Chunk],
     persist_dir: str | Path,
@@ -361,10 +392,10 @@ def build_chroma_collection(
     into place, so a failure never leaves a partial store. Returns the number
     of embeddings written.
     """
-    store = ChromaStore(
-        persist_dir=Path(persist_dir),
-        collection_name=collection_name,
+    store = _create_store(
+        Path(persist_dir),
         embedder=embedder,
+        collection_name=collection_name,
         cfg=cfg,
     )
     return store.build(chunks)
@@ -384,10 +415,10 @@ def add_chunks_to_collection(
     non-destructive counterpart to :func:`build_chroma_collection`. Used by
     external corpus importers (e.g. MultiUN RAG import).
     """
-    store = ChromaStore(
-        persist_dir=Path(persist_dir),
-        collection_name=collection_name,
+    store = _create_store(
+        Path(persist_dir),
         embedder=embedder,
+        collection_name=collection_name,
         cfg=cfg,
     )
     return store.add_chunks(chunks)
@@ -413,10 +444,10 @@ def query_chroma(
     resolved_dir: Path = (
         Path(persist_dir) if persist_dir is not None else _default_persist_dir(cfg)
     )
-    store = ChromaStore(
-        persist_dir=resolved_dir,
-        collection_name=collection_name,
+    store = _create_store(
+        resolved_dir,
         embedder=embedder,
+        collection_name=collection_name,
         cfg=cfg,
     )
     return store.query(query_text, n_results=n_results, where=where)

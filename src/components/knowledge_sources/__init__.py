@@ -46,6 +46,7 @@ _LAZY: dict[str, str] = {
     # tm
     "TranslationMemory": f"{__name__}.tm",
     # legal_search
+    "SearchSource": f"{__name__}.legal_search",
     "search_all_sources": f"{__name__}.legal_search",
     "search_dijlex": f"{__name__}.legal_search",
     "search_moj": f"{__name__}.legal_search",
@@ -62,6 +63,12 @@ _LAZY: dict[str, str] = {
     "iter_articles": f"{__name__}.ingestion",
     "parse_corpus_file": f"{__name__}.ingestion",
     "run_ingestion": f"{__name__}.ingestion",
+    # manifest (extracted from ingestion — SRP)
+    "manifest": f"{__name__}.manifest",
+    # ingestion_runner (extracted from ingestion — SRP)
+    "ingestion_runner": f"{__name__}.ingestion_runner",
+    # glossary normalizer protocol
+    "Normalizer": f"{__name__}.glossary",
 }
 
 

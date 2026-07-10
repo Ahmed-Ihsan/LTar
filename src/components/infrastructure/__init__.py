@@ -29,6 +29,7 @@ _LAZY: dict[str, str] = {
     "read_memory_info": f"{__name__}.memory",
     "MemoryInfo": f"{__name__}.models",
     "RunLogger": f"{__name__}.run_logging",
+    "translate_engine_error": f"{__name__}.ollama_errors",
 }
 
 

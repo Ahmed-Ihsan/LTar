@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-09
+goal: "Refactor all components to follow SOLID principles and clean code
+  practices: split god modules, extract abstractions, eliminate duplicated code,
+  and enforce DIP at all adapter seams"

@@ -12,22 +12,53 @@ heuristic live (DRY, engineering-principles §2.1.1). ``retrieval.py`` and the
 ingestion CLI call into ``chunk_article`` / ``approx_token_count``; they do
 not re-implement them.
 
-Implemented in Phase 2 (tasks 2.2.x).
+The ingestion orchestration (run_ingestion, manifest writer, CLI) has been
+extracted to ``ingestion_runner.py`` and ``manifest.py`` (SRP). This module
+re-exports those names for backward compatibility.
 """
 from __future__ import annotations
 
+import importlib
 import re
 import sys
 from collections.abc import Iterator
-from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Annotated
+from typing import IO, Any, cast
 
-from src.components.knowledge_sources.models import Article, Chunk, Term
+from src.components.knowledge_sources.manifest import (  # noqa: F401
+    _COLLECTION_NAME,
+    _MANIFEST_VERSION,
+    CorpusSummary,
+    FileHash,
+    GlossarySummary,
+    IngestionResult,
+    content_hash as _content_hash,
+    hash_files as _hash_files,
+    project_root as _project_root,
+    sha256_file as _sha256_file,
+    write_manifest as _write_manifest,
+)
+from src.components.knowledge_sources.models import Article, Chunk, Lang
 from src.components.translation_pipeline.exceptions import (
     CorpusEncodingError,
     CorpusParseError,
 )
+
+# ``ingestion_runner`` imports from this module, so it must be imported lazily
+# to avoid a circular import. The re-exports below use PEP 562 ``__getattr__``.
+_LAZY_REEXPORTS: dict[str, str] = {
+    "ingest_app": "src.components.knowledge_sources.ingestion_runner",
+    "run_ingestion": "src.components.knowledge_sources.ingestion_runner",
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY_REEXPORTS:
+        module = importlib.import_module(_LAZY_REEXPORTS[name])
+        value = getattr(module, name)
+        globals()[name] = value  # cache for subsequent access
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # Header field labels (DATA_SPEC §1.2). Single source of truth for the parser.
 _LAW_HEADER: str = "LAW:"
@@ -156,6 +187,29 @@ def _strict_utf8_lines(handle: IO[str], path: Path) -> Iterator[str]:
         ) from e
 
 
+def _flush_current_article(
+    current_number: str | None,
+    current_lines: list[str],
+    header: dict[str, str],
+    law_slug: str,
+    body_start: int,
+    body_end: int,
+    file_path: Path,
+) -> Article | None:
+    """Build and return the current article if one is being accumulated."""
+    if current_number is None:
+        return None
+    return _build_article(
+        number=current_number,
+        body_lines=current_lines,
+        header=header,
+        law_slug=law_slug,
+        body_start=body_start,
+        body_end=body_end,
+        file_path=file_path,
+    )
+
+
 def iter_articles(path: Path) -> Iterator[Article]:
     """Stream articles from a corpus file one at a time.
 
@@ -171,17 +225,10 @@ def iter_articles(path: Path) -> Iterator[Article]:
     """
     file_path: Path = path
     law_slug: str = _law_slug_from_path(path)
-
-    # Two-pass-on-the-fly: collect header lines until the separator, then
-    # stream article bodies. Char offsets are tracked relative to the file so
-    # provenance is exact without holding the whole file. UTF-8 decode errors
-    # surface during iteration (errors="strict" defers them past open), so they
-    # are translated by ``_strict_utf8_lines`` below.
     handle = open(path, encoding="utf-8", errors="strict", newline="")
 
     header_lines: list[str] = []
     header_parsed: dict[str, str] | None = None
-    # char position relative to the decoded file content (chars, not bytes).
     char_pos: int = 0
     current_number: str | None = None
     current_body_start: int = 0
@@ -204,21 +251,16 @@ def iter_articles(path: Path) -> Iterator[Article]:
                 stripped
             )
             if marker_match is not None:
-                if current_number is not None:
-                    yield _build_article(
-                        number=current_number,
-                        body_lines=current_lines,
-                        header=header_parsed,
-                        law_slug=law_slug,
-                        body_start=current_body_start,
-                        body_end=char_pos,
-                        file_path=file_path,
-                    )
+                article: Article | None = _flush_current_article(
+                    current_number, current_lines, header_parsed,
+                    law_slug, current_body_start, char_pos, file_path,
+                )
+                if article is not None:
+                    yield article
                 current_number = _normalize_article_number(
                     marker_match.group(1)
                 )
                 current_lines = []
-                # The body begins after this marker line.
                 current_body_start = char_pos + line_len
             elif current_number is not None:
                 current_lines.append(stripped)
@@ -229,16 +271,12 @@ def iter_articles(path: Path) -> Iterator[Article]:
         raise CorpusParseError(
             f"{file_path}: missing header separator '{_HEADER_SEPARATOR}'"
         )
-    if current_number is not None:
-        yield _build_article(
-            number=current_number,
-            body_lines=current_lines,
-            header=header_parsed,
-            law_slug=law_slug,
-            body_start=current_body_start,
-            body_end=char_pos,
-            file_path=file_path,
-        )
+    final: Article | None = _flush_current_article(
+        current_number, current_lines, header_parsed,
+        law_slug, current_body_start, char_pos, file_path,
+    )
+    if final is not None:
+        yield final
 
 
 def _build_article(
@@ -262,7 +300,7 @@ def _build_article(
         text=body,
         law=sys.intern(header["law"]),
         source=header["source"],
-        lang=lang_value,  # type: ignore[arg-type]
+        lang=cast(Lang, lang_value),
         law_slug=sys.intern(law_slug),
         char_start=body_start,
         char_end=body_end,
@@ -514,425 +552,4 @@ def _trailing_overlap(
         kept.insert(0, span)
         kept_tokens += unit_tokens
     return kept, kept_tokens
-
-
-# ---------------------------------------------------------------------------
-# Ingestion CLI orchestration (tasks 2.3.3, 2.3.4)
-#
-# The functions below are coordinators — their single responsibility is
-# orchestrating the parse → chunk → embed → store pipeline and writing the
-# ingestion manifest (clean-code §2.1: an orchestrator's job is coordination).
-# They call into the single-source-of-truth functions defined above and in
-# ``embeddings.py`` / ``retrieval.py`` / ``glossary.py`` (DRY).
-# ---------------------------------------------------------------------------
-
-import gc
-import hashlib
-import json
-import time
-from datetime import datetime, timezone
-
-import typer
-
-from src.components.knowledge_sources.glossary import (
-    GlossaryConflictError,
-    GlossaryValidationError,
-    build_sqlite_index,
-    load_glossary_files,
-)
-from src.config import AppConfig, load_config
-
-# ``retrieval`` and ``embeddings`` are imported lazily inside the CLI functions
-# to avoid a circular import: retrieval.py imports ``Chunk`` from this module at
-# module level, so this module must not import retrieval at module level.
-_MANIFEST_VERSION: str = "1.0.0"
-_COLLECTION_NAME: str = "iraqi_laws"  # matches retrieval.DEFAULT_COLLECTION
-
-
-@dataclass(slots=True)
-class FileHash:
-    """SHA-256 hash and size of a single input file (manifest entry)."""
-
-    path: str
-    sha256: str
-    size: int
-
-
-@dataclass(slots=True)
-class GlossarySummary:
-    """Summary of glossary ingestion for the CLI output."""
-
-    file_count: int
-    term_count: int
-    conflict_count: int
-    validation_error_count: int
-
-
-@dataclass(slots=True)
-class CorpusSummary:
-    """Summary of corpus ingestion for the CLI output."""
-
-    file_count: int
-    law_count: int
-    article_count: int
-    chunk_count: int
-    parse_error_count: int
-
-
-@dataclass(slots=True)
-class IngestionResult:
-    """Full result of an ingestion run (glossary + corpus + manifest)."""
-
-    glossary: GlossarySummary | None
-    corpus: CorpusSummary | None
-    chroma_embeddings: int
-    duration_seconds: float
-    file_hashes: list[FileHash]
-
-
-def _sha256_file(path: Path) -> FileHash:
-    """Compute the SHA-256 hash and byte size of ``path`` (streaming)."""
-    h = hashlib.sha256()
-    size: int = 0
-    with open(path, "rb") as f:
-        for block in iter(lambda: f.read(65536), b""):
-            h.update(block)
-            size += len(block)
-    return FileHash(path=str(path), sha256=h.hexdigest(), size=size)
-
-
-def _hash_files(paths: list[Path]) -> list[FileHash]:
-    """Hash a list of files in sorted order (deterministic)."""
-    return [_sha256_file(p) for p in sorted(paths)]
-
-
-def _content_hash(
-    file_hashes: list[FileHash],
-    term_count: int,
-    chunk_count: int,
-    article_count: int,
-    cfg: AppConfig,
-) -> str:
-    """Compute a deterministic content hash over all inputs + counts + models.
-
-    Excludes the timestamp so re-ingestion of unchanged inputs yields the same
-    hash (idempotency check, TODO 2.3.4). Includes model versions so a model
-    swap is detectable.
-    """
-    h = hashlib.sha256()
-    for fh in file_hashes:
-        h.update(fh.path.encode("utf-8"))
-        h.update(fh.sha256.encode("utf-8"))
-        h.update(str(fh.size).encode("utf-8"))
-    h.update(str(term_count).encode("utf-8"))
-    h.update(str(article_count).encode("utf-8"))
-    h.update(str(chunk_count).encode("utf-8"))
-    h.update(cfg.llm_model.encode("utf-8"))
-    h.update(cfg.embed_model.encode("utf-8"))
-    return h.hexdigest()
-
-
-def _write_manifest(
-    result: IngestionResult,
-    cfg: AppConfig,
-    manifest_path: Path,
-) -> str:
-    """Write ``data/ingestion_manifest.json`` and return the content hash.
-
-    The manifest records file hashes, counts, model versions, and a timestamp
-    (DATA_SPEC §5). The ``content_hash`` field is deterministic (excludes the
-    timestamp) so idempotency can be verified by comparing it across runs.
-    """
-    term_count: int = result.glossary.term_count if result.glossary else 0
-    chunk_count: int = result.corpus.chunk_count if result.corpus else 0
-    article_count: int = result.corpus.article_count if result.corpus else 0
-
-    content_hash: str = _content_hash(
-        result.file_hashes, term_count, chunk_count, article_count, cfg
-    )
-
-    glossary_files: list[dict[str, object]] = []
-    corpus_files: list[dict[str, object]] = []
-    glossary_dir = _project_root() / cfg.paths.glossary_dir
-    corpus_dir = _project_root() / cfg.paths.corpus_dir
-    for fh in result.file_hashes:
-        entry: dict[str, object] = {
-            "path": fh.path,
-            "sha256": fh.sha256,
-            "size": fh.size,
-        }
-        if glossary_dir in Path(fh.path).parents or fh.path.endswith(".json"):
-            glossary_files.append(entry)
-        else:
-            corpus_files.append(entry)
-
-    manifest: dict[str, object] = {
-        "version": _MANIFEST_VERSION,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "content_hash": content_hash,
-        "glossary": {
-            "file_count": result.glossary.file_count if result.glossary else 0,
-            "term_count": term_count,
-            "files": glossary_files,
-        },
-        "corpus": {
-            "file_count": result.corpus.file_count if result.corpus else 0,
-            "law_count": result.corpus.law_count if result.corpus else 0,
-            "article_count": article_count,
-            "chunk_count": chunk_count,
-            "files": corpus_files,
-        },
-        "chroma": {
-            "collection": _COLLECTION_NAME,
-            "embeddings_written": result.chroma_embeddings,
-        },
-        "models": {
-            "llm_model": cfg.llm_model,
-            "embed_model": cfg.embed_model,
-        },
-        "duration_seconds": round(result.duration_seconds, 2),
-    }
-
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-    return content_hash
-
-
-def _project_root() -> Path:
-    """Return the project root (parent of the ``src`` package)."""
-    return Path(__file__).resolve().parent.parent.parent.parent
-
-
-def _ingest_glossary(cfg: AppConfig) -> tuple[GlossarySummary, list[FileHash]]:
-    """Load glossary files into SQLite; return summary and file hashes."""
-    glossary_dir: Path = _project_root() / cfg.paths.glossary_dir
-    file_paths: list[Path] = sorted(glossary_dir.glob("*.json"))
-    file_hashes: list[FileHash] = _hash_files(file_paths)
-
-    conflicts: int = 0
-    validation_errors: int = 0
-    all_terms: list[Term] = []
-    for fp in file_paths:
-        try:
-            terms = load_glossary_files(fp)
-            all_terms.extend(terms)
-        except GlossaryConflictError:
-            conflicts += 1
-        except GlossaryValidationError:
-            validation_errors += 1
-
-    if all_terms and conflicts == 0 and validation_errors == 0:
-        db_path: Path = _project_root() / cfg.paths.glossary_db
-        build_sqlite_index(all_terms, db_path)
-
-    summary = GlossarySummary(
-        file_count=len(file_paths),
-        term_count=len(all_terms),
-        conflict_count=conflicts,
-        validation_error_count=validation_errors,
-    )
-    return summary, file_hashes
-
-
-def _iter_corpus_chunks(
-    cfg: AppConfig, limit: int | None
-) -> tuple[list[Chunk], CorpusSummary, list[FileHash]]:
-    """Stream-parse corpus files, chunk articles, return chunks + summary.
-
-    Memory-bounded (offline-architecture §1.2–§1.3): articles are streamed via
-    :func:`iter_articles` and chunked one at a time. Chunks are collected into a
-    list only because :func:`build_chroma_collection` needs the full set for the
-    atomic rebuild; for the ~2k-vector corpus this is well within budget.
-    """
-    corpus_dir: Path = _project_root() / cfg.paths.corpus_dir
-    file_paths: list[Path] = sorted(corpus_dir.glob("*.txt"))
-    file_hashes: list[FileHash] = _hash_files(file_paths)
-
-    chunks: list[Chunk] = []
-    law_slugs: set[str] = set()
-    article_count: int = 0
-    parse_errors: int = 0
-
-    for fp in file_paths:
-        articles_in_file: int = 0
-        try:
-            for article in iter_articles(fp):
-                if limit is not None and articles_in_file >= limit:
-                    break
-                articles_in_file += 1
-                article_count += 1
-                law_slugs.add(article.law_slug)
-                chunks.extend(
-                    chunk_article(article, cfg.chunk_size, cfg.chunk_overlap)
-                )
-        except (CorpusParseError, CorpusEncodingError):
-            parse_errors += 1
-
-    summary = CorpusSummary(
-        file_count=len(file_paths),
-        law_count=len(law_slugs),
-        article_count=article_count,
-        chunk_count=len(chunks),
-        parse_error_count=parse_errors,
-    )
-    return chunks, summary, file_hashes
-
-
-# ---------------------------------------------------------------------------
-# Orchestration: run_ingestion (shared by the ingest_app command and the
-# src.cli ingest wrapper — DRY, engineering-principles §2.1)
-# ---------------------------------------------------------------------------
-
-
-def run_ingestion(
-    cfg: AppConfig,
-    *,
-    glossary_only: bool = False,
-    corpus_only: bool = False,
-    limit: int | None = None,
-) -> IngestionResult:
-    """Run glossary and/or corpus ingestion and return the result.
-
-    This is the orchestration seam between the CLI commands and the ingestion
-    pipeline. Both ``src.ingestion.ingest_app`` and ``src.cli.app``'s
-    ``ingest`` command call this function (DRY). Renders progress to stdout
-    via ``typer.secho`` and writes the manifest. The caller is responsible
-    for checking ``error_count`` and setting the exit code.
-    """
-    # Lazy imports to avoid circular import (retrieval imports Chunk from here).
-    from src.components.infrastructure.embeddings import Embedder
-    from src.components.knowledge_sources.retrieval import build_chroma_collection
-
-    start_time: float = time.monotonic()
-    all_file_hashes: list[FileHash] = []
-    glossary_summary: GlossarySummary | None = None
-    corpus_summary: CorpusSummary | None = None
-    chroma_embeddings: int = 0
-
-    # --- Glossary ---
-    if not corpus_only:
-        glossary_summary, g_hashes = _ingest_glossary(cfg)
-        all_file_hashes.extend(g_hashes)
-        typer.secho(
-            f"[ingestion] Glossary: {glossary_summary.file_count} files, "
-            f"{glossary_summary.term_count} terms loaded, "
-            f"{glossary_summary.conflict_count} conflicts, "
-            f"{glossary_summary.validation_error_count} validation errors.",
-            fg=typer.colors.CYAN,
-        )
-
-    # --- Corpus ---
-    if not glossary_only:
-        chunks, corpus_summary, c_hashes = _iter_corpus_chunks(cfg, limit)
-        all_file_hashes.extend(c_hashes)
-
-        if corpus_summary.parse_error_count == 0 and chunks:
-            chroma_dir: Path = _project_root() / cfg.paths.chroma_dir
-            embedder = Embedder()
-            chroma_embeddings = build_chroma_collection(
-                chunks, chroma_dir, embedder=embedder, cfg=cfg
-            )
-            gc.collect()
-
-        typer.secho(
-            f"[ingestion] Corpus: {corpus_summary.law_count} laws, "
-            f"{corpus_summary.article_count} articles, "
-            f"{corpus_summary.chunk_count} chunks, "
-            f"{corpus_summary.parse_error_count} parse errors.",
-            fg=typer.colors.CYAN,
-        )
-        typer.secho(
-            f"[ingestion] ChromaDB: collection '{_COLLECTION_NAME}' rebuilt, "
-            f"{chroma_embeddings} embeddings written.",
-            fg=typer.colors.CYAN,
-        )
-
-    duration: float = time.monotonic() - start_time
-
-    # --- Manifest ---
-    result = IngestionResult(
-        glossary=glossary_summary,
-        corpus=corpus_summary,
-        chroma_embeddings=chroma_embeddings,
-        duration_seconds=duration,
-        file_hashes=all_file_hashes,
-    )
-    manifest_path: Path = _project_root() / "data" / "ingestion_manifest.json"
-    content_hash: str = _write_manifest(result, cfg, manifest_path)
-
-    typer.secho(
-        f"[ingestion] Duration: {duration:.1f}s. "
-        f"Manifest: {manifest_path} (content_hash={content_hash[:12]}...).",
-        fg=typer.colors.CYAN,
-    )
-    return result
-
-
-# Typer app for ``python -m src.ingestion`` (DATA_SPEC §4).
-ingest_app = typer.Typer(
-    add_completion=False,
-    rich_markup_mode=None,
-    help="Ingest glossary and corpus into SQLite + ChromaDB.",
-)
-
-
-@ingest_app.command()
-def ingest(
-    rebuild: Annotated[
-        bool,
-        typer.Option("--rebuild", help="Drop existing stores and re-ingest from scratch."),
-    ] = False,
-    glossary_only: Annotated[
-        bool,
-        typer.Option("--glossary-only", help="Skip corpus; only load glossary into SQLite."),
-    ] = False,
-    corpus_only: Annotated[
-        bool,
-        typer.Option("--corpus-only", help="Skip glossary; only chunk and embed corpus."),
-    ] = False,
-    limit: Annotated[
-        int | None,
-        typer.Option("--limit", help="Process only the first N articles per file (smoke test)."),
-    ] = None,
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Ingest glossary and/or corpus into the local stores (DATA_SPEC §4)."""
-    _ = rebuild  # run_ingestion always rebuilds atomically
-    try:
-        cfg: AppConfig = load_config(config_path)
-    except Exception as e:
-        typer.secho(f"config error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-
-    result = run_ingestion(
-        cfg,
-        glossary_only=glossary_only,
-        corpus_only=corpus_only,
-        limit=limit,
-    )
-
-    error_count: int = 0
-    if result.glossary:
-        error_count += (
-            result.glossary.conflict_count
-            + result.glossary.validation_error_count
-        )
-    if result.corpus:
-        error_count += result.corpus.parse_error_count
-
-    if error_count > 0:
-        typer.secho(
-            f"\n{error_count} error(s) during ingestion.", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1)
-    typer.secho("\nIngestion complete (0 errors).", fg=typer.colors.GREEN)
-
-
-if __name__ == "__main__":
-    ingest_app()
 

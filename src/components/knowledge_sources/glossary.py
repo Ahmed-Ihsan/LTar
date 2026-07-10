@@ -19,7 +19,7 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Protocol, cast
 
 from src.components.knowledge_sources.models import Lang, Term
 from src.components.translation_pipeline.exceptions import (
@@ -127,6 +127,16 @@ class GlossaryHit:
 # ---------------------------------------------------------------------------
 
 
+class Normalizer(Protocol):
+    """Contract for a language-specific normalizer (OCP).
+
+    Add new languages by registering a new adapter in ``_NORMALIZERS`` —
+    no edits to ``normalize()`` required.
+    """
+
+    def normalize(self, term: str) -> str: ...
+
+
 def normalize_arabic(term: str) -> str:
     """Normalize an Arabic term for indexing/lookup.
 
@@ -152,11 +162,32 @@ def normalize_english(term: str) -> str:
     return term
 
 
-def normalize(term: str, lang: Lang) -> str:
-    """Dispatch to the language-appropriate normalizer."""
-    if lang == "ar":
+class _ArabicNormalizer:
+    """Normalizer adapter for Arabic (OCP — wraps ``normalize_arabic``)."""
+
+    def normalize(self, term: str) -> str:
         return normalize_arabic(term)
-    return normalize_english(term)
+
+
+class _EnglishNormalizer:
+    """Normalizer adapter for English (OCP — wraps ``normalize_english``)."""
+
+    def normalize(self, term: str) -> str:
+        return normalize_english(term)
+
+
+_NORMALIZERS: dict[str, Normalizer] = {
+    "ar": _ArabicNormalizer(),
+    "en": _EnglishNormalizer(),
+}
+
+
+def normalize(term: str, lang: Lang) -> str:
+    """Dispatch to the language-appropriate normalizer via the registry."""
+    normalizer: Normalizer | None = _NORMALIZERS.get(lang)
+    if normalizer is None:
+        raise GlossaryValidationError(f"unsupported language: {lang!r}")
+    return normalizer.normalize(term)
 
 
 # ---------------------------------------------------------------------------
@@ -262,26 +293,15 @@ def _build_term(
     file_order: int,
 ) -> Term:
     """Construct a validated, normalized :class:`Term` from a raw entry."""
-    source_lang: Lang = term_raw["source_lang"]  # type: ignore[assignment]
-    source_term: str = term_raw["source_term"]  # type: ignore[assignment]
-    target_lang: Lang = cast(Lang, term_raw["target_lang"])
-    return Term(
-        source_term=source_term,
-        source_lang=source_lang,
-        target_term=term_raw["target_term"],  # type: ignore[arg-type]
-        target_lang=target_lang,
-        law_ref=term_raw["law_ref"],  # type: ignore[arg-type]
+    source_lang: Lang = cast(Lang, term_raw["source_lang"])
+    source_term: str = str(term_raw["source_term"])
+    source_term_norm: str = normalize(source_term, source_lang)
+    return Term.from_dict(
+        term_raw,
         domain=domain,
-        source_term_norm=normalize(source_term, source_lang),
         file_path=str(file_path),
         file_order=file_order,
-        article_ref=term_raw.get("article_ref") if isinstance(  # type: ignore[arg-type]
-            term_raw.get("article_ref"), str
-        ) else None,
-        note=term_raw.get("note") if isinstance(  # type: ignore[arg-type]
-            term_raw.get("note"), str
-        ) else None,
-        priority=int(str(term_raw.get("priority", 0))),
+        source_term_norm=source_term_norm,
     )
 
 
@@ -304,8 +324,9 @@ def load_glossary_file(file_path: Path) -> list[Term]:
         ) from e
 
     _validate_file_header(raw, file_path)
-    domain: str = raw["domain"]  # type: ignore[index]
-    terms_raw: list[object] = raw["terms"]  # type: ignore[index]
+    raw_dict: dict[str, object] = cast(dict[str, object], raw)
+    domain: str = str(raw_dict["domain"])
+    terms_raw: list[object] = list(cast(list[object], raw_dict["terms"]))
 
     terms: list[Term] = []
     for idx, term_raw in enumerate(terms_raw):

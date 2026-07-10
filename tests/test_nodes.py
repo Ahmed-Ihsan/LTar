@@ -18,6 +18,10 @@ import pytest
 from src.components.knowledge_sources.glossary import GlossaryIndex
 from src.components.knowledge_sources.ingestion import Chunk
 from src.components.knowledge_sources.retrieval import build_chroma_collection
+from src.components.translation_pipeline.adapters import (
+    ContextRetrieverAdapter,
+    GlossaryScannerAdapter,
+)
 from src.components.translation_pipeline.exceptions import OllamaConnectionError, OllamaTimeoutError
 from src.components.translation_pipeline.models import TranslationState
 from src.components.translation_pipeline.nodes import (
@@ -119,10 +123,12 @@ class TestPreprocessNode:
         state: TranslationState = _state("المادة 148: عقد البيع", "ar-en")
         result = preprocess_node(
             state,
-            glossary_index=glossary_index,
-            embedder=mock_embedder,
-            persist_dir=tmp_path / "chroma",
-            cfg=config,
+            scanner=GlossaryScannerAdapter(index=glossary_index),
+            retriever=ContextRetrieverAdapter(
+                embedder=mock_embedder,
+                persist_dir=str(tmp_path / "chroma"),
+                cfg=config,
+            ),
         )
         assert len(result["glossary_hits"]) >= 1
         assert any(
@@ -159,10 +165,12 @@ class TestPreprocessNode:
         state: TranslationState = _state("", "ar-en")
         result = preprocess_node(
             state,
-            glossary_index=glossary_index,
-            embedder=mock_embedder,
-            persist_dir=tmp_path / "chroma",
-            cfg=config,
+            scanner=GlossaryScannerAdapter(index=glossary_index),
+            retriever=ContextRetrieverAdapter(
+                embedder=mock_embedder,
+                persist_dir=str(tmp_path / "chroma"),
+                cfg=config,
+            ),
         )
         assert result["context_chunks"] == []
         assert any("empty" in w.lower() or "context" in w.lower()
@@ -184,10 +192,12 @@ class TestPreprocessNode:
         state: TranslationState = _state("عقد البيع", "ar-en")
         result = preprocess_node(
             state,
-            glossary_index=glossary_index,
-            embedder=mock_embedder,
-            persist_dir=tmp_path / "chroma",
-            cfg=config,
+            scanner=GlossaryScannerAdapter(index=glossary_index),
+            retriever=ContextRetrieverAdapter(
+                embedder=mock_embedder,
+                persist_dir=str(tmp_path / "chroma"),
+                cfg=config,
+            ),
         )
         assert result["input_text"] == "عقد البيع"
         assert result["direction"] == "ar-en"

@@ -73,6 +73,12 @@ _LAZY: dict[str, str] = {
     "TRANSLATOR_USER_TEMPLATE_V2": f"{__name__}.prompts",
     "TRANSLATOR_USER_TEMPLATE_V3": f"{__name__}.prompts",
     "TRANSLATOR_USER_TEMPLATE_V4": f"{__name__}.prompts",
+    "DEFAULT_PROMPT_VERSION": f"{__name__}.prompts",
+    "PromptV1": f"{__name__}.prompts",
+    "PromptV2": f"{__name__}.prompts",
+    "PromptV3": f"{__name__}.prompts",
+    "PromptV4": f"{__name__}.prompts",
+    "PromptVersion": f"{__name__}.prompts",
     # decision
     "route_tm": f"{__name__}.decision",
     # nodes

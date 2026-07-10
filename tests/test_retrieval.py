@@ -198,7 +198,7 @@ class TestRealOllamaRetrieval:
                     char_start=0, char_end=len(text),
                 )
             )
-        embedder = Embedder()
+        embedder = Embedder(model="nomic-embed-text", host="http://localhost:11434")
         n: int = build_chroma_collection(
             chunks, tmp_path / "chroma", embedder=embedder
         )

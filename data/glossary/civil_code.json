@@ -1,7 +1,7 @@
 {
   "domain": "civil_code",
-  "version": "1.0.0",
-  "last_updated": "2026-07-02",
+  "version": "2.0.0",
+  "last_updated": "2026-07-07",
   "terms": [
     {
       "source_term": "Civil Code",
@@ -172,6 +172,806 @@
       "article_ref": "4",
       "note": "Honesty in dealings and absence of intent to harm.",
       "priority": 7
+    },
+    {
+      "source_term": "الكفالة",
+      "source_lang": "ar",
+      "target_term": "suretyship",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1008-1047",
+      "note": "Article 1008: joining one obligation to another. Guarantor is jointly liable with principal debtor.",
+      "priority": 9
+    },
+    {
+      "source_term": "الحوالة",
+      "source_lang": "ar",
+      "target_term": "assignment",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1048-1060",
+      "note": "Includes assignment of rights (حوالة الحق) and assignment of debts (حوالة الدين).",
+      "priority": 8
+    },
+    {
+      "source_term": "الوديعة",
+      "source_lang": "ar",
+      "target_term": "deposit",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "844-866",
+      "note": "Contract where depositor delivers a thing for safekeeping with obligation to return.",
+      "priority": 7
+    },
+    {
+      "source_term": "الحراسة",
+      "source_lang": "ar",
+      "target_term": "sequestration",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "867-882",
+      "note": "Judicial custody to protect rights from waste and preserve assets until ownership is determined.",
+      "priority": 7
+    },
+    {
+      "source_term": "الالتزام",
+      "source_lang": "ar",
+      "target_term": "obligation",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "Legal bond between creditor and debtor. Covers transfer, performance, or abstention.",
+      "priority": 9
+    },
+    {
+      "source_term": "المسؤولية التقصيرية",
+      "source_lang": "ar",
+      "target_term": "tortious liability",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "186-231",
+      "note": "Article 186: no liability without fault. Three elements: fault, damage, causal link.",
+      "priority": 9
+    },
+    {
+      "source_term": "التعويض",
+      "source_lang": "ar",
+      "target_term": "compensation",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "168-171",
+      "note": "Covers loss suffered and profit missed. Legal interest of 4% applies to monetary obligations.",
+      "priority": 9
+    },
+    {
+      "source_term": "الفسخ",
+      "source_lang": "ar",
+      "target_term": "rescission",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "136, 177",
+      "note": "Terminates contract due to defect in essential elements. Restores parties to original positions.",
+      "priority": 8
+    },
+    {
+      "source_term": "الإبطال",
+      "source_lang": "ar",
+      "target_term": "annulment",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "140-145",
+      "note": "Voidable contracts are valid until annulled. Grounds: error, fraud, duress.",
+      "priority": 8
+    },
+    {
+      "source_term": "البطلان",
+      "source_lang": "ar",
+      "target_term": "nullity",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "141",
+      "note": "Absolutely void contract. Any interested party may assert nullity. Cannot be cured by ratification.",
+      "priority": 8
+    },
+    {
+      "source_term": "الإقالة",
+      "source_lang": "ar",
+      "target_term": "mutual rescission",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "183",
+      "note": "Article 183: rescission for parties, new contract for third parties. Based on mutual consent.",
+      "priority": 8
+    },
+    {
+      "source_term": "الحيازة",
+      "source_lang": "ar",
+      "target_term": "possession",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1061-1104",
+      "note": "Physical control over a thing. Requires both material and psychological elements.",
+      "priority": 8
+    },
+    {
+      "source_term": "الملكية",
+      "source_lang": "ar",
+      "target_term": "ownership",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1112-1153",
+      "note": "Most comprehensive real right. Perpetual, exclusive, comprehensive.",
+      "priority": 9
+    },
+    {
+      "source_term": "المنفعة",
+      "source_lang": "ar",
+      "target_term": "usufruct",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1169-1203",
+      "note": "Right to use and benefit from property without transferring ownership.",
+      "priority": 8
+    },
+    {
+      "source_term": "الارتفاق",
+      "source_lang": "ar",
+      "target_term": "easement",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1272-1288",
+      "note": "Real right attached to immovable property allowing use of another's property.",
+      "priority": 8
+    },
+    {
+      "source_term": "الشفعة",
+      "source_lang": "ar",
+      "target_term": "preemption right",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1154-1168",
+      "note": "Co-owners can purchase a co-owner's share before it is sold to outsiders. From Islamic jurisprudence.",
+      "priority": 7
+    },
+    {
+      "source_term": "الرد بالعيوب",
+      "source_lang": "ar",
+      "target_term": "warranty for hidden defects",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "452-459",
+      "note": "Claims extinguished by prescription after one year from delivery.",
+      "priority": 7
+    },
+    {
+      "source_term": "ضمان الاستحقاق",
+      "source_lang": "ar",
+      "target_term": "warranty against eviction",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "439-451",
+      "note": "Seller guarantees buyer will not be evicted due to third-party rights.",
+      "priority": 7
+    },
+    {
+      "source_term": "ضمان التعرض",
+      "source_lang": "ar",
+      "target_term": "warranty against disturbance",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "439-451",
+      "note": "Seller warrants buyer will not be disturbed in possession of the property.",
+      "priority": 7
+    },
+    {
+      "source_term": "الإثراء بلا سبب",
+      "source_lang": "ar",
+      "target_term": "unjust enrichment",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "232-238",
+      "note": "Source of obligations. Enriched party must compensate impoverished party.",
+      "priority": 8
+    },
+    {
+      "source_term": "الدفع غير المستحق",
+      "source_lang": "ar",
+      "target_term": "payment without cause",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "239-242",
+      "note": "Paying something not obligated to pay. Recipient must return the payment.",
+      "priority": 7
+    },
+    {
+      "source_term": "المساطحة",
+      "source_lang": "ar",
+      "target_term": "surface right (musataha)",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Iraqi-specific real right to construct or plant on land of another. Buildings owned by the surfacer.",
+      "priority": 7
+    },
+    {
+      "source_term": "الحق الشخصي",
+      "source_lang": "ar",
+      "target_term": "personal right",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "69",
+      "note": "Right in personam. Legal bond between creditor and debtor.",
+      "priority": 8
+    },
+    {
+      "source_term": "الحق العيني",
+      "source_lang": "ar",
+      "target_term": "real right",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "67-68",
+      "note": "Right in rem. Direct power over a specified thing. Primary or accessory.",
+      "priority": 8
+    },
+    {
+      "source_term": "الاستعمال",
+      "source_lang": "ar",
+      "target_term": "right of use",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Real right to use property without taking its fruits. Less extensive than usufruct.",
+      "priority": 6
+    },
+    {
+      "source_term": "السكنى",
+      "source_lang": "ar",
+      "target_term": "right of habitation",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Real right to inhabit a dwelling. Limited to residential use.",
+      "priority": 6
+    },
+    {
+      "source_term": "حقوق الامتياز",
+      "source_lang": "ar",
+      "target_term": "privilege rights",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "68",
+      "note": "Accessory real rights giving certain creditors preference over ordinary creditors.",
+      "priority": 6
+    },
+    {
+      "source_term": "المال",
+      "source_lang": "ar",
+      "target_term": "property",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "65",
+      "note": "Article 65: every right having a material value.",
+      "priority": 8
+    },
+    {
+      "source_term": "الأشياء المثلية",
+      "source_lang": "ar",
+      "target_term": "fungibles",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "64",
+      "note": "Things that can replace each other in payment (currency, grains).",
+      "priority": 6
+    },
+    {
+      "source_term": "الأشياء القيمية",
+      "source_lang": "ar",
+      "target_term": "non-fungibles",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "64",
+      "note": "Things that cannot be replaced. Each item has individual value.",
+      "priority": 6
+    },
+    {
+      "source_term": "عقد",
+      "source_lang": "ar",
+      "target_term": "contract",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "73",
+      "note": "Article 73: meeting of offer and acceptance. No requirement of consideration.",
+      "priority": 9
+    },
+    {
+      "source_term": "الإيجاب",
+      "source_lang": "ar",
+      "target_term": "offer",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "85-107",
+      "note": "Manifestation of will to contract. Offeror is bound for specified or reasonable period.",
+      "priority": 7
+    },
+    {
+      "source_term": "القبول",
+      "source_lang": "ar",
+      "target_term": "acceptance",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "85-107",
+      "note": "Expression of agreement to the offer. Must be communicated to be effective.",
+      "priority": 7
+    },
+    {
+      "source_term": "السبب",
+      "source_lang": "ar",
+      "target_term": "cause",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "Reason for entering into a contract. Must be lawful. Illegality renders contract void.",
+      "priority": 7
+    },
+    {
+      "source_term": "المحل",
+      "source_lang": "ar",
+      "target_term": "subject matter",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "The thing or service that is the subject of the contract. Must be defined, possible, lawful.",
+      "priority": 7
+    },
+    {
+      "source_term": "عقود الإذعان",
+      "source_lang": "ar",
+      "target_term": "contracts of adhesion",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "167",
+      "note": "Article 167: courts may modify unfair terms in adhesion contracts.",
+      "priority": 7
+    },
+    {
+      "source_term": "التعويض الاتفاقي",
+      "source_lang": "ar",
+      "target_term": "liquidated damages",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "170",
+      "note": "Agreed compensation in advance. May be reduced if excessive or partially performed.",
+      "priority": 7
+    },
+    {
+      "source_term": "السبب الأجنبي",
+      "source_lang": "ar",
+      "target_term": "force majeure",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "168",
+      "note": "External cause beyond obligor's control making performance impossible. No liability.",
+      "priority": 7
+    },
+    {
+      "source_term": "الرهن الحيازي",
+      "source_lang": "ar",
+      "target_term": "possessory pledge",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "816-843",
+      "note": "Creditor possesses the collateral. Distinguished from non-possessory mortgage.",
+      "priority": 8
+    },
+    {
+      "source_term": "الرهن التأميني",
+      "source_lang": "ar",
+      "target_term": "mortgage",
+      "target_lang": "en",
+      "law_ref": "Civil Code",
+      "article_ref": "1298-1339",
+      "note": "Non-possessory hypothec, typically on immovable property.",
+      "priority": 8
+    },
+    {
+      "source_term": "suretyship",
+      "source_lang": "en",
+      "target_term": "الكفالة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1008-1047",
+      "note": "Guarantor jointly liable with principal debtor.",
+      "priority": 9
+    },
+    {
+      "source_term": "assignment",
+      "source_lang": "en",
+      "target_term": "الحوالة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1048-1060",
+      "note": "Includes assignment of rights and debts.",
+      "priority": 8
+    },
+    {
+      "source_term": "deposit",
+      "source_lang": "en",
+      "target_term": "الوديعة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "844-866",
+      "note": "Contract for safekeeping with obligation to return.",
+      "priority": 7
+    },
+    {
+      "source_term": "sequestration",
+      "source_lang": "en",
+      "target_term": "الحراسة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "867-882",
+      "note": "Judicial custody to preserve disputed assets.",
+      "priority": 7
+    },
+    {
+      "source_term": "obligation",
+      "source_lang": "en",
+      "target_term": "الالتزام",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "Legal bond between creditor and debtor.",
+      "priority": 9
+    },
+    {
+      "source_term": "tortious liability",
+      "source_lang": "en",
+      "target_term": "المسؤولية التقصيرية",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "186-231",
+      "note": "Fault-based liability. Three elements: fault, damage, causal link.",
+      "priority": 9
+    },
+    {
+      "source_term": "compensation",
+      "source_lang": "en",
+      "target_term": "التعويض",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "168-171",
+      "note": "Covers loss suffered and profit missed.",
+      "priority": 9
+    },
+    {
+      "source_term": "rescission",
+      "source_lang": "en",
+      "target_term": "الفسخ",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "136, 177",
+      "note": "Terminates contract, restores parties to original positions.",
+      "priority": 8
+    },
+    {
+      "source_term": "annulment",
+      "source_lang": "en",
+      "target_term": "الإبطال",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "140-145",
+      "note": "Voidable contract, valid until annulled.",
+      "priority": 8
+    },
+    {
+      "source_term": "nullity",
+      "source_lang": "en",
+      "target_term": "البطلان",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "141",
+      "note": "Absolutely void. Cannot be cured by ratification.",
+      "priority": 8
+    },
+    {
+      "source_term": "mutual rescission",
+      "source_lang": "en",
+      "target_term": "الإقالة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "183",
+      "note": "Mutual consent termination. New contract for third parties.",
+      "priority": 8
+    },
+    {
+      "source_term": "possession",
+      "source_lang": "en",
+      "target_term": "الحيازة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1061-1104",
+      "note": "Physical control over a thing.",
+      "priority": 8
+    },
+    {
+      "source_term": "ownership",
+      "source_lang": "en",
+      "target_term": "الملكية",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1112-1153",
+      "note": "Most comprehensive real right. Perpetual, exclusive.",
+      "priority": 9
+    },
+    {
+      "source_term": "usufruct",
+      "source_lang": "en",
+      "target_term": "المنفعة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1169-1203",
+      "note": "Right to use and benefit without transferring ownership.",
+      "priority": 8
+    },
+    {
+      "source_term": "easement",
+      "source_lang": "en",
+      "target_term": "الارتفاق",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1272-1288",
+      "note": "Real right to use another's property for a specific purpose.",
+      "priority": 8
+    },
+    {
+      "source_term": "preemption right",
+      "source_lang": "en",
+      "target_term": "الشفعة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1154-1168",
+      "note": "Co-owners' preferential purchase right. From Islamic jurisprudence.",
+      "priority": 7
+    },
+    {
+      "source_term": "warranty for hidden defects",
+      "source_lang": "en",
+      "target_term": "الرد بالعيوب",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "452-459",
+      "note": "Claims extinguished after one year from delivery.",
+      "priority": 7
+    },
+    {
+      "source_term": "warranty against eviction",
+      "source_lang": "en",
+      "target_term": "ضمان الاستحقاق",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "439-451",
+      "note": "Seller guarantees against third-party eviction.",
+      "priority": 7
+    },
+    {
+      "source_term": "warranty against disturbance",
+      "source_lang": "en",
+      "target_term": "ضمان التعرض",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "439-451",
+      "note": "Seller warrants peaceful possession.",
+      "priority": 7
+    },
+    {
+      "source_term": "unjust enrichment",
+      "source_lang": "en",
+      "target_term": "الإثراء بلا سبب",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "232-238",
+      "note": "Source of obligations. Enriched party compensates impoverished.",
+      "priority": 8
+    },
+    {
+      "source_term": "payment without cause",
+      "source_lang": "en",
+      "target_term": "الدفع غير المستحق",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "239-242",
+      "note": "Recipient must return payment not owed.",
+      "priority": 7
+    },
+    {
+      "source_term": "surface right",
+      "source_lang": "en",
+      "target_term": "المساطحة",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Iraqi-specific: right to construct/plant on another's land.",
+      "priority": 7
+    },
+    {
+      "source_term": "personal right",
+      "source_lang": "en",
+      "target_term": "الحق الشخصي",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "69",
+      "note": "Right in personam. Legal bond between creditor and debtor.",
+      "priority": 8
+    },
+    {
+      "source_term": "real right",
+      "source_lang": "en",
+      "target_term": "الحق العيني",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "67-68",
+      "note": "Right in rem. Direct power over a specified thing.",
+      "priority": 8
+    },
+    {
+      "source_term": "right of use",
+      "source_lang": "en",
+      "target_term": "الاستعمال",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Use property without taking fruits.",
+      "priority": 6
+    },
+    {
+      "source_term": "right of habitation",
+      "source_lang": "en",
+      "target_term": "السكنى",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1204-1217",
+      "note": "Right to inhabit a dwelling.",
+      "priority": 6
+    },
+    {
+      "source_term": "privilege rights",
+      "source_lang": "en",
+      "target_term": "حقوق الامتياز",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "68",
+      "note": "Accessory real rights giving creditor preference.",
+      "priority": 6
+    },
+    {
+      "source_term": "property",
+      "source_lang": "en",
+      "target_term": "المال",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "65",
+      "note": "Every right having a material value.",
+      "priority": 8
+    },
+    {
+      "source_term": "fungibles",
+      "source_lang": "en",
+      "target_term": "الأشياء المثلية",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "64",
+      "note": "Replaceable things (currency, grains).",
+      "priority": 6
+    },
+    {
+      "source_term": "non-fungibles",
+      "source_lang": "en",
+      "target_term": "الأشياء القيمية",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "64",
+      "note": "Irreplaceable things with unique value.",
+      "priority": 6
+    },
+    {
+      "source_term": "contract",
+      "source_lang": "en",
+      "target_term": "عقد",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "73",
+      "note": "Meeting of offer and acceptance. No consideration required.",
+      "priority": 9
+    },
+    {
+      "source_term": "offer",
+      "source_lang": "en",
+      "target_term": "الإيجاب",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "85-107",
+      "note": "Manifestation of will to contract.",
+      "priority": 7
+    },
+    {
+      "source_term": "acceptance",
+      "source_lang": "en",
+      "target_term": "القبول",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "85-107",
+      "note": "Expression of agreement to the offer.",
+      "priority": 7
+    },
+    {
+      "source_term": "cause",
+      "source_lang": "en",
+      "target_term": "السبب",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "Reason for contract. Must be lawful.",
+      "priority": 7
+    },
+    {
+      "source_term": "subject matter",
+      "source_lang": "en",
+      "target_term": "المحل",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "131-140",
+      "note": "Thing or service that is the subject of the contract.",
+      "priority": 7
+    },
+    {
+      "source_term": "contracts of adhesion",
+      "source_lang": "en",
+      "target_term": "عقود الإذعان",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "167",
+      "note": "Standard terms without negotiation. Courts may modify unfair terms.",
+      "priority": 7
+    },
+    {
+      "source_term": "liquidated damages",
+      "source_lang": "en",
+      "target_term": "التعويض الاتفاقي",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "170",
+      "note": "Agreed compensation in advance. May be reduced if excessive.",
+      "priority": 7
+    },
+    {
+      "source_term": "force majeure",
+      "source_lang": "en",
+      "target_term": "السبب الأجنبي",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "168",
+      "note": "External cause making performance impossible. No liability.",
+      "priority": 7
+    },
+    {
+      "source_term": "possessory pledge",
+      "source_lang": "en",
+      "target_term": "الرهن الحيازي",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "816-843",
+      "note": "Creditor possesses the collateral.",
+      "priority": 8
+    },
+    {
+      "source_term": "mortgage",
+      "source_lang": "en",
+      "target_term": "الرهن التأميني",
+      "target_lang": "ar",
+      "law_ref": "Civil Code",
+      "article_ref": "1298-1339",
+      "note": "Non-possessory hypothec on immovable property.",
+      "priority": 8
     }
   ]
 }

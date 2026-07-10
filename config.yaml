@@ -24,12 +24,12 @@ paths:
 # --- Ingestion / retrieval tuning ---
 chunk_size: 512              # target tokens per chunk
 chunk_overlap: 64            # overlap tokens between adjacent chunks
-top_k: 8                     # context chunks retrieved per query
+top_k: 3                     # context chunks retrieved per query
 embedding_batch_size: 32     # max texts per embed call (RAM cap)
 chroma_add_batch: 64         # max chunks per ChromaDB add (flush threshold)
 
 # --- Agent loop ---
-max_revisions: 3             # translator<->auditor revision cap
+max_revisions: 1             # translator<->auditor revision cap
 context_window: 8192         # LLM context window in tokens
 translator_temperature: 0.0
 auditor_temperature: 0.0
@@ -48,3 +48,19 @@ chroma:
 tm_enabled: true
 tm_similarity_threshold: 0.98
 tm_db: db/tm.sqlite
+
+# --- Human-in-the-loop (HITL) ---
+# When true, the pipeline pauses after the audit loop for human review.
+# The human can approve the draft or edit it; edits go back through the
+# auditor and corrections are saved to hitl_feedback_dir as JSONL for
+# fine-tuning / TM enrichment.
+hitl_enabled: false
+hitl_feedback_dir: data/feedback
+
+# --- Web search (Iraqi legal sources) ---
+# When true, the pipeline searches Iraqi legal databases (Ministry of Justice,
+# National Library, Dijlex, UR Portal) during translation to ground the
+# translator with real law names, article text, and official terminology.
+# Disabled by default — requires internet access and adds ~5-15s per translation.
+web_search_enabled: false
+web_search_max_results: 5

@@ -21,12 +21,9 @@ from typing import Protocol, runtime_checkable
 
 import ollama
 
-from src.components.translation_pipeline.exceptions import (
-    EmbeddingConnectionError,
-    EmbeddingError,
-    EmbeddingTimeoutError,
-)
-from src.config import AppConfig, load_config
+from src.components.infrastructure.ollama_errors import translate_engine_error
+from src.components.translation_pipeline.exceptions import EmbeddingError
+from src.config import load_config
 
 # ``nomic-embed-text`` produces 768-dimensional vectors. Kept here as the
 # single source of truth for the expected embedding dimension (DRY).
@@ -56,30 +53,6 @@ class EmbeddingAdapter(Protocol):
         ...
 
 
-def _translate_engine_error(
-    err: BaseException, model: str, host: str
-) -> EmbeddingError:
-    """Map an Ollama/httpx engine exception to a domain ``EmbeddingError``.
-
-    Implements the catch matrix (clean-code §3.2): connection failures become
-    :class:`EmbeddingConnectionError`, timeouts become
-    :class:`EmbeddingTimeoutError`, anything else becomes a generic
-    :class:`EmbeddingError` carrying the model name and host for diagnosis.
-    """
-    msg: str = str(err).lower()
-    if isinstance(err, TimeoutError) or "timeout" in msg or "timed out" in msg:
-        return EmbeddingTimeoutError(
-            f"embedding request to {host} timed out (model={model}): {err}"
-        )
-    if isinstance(err, (ConnectionError, OSError)):
-        return EmbeddingConnectionError(
-            f"cannot reach embedding engine at {host} (model={model}): {err}"
-        )
-    return EmbeddingError(
-        f"embedding engine error (model={model}, host={host}): {err}"
-    )
-
-
 class Embedder:
     """Real Ollama embedding adapter (clean-code §2.4: manages client state).
 
@@ -94,20 +67,18 @@ class Embedder:
         self,
         client: ollama.Client | None = None,
         *,
-        model: str | None = None,
-        host: str | None = None,
+        model: str,
+        host: str,
     ) -> None:
         """Build an embedder.
 
-        If ``client`` is omitted, a new :class:`ollama.Client` is created from
-        the resolved ``host`` (defaults to the config ``ollama_host``). If
-        ``model`` is omitted, the config ``embed_model`` is used. Resolving
-        defaults from config keeps model names out of node/callers code (DRY,
-        engineering-principles §2.2.4).
+        ``model`` and ``host`` are mandatory (DIP — no ``load_config()``
+        fallback). If ``client`` is omitted, a new :class:`ollama.Client` is
+        created from ``host``. Callers resolve config values and pass them
+        explicitly.
         """
-        cfg: AppConfig = load_config()
-        self._model: str = model if model is not None else cfg.embed_model
-        self._host: str = host if host is not None else cfg.ollama_host
+        self._model: str = model
+        self._host: str = host
         self._client: ollama.Client = (
             client if client is not None else ollama.Client(host=self._host)
         )
@@ -156,9 +127,13 @@ class Embedder:
                     model=self._model, input=batch
                 )
             except (ConnectionError, OSError, TimeoutError) as err:
-                raise _translate_engine_error(err, self._model, self._host) from err
+                raise translate_engine_error(
+                    err, model=self._model, host=self._host, kind="embedding"
+                ) from err
             except Exception as err:  # ollama.RequestError / ResponseError / others
-                raise _translate_engine_error(err, self._model, self._host) from err
+                raise translate_engine_error(
+                    err, model=self._model, host=self._host, kind="embedding"
+                ) from err
             batch_vectors: list[list[float]] = [
                 list(vec) for vec in response.embeddings
             ]
@@ -188,7 +163,8 @@ def _get_default_embedder() -> Embedder:
     """Return the lazily-created module-level default embedder."""
     global _default_embedder
     if _default_embedder is None:
-        _default_embedder = Embedder()
+        cfg = load_config()
+        _default_embedder = Embedder(model=cfg.embed_model, host=cfg.ollama_host)
     return _default_embedder
 
 

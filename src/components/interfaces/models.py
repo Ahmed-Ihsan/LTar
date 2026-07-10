@@ -27,11 +27,29 @@ class CheckResult:
 
 
 @dataclass(slots=True, frozen=True)
+class LLMAdapters:
+    """LLM-related adapters (DIP — protocol-typed, injectable)."""
+
+    llm: LLMEngineAdapter
+    embedder: EmbeddingAdapter
+
+
+@dataclass(slots=True, frozen=True)
+class KnowledgeAdapters:
+    """Knowledge-source adapters (DIP — protocol-typed, injectable)."""
+
+    glossary_index: GlossaryIndex | None
+    persist_dir: str
+    tm: TranslationMemory | None
+
+
+@dataclass(slots=True, frozen=True)
 class Adapters:
     """Bundle of concrete adapters constructed by the CLI (engineering-principles §3.6).
 
-    Built once per command invocation and passed into the orchestration seam.
-    ``tm`` is ``None`` when TM is disabled.
+    Composes :class:`LLMAdapters` and :class:`KnowledgeAdapters` for backward
+    compatibility. Built once per command invocation and passed into the
+    orchestration seam. ``tm`` is ``None`` when TM is disabled.
     """
 
     llm: LLMEngineAdapter
@@ -39,6 +57,20 @@ class Adapters:
     glossary_index: GlossaryIndex | None
     persist_dir: str
     tm: TranslationMemory | None
+
+    @property
+    def llm_adapters(self) -> LLMAdapters:
+        """Return the LLM adapter subset."""
+        return LLMAdapters(llm=self.llm, embedder=self.embedder)
+
+    @property
+    def knowledge_adapters(self) -> KnowledgeAdapters:
+        """Return the knowledge-source adapter subset."""
+        return KnowledgeAdapters(
+            glossary_index=self.glossary_index,
+            persist_dir=self.persist_dir,
+            tm=self.tm,
+        )
 
 
 @dataclass(slots=True, frozen=True)

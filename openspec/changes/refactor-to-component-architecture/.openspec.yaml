@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-09
+goal: Refactor flat src/ layout into a component + models architecture with
+  bounded contexts, preserving all existing behaviors
