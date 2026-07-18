@@ -36,6 +36,7 @@ from src.components.interfaces.diagnostics import (
     _list_ollama_models,  # noqa: F401  — re-exported for web_ui / tk_ui
     _render_result,
 )
+from src.components.interfaces.excel import translate_excel
 from src.components.interfaces.models import Adapters, CheckResult
 from src.components.interfaces.orchestration import (
     Direction,
@@ -59,9 +60,11 @@ from src.components.interfaces.tm_commands import (
 from src.components.translation_pipeline.exceptions import (
     EmbeddingConnectionError,
     OllamaConnectionError,
+    PathContainmentError,
     RAMGuardError,
 )
 from src.config import AppConfig
+from src.utils.paths import validate_path_in_root
 
 if TYPE_CHECKING:
     from src.components.knowledge_sources.tm import TranslationMemory
@@ -209,9 +212,15 @@ def translate(
     """Translate a single text or file and print output + provenance."""
     cfg: AppConfig = load_or_exit(config_path)
 
+    root: Path = _project_root(cfg)
     input_text: str
     try:
+        if Path(input_arg).exists():
+            validate_path_in_root(Path(input_arg), root)
         input_text = _resolve_input(input_arg)
+    except PathContainmentError as e:
+        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=4) from e
     except OSError as e:
         typer.secho(f"cannot read input file: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from e
@@ -296,6 +305,14 @@ def batch(
         raise typer.Exit(code=1)
 
     cfg: AppConfig = load_or_exit(config_path)
+
+    root: Path = _project_root(cfg)
+    try:
+        validate_path_in_root(input_arg, root)
+        validate_path_in_root(out, root)
+    except PathContainmentError as e:
+        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=4) from e
 
     # Construct concrete adapters (engineering-principles §3.6).
     adapters: Adapters = _construct_adapters(cfg)
@@ -433,6 +450,113 @@ def ui(
 
     typer.secho("Launching web desktop UI…", fg=typer.colors.CYAN)
     launch_ui(cfg, adapters)
+
+
+# ---------------------------------------------------------------------------
+# excel command — translate an Excel (.xlsx) workbook in place
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def excel(
+    input_arg: Annotated[
+        Path,
+        typer.Option("--input", help="Path to the input .xlsx workbook."),
+    ],
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="Path to the output .xlsx workbook."),
+    ],
+    direction: Annotated[
+        Direction,
+        typer.Option("--direction", help="Translation direction."),
+    ],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to config.yaml."),
+    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
+) -> None:
+    """Translate an Excel (.xlsx) workbook, preserving all non-text artifacts.
+
+    Translates human-readable text (cell strings, inline strings, comments,
+    headers/footers, chart titles) through the translation pipeline and writes
+    a new workbook with formulas, merged cells, charts, images, conditional
+    formatting, data validation, hyperlinks, page layout, and structure
+    preserved exactly.
+    """
+    if not input_arg.is_file():
+        typer.secho(
+            f"input file not found: {input_arg}", fg=typer.colors.RED, err=True,
+        )
+        raise typer.Exit(code=1)
+    if input_arg.suffix.lower() != ".xlsx":
+        typer.secho(
+            f"input must be an .xlsx file, got: {input_arg.suffix}",
+            fg=typer.colors.RED, err=True,
+        )
+        raise typer.Exit(code=1)
+
+    cfg: AppConfig = load_or_exit(config_path)
+
+    root: Path = _project_root(cfg)
+    try:
+        validate_path_in_root(input_arg, root)
+        validate_path_in_root(out, root)
+    except PathContainmentError as e:
+        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=4) from e
+
+    # Construct concrete adapters (engineering-principles §3.6).
+    adapters: Adapters = _construct_adapters(cfg)
+
+    try:
+        report = translate_excel(
+            str(input_arg), str(out), direction.value, cfg,
+            llm=adapters.llm, embedder=adapters.embedder,
+            glossary_index=adapters.glossary_index,
+            persist_dir=adapters.persist_dir,
+            run_logger=_new_run_logger(cfg),
+            tm=adapters.tm,
+        )
+    except (OllamaConnectionError, EmbeddingConnectionError) as e:
+        typer.secho(
+            f"Cannot reach the Ollama daemon: {e}\n"
+            "Is `ollama serve` running? Start it, then retry.",
+            fg=typer.colors.RED, err=True,
+        )
+        raise typer.Exit(code=2) from e
+    except RAMGuardError as e:
+        typer.secho(
+            f"RAM guard aborted the Excel run: {e}\n"
+            "Free up memory (close other applications) and retry.",
+            fg=typer.colors.YELLOW, err=True,
+        )
+        raise typer.Exit(code=3) from e
+    except Exception as e:
+        typer.secho(f"excel error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+    finally:
+        if adapters.tm is not None:
+            adapters.tm.close()
+
+    typer.secho(
+        f"excel complete: {report.translated}/{report.total_segments} "
+        f"segment(s) translated -> {out}",
+        fg=typer.colors.GREEN,
+    )
+    if report.failed:
+        typer.secho(
+            f"  {report.failed} segment(s) failed (original text preserved).",
+            fg=typer.colors.YELLOW,
+        )
+    if report.skipped:
+        typer.secho(
+            f"  {report.skipped} segment(s) skipped.", fg=typer.colors.YELLOW,
+        )
+    if report.cancelled:
+        typer.secho("  run was cancelled.", fg=typer.colors.YELLOW)
+    for w in report.warnings:
+        typer.secho(f"  warning: {w}", fg=typer.colors.YELLOW)
 
 
 if __name__ == "__main__":

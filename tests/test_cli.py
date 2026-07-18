@@ -711,6 +711,9 @@ class TestOllamaDownHandling:
         ), patch(
             "src.components.knowledge_sources.glossary.load_glossary_index",
             return_value=None,
+        ), patch(
+            "src.components.interfaces.cli.validate_path_in_root",
+            side_effect=lambda p, r: p,
         ):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),
@@ -778,6 +781,9 @@ class TestRamGuardCli:
         ), patch(
             "src.components.knowledge_sources.glossary.load_glossary_index",
             return_value=None,
+        ), patch(
+            "src.components.interfaces.cli.validate_path_in_root",
+            side_effect=lambda p, r: p,
         ):
             result = runner.invoke(app, [
                 "batch", "--input", str(input_path), "--out", str(output_path),

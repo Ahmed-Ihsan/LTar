@@ -25,6 +25,7 @@ from src.components.knowledge_sources.tm import TranslationMemory
 from src.components.translation_pipeline.graph import build_graph
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
+from src.utils.paths import validate_path_in_root
 
 
 class Direction(enum.Enum):
@@ -467,6 +468,8 @@ def _resolve_input(input_arg: str) -> str:
     otherwise treat as literal text."""
     path: Path = Path(input_arg)
     if path.is_file():
+        root: Path = Path(__file__).resolve().parent.parent.parent.parent
+        validate_path_in_root(path, root)
         return path.read_text(encoding="utf-8")
     return input_arg
 
