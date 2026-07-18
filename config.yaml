@@ -78,3 +78,9 @@ excel:
   max_segment_chars: 4096    # segments longer than this are skipped (original kept)
   max_xlsx_bytes: 104857600  # 100 MiB — workbooks larger than this are rejected
   max_segments: 10000        # workbooks with more translatable segments are rejected
+
+# --- UI backend selection ---
+# `ui` command launches a desktop UI. `web` uses pywebview (HTML/CSS/JS),
+# `tk` uses Tkinter (native widgets, no browser dependency).
+ui:
+  backend: web

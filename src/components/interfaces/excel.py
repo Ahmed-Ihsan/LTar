@@ -139,16 +139,14 @@ _PROTECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 
 def protect_non_translatable(
-    text: str, *, cfg: AppConfig
+    text: str,
 ) -> tuple[str, dict[str, str]]:
     """Replace non-translatable tokens with stable sentinels.
 
     Returns ``(protected_text, token_map)`` where ``token_map`` maps each
     sentinel to its original token. Identical originals reuse the same sentinel
-    so the protected text stays short. ``cfg`` is accepted for future
-    tunability (e.g. custom patterns); the current pattern set is fixed.
+    so the protected text stays short.
     """
-    _ = cfg  # reserved for future pattern configuration
     token_map: dict[str, str] = {}
     original_to_sentinel: dict[str, str] = {}
 
@@ -293,7 +291,6 @@ def _serialize_part(root: ET.Element) -> bytes:
 
 def patch_strings(
     xlsx_bytes: bytes,
-    segments: list[StringSegment],
     translations: dict[str, str],
     *,
     cfg: AppConfig,
@@ -304,10 +301,8 @@ def patch_strings(
     part, the text-bearing elements are re-walked in the same order as
     :func:`extract_translatable_strings` and each element's text is replaced
     with ``translations.get(current_text, current_text)``. Every other ZIP part
-    is copied byte-for-byte. ``segments`` is accepted for API symmetry; the
-    lookup is keyed on each element's current text.
+    is copied byte-for-byte.
     """
-    _ = segments  # lookup is by current text; segments retained for API symmetry
     out = BytesIO()
     with zipfile.ZipFile(BytesIO(xlsx_bytes), mode="r") as zin, \
             zipfile.ZipFile(out, mode="w", compression=zipfile.ZIP_DEFLATED) as zout:
@@ -374,7 +369,7 @@ def _translate_segment(
     failed (``LLMRuntimeError`` / ``EmbeddingError``) or produced empty output;
     the caller records the warning and preserves the original text.
     """
-    protected, token_map = protect_non_translatable(source, cfg=cfg)
+    protected, token_map = protect_non_translatable(source)
     try:
         state = run_translation_fn(
             protected, direction, cfg,
@@ -493,7 +488,7 @@ def translate_excel(
             progress(i + 1, total, source)
 
     out_bytes: bytes = patch_strings(
-        xlsx_bytes, segments, translations, cfg=cfg
+        xlsx_bytes, translations, cfg=cfg
     )
     output_p = Path(output_path)
     tmp_path = output_p.with_suffix(output_p.suffix + ".tmp")

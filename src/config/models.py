@@ -6,6 +6,8 @@ module keeps :mod:`src.config.config` focused on loading/validation logic.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, field_validator
 
 
@@ -87,3 +89,12 @@ class ExcelConfig(BaseModel):
         if v < 100:
             raise ValueError(f"max_segments must be >= 100, got {v}")
         return v
+
+
+class UiConfig(BaseModel):
+    """UI backend selection (web vs Tkinter).
+
+    ``backend`` selects which desktop UI to launch via ``iraqi-translate ui``.
+    """
+
+    backend: Literal["web", "tk"] = "web"

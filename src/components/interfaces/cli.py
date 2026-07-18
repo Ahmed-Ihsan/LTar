@@ -83,8 +83,14 @@ def _project_root(cfg: AppConfig) -> Path:
 
 
 def _resolve_path(cfg: AppConfig, rel: str) -> Path:
-    """Resolve a config-relative path against the project root."""
-    return _project_root(cfg) / rel
+    """Resolve a config-relative path against the project root.
+
+    Thin delegate to :func:`src.utils.paths.resolve_path` (Change 5 task 1.1).
+    Kept for backwards compatibility with callers that import ``_resolve_path``
+    from this module.
+    """
+    from src.utils.paths import resolve_path
+    return resolve_path(rel, cfg=cfg)
 
 
 def _new_run_logger(cfg: AppConfig) -> RunLogger:
@@ -185,7 +191,12 @@ def doctor(
         typer.secho(
             f"\n{failed} check(s) failed.", fg=typer.colors.RED, err=True,
         )
-        raise typer.Exit(code=1)
+        # Exit code 2 if the Ollama connection check failed, else 1
+        # (Change 5 task 8.2 — standardized exit codes).
+        ollama_failed: bool = any(
+            not r.ok and "ollama" in r.name.lower() for r in checks
+        )
+        raise typer.Exit(code=2 if ollama_failed else 1)
 
 
 # ---------------------------------------------------------------------------
@@ -364,10 +375,6 @@ def batch(
 
 @app.command()
 def ingest(
-    rebuild: Annotated[
-        bool,
-        typer.Option("--rebuild", help="Drop existing stores and re-ingest."),
-    ] = False,
     glossary_only: Annotated[
         bool,
         typer.Option("--glossary-only", help="Skip corpus; only load glossary."),
@@ -390,13 +397,27 @@ def ingest(
 
     cfg: AppConfig = load_or_exit(config_path)
 
-    _ = rebuild  # run_ingestion always rebuilds atomically
-    result = run_ingestion(
-        cfg,
-        glossary_only=glossary_only,
-        corpus_only=corpus_only,
-        limit=limit,
-    )
+    try:
+        result = run_ingestion(
+            cfg,
+            glossary_only=glossary_only,
+            corpus_only=corpus_only,
+            limit=limit,
+        )
+    except (OllamaConnectionError, EmbeddingConnectionError) as e:
+        typer.secho(
+            f"Cannot reach the Ollama/embedding engine: {e}\n"
+            "Is `ollama serve` running? Start it, then retry.",
+            fg=typer.colors.RED, err=True,
+        )
+        raise typer.Exit(code=2) from e
+    except RAMGuardError as e:
+        typer.secho(
+            f"RAM guard aborted ingestion: {e}\n"
+            "Free up memory (close other applications) and retry.",
+            fg=typer.colors.YELLOW, err=True,
+        )
+        raise typer.Exit(code=3) from e
 
     error_count: int = 0
     if result.glossary:
@@ -451,9 +472,14 @@ def ui(
     # Construct concrete adapters once at launch (engineering-principles §3.6).
     adapters: Adapters = _construct_adapters(cfg)
 
-    from src.components.interfaces.web_ui import launch_ui
+    # Config-driven backend selection (Change 5 task 6.5).
+    if cfg.ui.backend == "tk":
+        from src.components.interfaces.tk_ui import launch_ui
+        typer.secho("Launching Tkinter desktop UI…", fg=typer.colors.CYAN)
+    else:
+        from src.components.interfaces.web_ui import launch_ui
+        typer.secho("Launching web desktop UI…", fg=typer.colors.CYAN)
 
-    typer.secho("Launching web desktop UI…", fg=typer.colors.CYAN)
     launch_ui(cfg, adapters)
 
 

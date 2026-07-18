@@ -363,7 +363,7 @@ class TestIngestCommand:
     def test_help_exits_0(self) -> None:
         result = runner.invoke(app, ["ingest", "--help"])
         assert result.exit_code == 0
-        assert "--rebuild" in result.stdout or "--glossary-only" in result.stdout
+        assert "--glossary-only" in result.stdout
 
     def test_delegates_to_run_ingestion(self) -> None:
         """The CLI ``ingest`` command should call ``src.ingestion.run_ingestion``."""

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlencode, urlparse
@@ -31,6 +32,27 @@ from src.components.knowledge_sources.models import SearchHit
 from src.components.translation_pipeline.exceptions import LegalSearchBlockedError
 
 logger = logging.getLogger(__name__)
+
+_SEARCH_CACHE_TTL: float = 300.0  # 5 minutes
+_search_cache: dict[tuple[str, int], tuple[float, list[SearchHit]]] = {}
+
+
+def _cached_search(
+    fn: Callable[[str, int], list[SearchHit]],
+) -> Callable[[str, int], list[SearchHit]]:
+    """Decorator: cache search results for 5 minutes (PERF-11)."""
+
+    def wrapper(query: str, max_results: int = 10) -> list[SearchHit]:
+        key: tuple[str, int] = (query, max_results)
+        now: float = time.monotonic()
+        cached: tuple[float, list[SearchHit]] | None = _search_cache.get(key)
+        if cached is not None and (now - cached[0]) < _SEARCH_CACHE_TTL:
+            return list(cached[1])
+        result: list[SearchHit] = fn(query, max_results)
+        _search_cache[key] = (now, list(result))
+        return result
+
+    return wrapper
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -170,6 +192,7 @@ def _clean_text(text: str) -> str:
 _DIJLEX_SEARCH_URL: str = "https://dijlex.com/search"
 
 
+@_cached_search
 def search_dijlex(query: str, max_results: int = 10) -> list[SearchHit]:
     """Search Dijlex for Iraqi laws and articles.
 
@@ -237,6 +260,7 @@ def search_dijlex(query: str, max_results: int = 10) -> list[SearchHit]:
 _MOJ_SEARCH_URL: str = "https://moj.gov.iq/search.php"
 
 
+@_cached_search
 def search_moj(query: str, max_results: int = 10) -> list[SearchHit]:
     """Search the Iraqi Ministry of Justice law database.
 
@@ -250,8 +274,7 @@ def search_moj(query: str, max_results: int = 10) -> list[SearchHit]:
     if not html:
         return []
     soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
-    hits: list[SearchHit] = []
-    seen_urls: set[str] = set()
+    hits_by_url: dict[str, SearchHit] = {}
 
     for a in soup.find_all("a", href=True):
         href: str = str(a["href"])
@@ -274,27 +297,24 @@ def search_moj(query: str, max_results: int = 10) -> list[SearchHit]:
         full_url: str = href
         if not full_url.startswith("http"):
             full_url = f"https://moj.gov.iq{href}"
-        if full_url in seen_urls:
-            for h in hits:
-                if h.url == full_url:
-                    if text not in h.snippet:
-                        new_snippet: str = (
-                            f"{h.snippet} | {text}" if h.snippet else text
-                        )
-                        hits[hits.index(h)] = SearchHit(
-                            title=h.title, url=h.url, snippet=new_snippet,
-                            source=h.source,
-                        )
-                    break
+        if full_url in hits_by_url:
+            existing: SearchHit = hits_by_url[full_url]
+            if text not in existing.snippet:
+                new_snippet: str = (
+                    f"{existing.snippet} | {text}" if existing.snippet else text
+                )
+                hits_by_url[full_url] = SearchHit(
+                    title=existing.title, url=existing.url,
+                    snippet=new_snippet, source=existing.source,
+                )
             continue
-        seen_urls.add(full_url)
-        hits.append(SearchHit(
+        hits_by_url[full_url] = SearchHit(
             title=text, url=full_url, snippet="", source="Iraq MoJ",
-        ))
-        if len(hits) >= max_results:
+        )
+        if len(hits_by_url) >= max_results:
             break
 
-    return hits[:max_results]
+    return list(hits_by_url.values())[:max_results]
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +324,7 @@ def search_moj(query: str, max_results: int = 10) -> list[SearchHit]:
 _UR_SEARCH_URL: str = "https://ur.gov.iq/index/all-orgs/"
 
 
+@_cached_search
 def search_ur_portal(query: str, max_results: int = 10) -> list[SearchHit]:
     """Search the unified e-government portal for ministry/authority names.
 
@@ -384,6 +405,7 @@ def search_ur_portal(query: str, max_results: int = 10) -> list[SearchHit]:
 _NLA_SEARCH_URL: str = "https://www.iraqnla.gov.iq/opac/index.php"
 
 
+@_cached_search
 def search_national_library(query: str, max_results: int = 10) -> list[SearchHit]:
     """Search the Iraq National Library and Archives catalog.
 

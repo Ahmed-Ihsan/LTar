@@ -42,6 +42,12 @@ class TestReadMemoryInfo:
 
 
 class TestRamGuard:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self) -> None:
+        import src.components.infrastructure.memory as mem_mod
+
+        mem_mod._ram_guard_cache_ok.clear()
+
     def test_raises_when_available_below_threshold(self) -> None:
         low: MemoryInfo = MemoryInfo(
             total_bytes=8 * 1024 ** 3,

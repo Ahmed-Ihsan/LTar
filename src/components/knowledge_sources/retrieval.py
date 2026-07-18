@@ -165,22 +165,29 @@ class ChromaStore:
             if not chunks:
                 return
 
-            # Embed all chunk texts in bounded batches (offline-architecture §1.4).
-            texts: list[str] = [c.text for c in chunks]
-            embeddings: list[list[float]] = self._embedder.embed_batch(
-                texts, batch_size=self._cfg.embedding_batch_size
-            )
-
-            # Add in batches of 64 to minimize persistence fsync count (§3.3).
-            for start in range(0, len(chunks), DEFAULT_ADD_BATCH):
-                end: int = start + DEFAULT_ADD_BATCH
-                batch_chunks: list[Chunk] = chunks[start:end]
-                collection.add(
-                    ids=[c.chunk_id for c in batch_chunks],
-                    documents=[c.text for c in batch_chunks],
-                    embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
-                    metadatas=[_chunk_metadata(c) for c in batch_chunks],
+            # Stream: embed and insert in embedding_batch_size batches to
+            # avoid materializing all texts + embeddings in memory at once
+            # (offline-architecture §1.4, Change 5 task 2.1).
+            embed_bs: int = self._cfg.embedding_batch_size
+            for start in range(0, len(chunks), embed_bs):
+                end: int = start + embed_bs
+                embed_batch: list[Chunk] = chunks[start:end]
+                texts: list[str] = [c.text for c in embed_batch]
+                embeddings: list[list[float]] = self._embedder.embed_batch(
+                    texts, batch_size=embed_bs
                 )
+
+                # Add the embedded batch in sub-batches of 64 to minimize
+                # persistence fsync count (§3.3).
+                for add_start in range(0, len(embed_batch), DEFAULT_ADD_BATCH):
+                    add_end: int = add_start + DEFAULT_ADD_BATCH
+                    batch_chunks: list[Chunk] = embed_batch[add_start:add_end]
+                    collection.add(
+                        ids=[c.chunk_id for c in batch_chunks],
+                        documents=[c.text for c in batch_chunks],
+                        embeddings=embeddings[add_start:add_end],  # type: ignore[arg-type]
+                        metadatas=[_chunk_metadata(c) for c in batch_chunks],
+                    )
         except Exception:
             # Release handles before the caller removes the temp dir.
             self._close_handles()
@@ -245,19 +252,24 @@ class ChromaStore:
         if not chunks:
             return 0
         collection = self._open()
-        texts: list[str] = [c.text for c in chunks]
-        embeddings: list[list[float]] = self._embedder.embed_batch(
-            texts, batch_size=self._cfg.embedding_batch_size
-        )
-        for start in range(0, len(chunks), DEFAULT_ADD_BATCH):
-            end: int = start + DEFAULT_ADD_BATCH
-            batch_chunks: list[Chunk] = chunks[start:end]
-            collection.add(
-                ids=[c.chunk_id for c in batch_chunks],
-                documents=[c.text for c in batch_chunks],
-                embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
-                metadatas=[_chunk_metadata(c) for c in batch_chunks],
+        # Stream: embed and insert in embedding_batch_size batches (Change 5 task 2.2).
+        embed_bs: int = self._cfg.embedding_batch_size
+        for start in range(0, len(chunks), embed_bs):
+            end: int = start + embed_bs
+            embed_batch: list[Chunk] = chunks[start:end]
+            texts: list[str] = [c.text for c in embed_batch]
+            embeddings: list[list[float]] = self._embedder.embed_batch(
+                texts, batch_size=embed_bs
             )
+            for add_start in range(0, len(embed_batch), DEFAULT_ADD_BATCH):
+                add_end: int = add_start + DEFAULT_ADD_BATCH
+                batch_chunks: list[Chunk] = embed_batch[add_start:add_end]
+                collection.add(
+                    ids=[c.chunk_id for c in batch_chunks],
+                    documents=[c.text for c in batch_chunks],
+                    embeddings=embeddings[add_start:add_end],  # type: ignore[arg-type]
+                    metadatas=[_chunk_metadata(c) for c in batch_chunks],
+                )
         return len(chunks)
 
     def _open(self) -> chromadb.Collection:

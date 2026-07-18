@@ -165,14 +165,13 @@ def test_too_many_segments_rejected(tmp_path: Path) -> None:
 
 def test_atomic_output_no_partial_on_crash(tmp_path: Path) -> None:
     """Atomic output: no .tmp file left after successful write."""
-    from src.components.interfaces.excel import StringSegment, patch_strings
+    from src.components.interfaces.excel import patch_strings
     from src.config import AppConfig
 
     cfg = AppConfig()
     xlsx = _build_xlsx()
-    segments: list[StringSegment] = []
     translations: dict[str, str] = {}
-    out_bytes = patch_strings(xlsx, segments, translations, cfg=cfg)
+    out_bytes = patch_strings(xlsx, translations, cfg=cfg)
     # Verify patch_strings produces valid output (atomic write is in translate_excel).
     assert out_bytes
     # Verify the output is a valid zip.

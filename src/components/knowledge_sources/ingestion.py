@@ -111,6 +111,26 @@ def approx_token_count(text: str) -> int:
     return max(1, (arabic_chars // 2) + (other_chars // 4))
 
 
+# Cache type: keyed by (start, end) span offsets → token count.
+_TokenCache = dict[tuple[int, int], int]
+
+
+def _cached_token_count(
+    text: str, span: tuple[int, int], cache: _TokenCache
+) -> int:
+    """Cached wrapper for span-based ``approx_token_count`` calls.
+
+    Avoids recomputing the token count for the same span when a unit is
+    evaluated multiple times (e.g. in packing + trailing-overlap).
+    """
+    cached = cache.get(span)
+    if cached is not None:
+        return cached
+    result = approx_token_count(text[span[0]:span[1]])
+    cache[span] = result
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Corpus parsing (DATA_SPEC §1.2 / §1.4)
 # ---------------------------------------------------------------------------
@@ -362,8 +382,10 @@ def chunk_article(
     unit_spans: list[tuple[int, int]] = _leaf_unit_spans(
         body, target_tokens
     )
+    # Span-offset token-count cache (Change 5 task 3.1/3.2).
+    token_cache: _TokenCache = {}
     chunk_spans: list[tuple[int, int]] = _pack_units_with_overlap(
-        unit_spans, body, target_tokens, overlap
+        unit_spans, body, target_tokens, overlap, token_cache
     )
     return [
         _make_chunk(
@@ -505,6 +527,7 @@ def _pack_units_with_overlap(
     text: str,
     target: int,
     overlap: int,
+    token_cache: _TokenCache | None = None,
 ) -> list[tuple[int, int]]:
     """Greedily pack leaf units into chunks, carrying ``overlap`` tokens over.
 
@@ -515,16 +538,18 @@ def _pack_units_with_overlap(
     than one sentence), the overlap is empty for that boundary — the spec's
     64-token overlap assumes sentence-level units smaller than the overlap.
     """
+    if token_cache is None:
+        token_cache = {}
     chunks: list[tuple[int, int]] = []
     buffer: list[tuple[int, int]] = []
     buffer_tokens: int = 0
 
     for span in unit_spans:
-        unit_tokens: int = approx_token_count(text[span[0]:span[1]])
+        unit_tokens: int = _cached_token_count(text, span, token_cache)
         if buffer and buffer_tokens + unit_tokens > target:
             chunks.append((buffer[0][0], buffer[-1][1]))
             buffer, buffer_tokens = _trailing_overlap(
-                buffer, overlap, text
+                buffer, overlap, text, token_cache
             )
         buffer.append(span)
         buffer_tokens += unit_tokens
@@ -538,14 +563,17 @@ def _trailing_overlap(
     buffer: list[tuple[int, int]],
     overlap: int,
     text: str,
+    token_cache: _TokenCache | None = None,
 ) -> tuple[list[tuple[int, int]], int]:
     """Return the trailing buffer units whose token sum is <= ``overlap``."""
     if overlap <= 0:
         return [], 0
+    if token_cache is None:
+        token_cache = {}
     kept: list[tuple[int, int]] = []
     kept_tokens: int = 0
     for span in reversed(buffer):
-        unit_tokens: int = approx_token_count(text[span[0]:span[1]])
+        unit_tokens: int = _cached_token_count(text, span, token_cache)
         if kept_tokens + unit_tokens > overlap:
             break
         kept.insert(0, span)

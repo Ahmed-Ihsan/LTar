@@ -149,10 +149,10 @@ pip install -e .
 ```
 
 `requirements.txt` is the canonical install list — it includes every runtime
-dependency needed for the CLI and the desktop UI (including `pywebview` and
-`defusedxml` for XXE-safe XML parsing). `pyproject.toml` mirrors it for
-editable installs (`pip install -e .`); both install paths produce the same
-runtime environment.
+dependency needed for the CLI and the desktop UI (including `pywebview`,
+`defusedxml` for XXE-safe XML parsing, and `pyahocorasick` for fast glossary
+term matching). `pyproject.toml` mirrors it for editable installs
+(`pip install -e .`); both install paths produce the same runtime environment.
 
 **Path containment:** All `--input` and `--out` paths must be inside the
 project root directory. Paths outside the root are rejected with exit code 4.
@@ -169,6 +169,9 @@ pip install -e .[gradio]
 ### 5.4 Configure
 
 Edit `config.yaml` to set model names, paths, and chunk parameters. Defaults target the 8 GB RAM profile.
+
+The `ui.backend` key selects which desktop UI to launch via `iraqi-translate ui`:
+`web` (pywebview, default) or `tk` (Tkinter, no browser dependency).
 
 ### 5.5 Ingest the Corpus
 

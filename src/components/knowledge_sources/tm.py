@@ -200,16 +200,21 @@ class TranslationMemory:
             self._conn.execute("DELETE FROM tm_entries")
             self._conn.execute("DELETE FROM tm_trigrams")
             entries: list[TmEntry] = _align_corpus(corpus_dir)
-            self._conn.executemany(
-                """
-                INSERT INTO tm_entries
-                    (source_sentence, target_sentence, source_lang,
-                     target_lang, law_slug, article)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                [(e.source_sentence, e.target_sentence, e.source_lang,
-                  e.target_lang, e.law_slug, e.article) for e in entries],
-            )
+            # Chunked executemany to avoid building an unbounded tuple list
+            # (Change 5 task 2.3).
+            _TM_INSERT_BATCH = 1000
+            for start in range(0, len(entries), _TM_INSERT_BATCH):
+                batch = entries[start:start + _TM_INSERT_BATCH]
+                self._conn.executemany(
+                    """
+                    INSERT INTO tm_entries
+                        (source_sentence, target_sentence, source_lang,
+                         target_lang, law_slug, article)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    [(e.source_sentence, e.target_sentence, e.source_lang,
+                      e.target_lang, e.law_slug, e.article) for e in batch],
+                )
             self._build_trigram_index()
             self._conn.commit()
 
@@ -219,14 +224,25 @@ class TranslationMemory:
             rows = self._conn.execute(
                 "SELECT id, source_sentence, source_lang FROM tm_entries"
             ).fetchall()
-            trigram_rows: list[tuple[str, int, str]] = []
+            # Insert trigrams in batches of 1000 to avoid building an unbounded
+            # trigram_rows list (Change 5 task 2.4).
+            _TRIGRAM_BATCH = 1000
+            batch: list[tuple[str, int, str]] = []
             for entry_id, sentence, lang in rows:
                 for trigram in _extract_trigrams(sentence):
-                    trigram_rows.append((trigram, entry_id, lang))
-            self._conn.executemany(
-                "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
-                trigram_rows,
-            )
+                    batch.append((trigram, entry_id, lang))
+                    if len(batch) >= _TRIGRAM_BATCH:
+                        self._conn.executemany(
+                            "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) "
+                            "VALUES (?, ?, ?)",
+                            batch,
+                        )
+                        batch.clear()
+            if batch:
+                self._conn.executemany(
+                    "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
+                    batch,
+                )
 
     def build_from_parallel(
         self, pairs: list[tuple[str, str, str, str]],
@@ -265,7 +281,7 @@ class TranslationMemory:
         if not pairs:
             return 0
         with self._lock:
-            self._conn.executemany(
+            cursor: sqlite3.Cursor = self._conn.executemany(
                 """
                 INSERT INTO tm_entries
                     (source_sentence, target_sentence, source_lang,
@@ -275,9 +291,12 @@ class TranslationMemory:
                 [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
             )
             # Build trigram index only for the newly inserted rows.
+            last_id: int = cursor.lastrowid or 0
+            first_id: int = last_id - len(pairs) + 1
             rows = self._conn.execute(
                 "SELECT id, source_sentence, source_lang FROM tm_entries "
-                "ORDER BY id DESC LIMIT ?", (len(pairs),),
+                "WHERE id >= ? ORDER BY id",
+                (first_id,),
             ).fetchall()
             trigram_rows: list[tuple[str, int, str]] = []
             for entry_id, sentence, lang in rows:

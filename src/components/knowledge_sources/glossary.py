@@ -18,9 +18,9 @@ import json
 import logging
 import re
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from src.components.knowledge_sources.models import Lang, Term
 from src.components.translation_pipeline.exceptions import (
@@ -28,6 +28,16 @@ from src.components.translation_pipeline.exceptions import (
     GlossaryError,
     GlossaryValidationError,
 )
+
+try:
+    import ahocorasick
+
+    _HAS_AHOCORASICK = True
+except ImportError:
+    _HAS_AHOCORASICK = False
+
+if TYPE_CHECKING:
+    from ahocorasick import Automaton
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +50,6 @@ __all__ = [
     "Lang",
     "Term",
     "build_sqlite_index",
-    "glossary_scan",
     "load_glossary_file",
     "load_glossary_files",
     "load_glossary_index",
@@ -76,6 +85,13 @@ _NORM_VARIANT_MAP: dict[str, str] = {
 # and tatweel are intentionally excluded so a term can match across them.
 _LETTER_CLASS: str = r"A-Za-z\u0600-\u06FF\u0750-\u077F"
 _INTER_LETTER_NOISE: str = r"[\u064B-\u0652\u0640]*"  # diacritics + tatweel
+# Set form of the inter-letter noise chars, used by the Aho-Corasick scanner to
+# strip diacritics/tatweel from source text (preserving original offsets) and to
+# extend a match's end past trailing noise — mirroring the regex's trailing
+# ``[\u064B-\u0652\u0640]*`` quantifier.
+_NOISE_CHARS: frozenset[str] = frozenset(
+    chr(c) for c in range(0x064B, 0x0653)
+) | {_ARABIC_TATWEEL}
 
 # Arabic proclitic prefixes (و and, ب in/by, ل for, ف then) that may attach to
 # the start of a token without making a glossary term a "substring" of a larger
@@ -360,22 +376,7 @@ def load_glossary_files(glob_pattern: str | Path) -> list[Term]:
         file_terms: list[Term] = load_glossary_file(file_path)
         # Re-stamp file_order with a global, cross-file deterministic counter.
         for term in file_terms:
-            all_terms.append(
-                Term(
-                    source_term=term.source_term,
-                    source_lang=term.source_lang,
-                    target_term=term.target_term,
-                    target_lang=term.target_lang,
-                    law_ref=term.law_ref,
-                    domain=term.domain,
-                    source_term_norm=term.source_term_norm,
-                    file_path=term.file_path,
-                    file_order=global_order,
-                    article_ref=term.article_ref,
-                    note=term.note,
-                    priority=term.priority,
-                )
-            )
+            all_terms.append(replace(term, file_order=global_order))
             global_order += 1
     # Append reverse (bidirectional) entries derived from the explicit terms so
     # the glossary grounds both directions equally. Explicit entries always win
@@ -559,10 +560,12 @@ _CREATE_NORM_INDEX_SQL: str = (
 class GlossaryIndex:
     """In-memory exact-match index over a set of :class:`Term` objects.
 
-    Compiles one diacritic-tolerant regex per source language (alternation of
-    normalized forms, longest first) so :meth:`scan` is O(text) per call after
-    a one-time O(terms) build. Stateful by design (clean-code §2.4): the
-    compiled patterns and lookup maps are the managed state.
+    Builds one Aho-Corasick automaton per source language (when ``pyahocorasick``
+    is installed) for O(text) scanning, falling back to a diacritic-tolerant
+    regex alternation otherwise. Both paths share the same longest-match-first
+    and conflict-resolution semantics (DATA_SPEC §2.4). Stateful by design
+    (clean-code §2.4): the compiled automata/patterns and lookup maps are the
+    managed state.
     """
 
     terms: list[Term]
@@ -572,7 +575,7 @@ class GlossaryIndex:
         self._rebuild()
 
     def _rebuild(self) -> None:
-        """Compile per-language regexes and normalized-form lookup maps."""
+        """Compile per-language automata/regexes and normalized-form lookup maps."""
         grouped: dict[Lang, list[Term]] = {"ar": [], "en": []}
         for term in self.terms:
             grouped[term.source_lang].append(term)
@@ -591,16 +594,9 @@ class GlossaryIndex:
         lang_index: _LangIndex | None = self._by_lang.get(lang)
         if lang_index is None or lang_index.pattern is None:
             return []
-        hits: list[GlossaryHit] = []
-        for match in lang_index.pattern.finditer(text):
-            span_text: str = match.group(0)
-            norm: str = normalize(span_text, lang)
-            candidates: list[Term] = lang_index.terms_by_norm.get(norm, [])
-            if not candidates:
-                continue
-            winner: Term = _resolve_conflict(candidates)
-            hits.append(_term_to_hit(winner, match.start(), match.end()))
-        return hits
+        if _HAS_AHOCORASICK and lang_index.automaton is not None:
+            return _scan_ahocorasick(text, lang, lang_index)
+        return _scan_regex(text, lang, lang_index)
 
 
 @dataclass(slots=True)
@@ -609,14 +605,18 @@ class _LangIndex:
 
     pattern: re.Pattern[str] | None
     terms_by_norm: dict[str, list[Term]]
+    automaton: Automaton | None = None
 
     @classmethod
     def build(cls, terms: list[Term], lang: Lang = "ar") -> _LangIndex:
-        """Compile the alternation regex and the norm → terms lookup map.
+        """Compile the alternation regex, the norm → terms lookup map, and
+        (when available) an Aho-Corasick automaton over the normalized forms.
 
         English terms are normalized to lowercase, so the regex is compiled
         with :data:`re.IGNORECASE` to match capitalized source text (e.g.
         "Court of First Instance"). Arabic has no case and is unaffected.
+        The regex is always compiled so it is available as a fallback when
+        ``pyahocorasick`` is not installed.
         """
         if not terms:
             return cls(pattern=None, terms_by_norm={})
@@ -633,7 +633,13 @@ class _LangIndex:
         )
         flags: int = re.IGNORECASE if lang == "en" else 0
         pattern: re.Pattern[str] = re.compile(alternation, flags)
-        return cls(pattern=pattern, terms_by_norm=terms_by_norm)
+        automaton: Automaton | None = None
+        if _HAS_AHOCORASICK:
+            automaton = ahocorasick.Automaton()
+            for norm in terms_by_norm:
+                automaton.add_word(norm, norm)
+            automaton.make_automaton()
+        return cls(pattern=pattern, terms_by_norm=terms_by_norm, automaton=automaton)
 
 
 def _diacritic_tolerant_pattern(norm: str) -> str:
@@ -658,6 +664,113 @@ def _diacritic_tolerant_pattern(norm: str) -> str:
     # token, e.g. "عقد" inside "العقدة").
     boundary_post: str = rf"(?![{_LETTER_CLASS}])"
     return rf"{boundary_pre}{inner}{_INTER_LETTER_NOISE}{boundary_post}"
+
+
+def _scan_regex(text: str, lang: Lang, lang_index: _LangIndex) -> list[GlossaryHit]:
+    """Regex-based scan (fallback when ``pyahocorasick`` is unavailable)."""
+    assert lang_index.pattern is not None
+    hits: list[GlossaryHit] = []
+    for match in lang_index.pattern.finditer(text):
+        span_text: str = match.group(0)
+        norm: str = normalize(span_text, lang)
+        candidates: list[Term] = lang_index.terms_by_norm.get(norm, [])
+        if not candidates:
+            continue
+        winner: Term = _resolve_conflict(candidates)
+        hits.append(_term_to_hit(winner, match.start(), match.end()))
+    return hits
+
+
+def _scan_ahocorasick(
+    text: str, lang: Lang, lang_index: _LangIndex
+) -> list[GlossaryHit]:
+    """Aho-Corasick scan that reproduces the regex matcher's results.
+
+    The automaton runs over a normalized copy of ``text`` (diacritics/tatweel
+    stripped, Alef variants folded, lowercased for English) so its literal
+    substring matches line up with the regex's diacritic-tolerant, variant-
+    folding patterns. A position map restores original-text offsets, trailing
+    inter-letter noise is re-consumed, and the same preceding/following letter
+    boundaries + longest-match-first greedy selection as the regex are applied.
+    """
+    assert lang_index.automaton is not None
+    norm_text, pos_map = _normalize_text_for_ac(text, lang)
+    raw: list[tuple[int, int, str]] = []
+    for end_idx, norm in lang_index.automaton.iter(norm_text):
+        start_idx: int = end_idx - len(norm) + 1
+        raw.append((start_idx, end_idx + 1, norm))
+    # Longest match first at each start position (mirrors the regex's
+    # longest-first alternation), then left-to-right non-overlapping selection
+    # (mirrors ``re.finditer`` consumption).
+    raw.sort(key=lambda t: (t[0], -(t[1] - t[0])))
+    hits: list[GlossaryHit] = []
+    cur: int = 0
+    for start_idx, end_idx, norm in raw:
+        if start_idx < cur:
+            continue
+        orig_start: int = pos_map[start_idx]
+        orig_end: int = pos_map[end_idx - 1] + 1
+        while orig_end < len(text) and text[orig_end] in _NOISE_CHARS:
+            orig_end += 1
+        if not _check_boundaries(text, orig_start, orig_end, lang):
+            continue
+        candidates: list[Term] = lang_index.terms_by_norm.get(norm, [])
+        if not candidates:
+            continue
+        winner: Term = _resolve_conflict(candidates)
+        hits.append(_term_to_hit(winner, orig_start, orig_end))
+        cur = end_idx
+    return hits
+
+
+def _normalize_text_for_ac(text: str, lang: Lang) -> tuple[str, list[int]]:
+    """Return a normalized copy of ``text`` plus a stripped→original index map.
+
+    Arabic: strip diacritics/tatweel (removing chars) and fold Alef variants /
+    Alif Maqsura (1:1, position-preserving) — the same folds ``normalize_arabic``
+    applies to terms. English: lowercase only (1:1); whitespace/punctuation
+    handling lives in the term normalization, and the regex matches the original
+    spacing, so the text is not whitespace-collapsed here.
+    """
+    if lang == "en":
+        return text.lower(), list(range(len(text)))
+    chars: list[str] = []
+    pos_map: list[int] = []
+    for i, ch in enumerate(text):
+        if ch in _NOISE_CHARS:
+            continue
+        if ch in (_ALEF_HAMZA_ABOVE, _ALEF_HAMZA_BELOW, _ALEF_MADDA):
+            ch = _ALEF
+        elif ch == _ARABIC_ALIF_MAQSURA:
+            ch = _YA
+        chars.append(ch)
+        pos_map.append(i)
+    return "".join(chars), pos_map
+
+
+def _is_letter(ch: str) -> bool:
+    """True if ``ch`` is in the scan letter class (Arabic block + Latin)."""
+    code: int = ord(ch)
+    if ("A" <= ch <= "Z") or ("a" <= ch <= "z"):
+        return True
+    return 0x0600 <= code <= 0x06FF or 0x0750 <= code <= 0x077F
+
+
+def _check_boundaries(text: str, orig_start: int, orig_end: int, lang: Lang) -> bool:
+    """Apply the regex's preceding/following letter-boundary lookarounds.
+
+    Preceding: block any letter except Arabic proclitics (و ب ل ف). Following:
+    block any letter (prevents a stem matching inside a suffixed token).
+    """
+    if orig_start > 0:
+        prev: str = text[orig_start - 1]
+        if _is_letter(prev) and (lang != "ar" or prev not in _ARABIC_CLITICS):
+            return False
+    if orig_end < len(text):
+        nxt: str = text[orig_end]
+        if _is_letter(nxt):
+            return False
+    return True
 
 
 def _resolve_conflict(candidates: list[Term]) -> Term:
@@ -711,18 +824,6 @@ def scan_glossary_hits(
     if index is None:
         index = load_glossary_index()
     return index.scan(text, lang)
-
-
-# TODO 2.1.3 names this function ``glossary_scan``; the engineering-principles
-# skill §2.1.2 names the single source of truth ``scan_glossary_hits``. Keep
-# both names pointing at the same implementation (DRY).
-def glossary_scan(
-    text: str,
-    lang: Lang,
-    index: GlossaryIndex | None = None,
-) -> list[GlossaryHit]:
-    """Alias for :func:`scan_glossary_hits` (TODO 2.1.3 naming)."""
-    return scan_glossary_hits(text, lang, index=index)
 
 
 # Default DB path: db/glossary.sqlite relative to the project root.

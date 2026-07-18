@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-from src.config.models import ChromaConfig, ExcelConfig, PathsConfig
+from src.config.models import ChromaConfig, ExcelConfig, PathsConfig, UiConfig
 
 # Default config location: config.yaml next to the project root.
 # This module lives at src/config/config.py, so project root is three
@@ -67,6 +67,9 @@ class AppConfig(BaseModel):
     # --- Excel (.xlsx) workbook translation ---
     excel: ExcelConfig = Field(default_factory=ExcelConfig)
 
+    # --- UI backend selection (web vs Tkinter) ---
+    ui: UiConfig = Field(default_factory=UiConfig)
+
     @field_validator("chunk_size", "chunk_overlap", "top_k",
                      "embedding_batch_size", "chroma_add_batch",
                      "max_revisions", "context_window",
@@ -97,6 +100,9 @@ class ConfigError(Exception):
     """Raised when ``config.yaml`` is missing, unreadable, or invalid."""
 
 
+_config_cache: dict[Path, tuple[float, AppConfig]] = {}
+
+
 def load_config(path: Path | None = None) -> AppConfig:
     """Load and validate ``config.yaml`` into an :class:`AppConfig`.
 
@@ -107,6 +113,10 @@ def load_config(path: Path | None = None) -> AppConfig:
     config_path: Path = path if path is not None else DEFAULT_CONFIG_PATH
     if not config_path.is_file():
         raise ConfigError(f"config file not found: {config_path}")
+    mtime: float = config_path.stat().st_mtime
+    cached: tuple[float, AppConfig] | None = _config_cache.get(config_path)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
     try:
         raw: object = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:
@@ -116,6 +126,8 @@ def load_config(path: Path | None = None) -> AppConfig:
             f"config root must be a mapping, got {type(raw).__name__}"
         )
     try:
-        return AppConfig.model_validate(raw)
+        cfg: AppConfig = AppConfig.model_validate(raw)
     except Exception as e:
         raise ConfigError(f"config validation failed: {e}") from e
+    _config_cache[config_path] = (mtime, cfg)
+    return cfg

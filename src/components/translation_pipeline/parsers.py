@@ -13,6 +13,7 @@ import re
 from typing import cast
 
 from src.components.translation_pipeline.constants import VERDICT_REVISE
+from src.components.translation_pipeline.exceptions import AuditParseError
 from src.components.translation_pipeline.models import AuditVerdict, Verdict
 
 # Markdown fence pattern (```json ... ``` or ``` ... ```), stripped before
@@ -66,6 +67,10 @@ def parse_verdict(raw: str) -> AuditVerdict:
         confidence: float = float(str(confidence_raw))
     except (TypeError, ValueError):
         confidence = 0.0
+    if not 0.0 <= confidence <= 1.0:
+        raise AuditParseError(
+            f"confidence must be in [0.0, 1.0], got {confidence}"
+        )
 
     critique: str = str(parsed.get("critique", ""))
 

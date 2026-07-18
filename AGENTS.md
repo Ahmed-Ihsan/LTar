@@ -540,6 +540,31 @@ python -m src.app translate --input "المادة ١" --direction ar-en
 Follow the template in `.github/PULL_REQUEST_TEMPLATE.md`. Conventional commits
 are required.
 
+### CLI Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0    | Success |
+| 1    | Generic / unhandled error |
+| 2    | Ollama / embedding connection failure |
+| 3    | RAM guard exceeded |
+| 4    | Path containment violation |
+| 5    | Input validation error (JSONL schema, etc.) |
+| 6    | I/O error (OSError) |
+
+The `handle_pipeline_errors` decorator in `src/utils/cli_errors.py` maps
+domain exceptions to these codes. UI-boundary catches in `web_ui.py` and
+`tk_ui.py` log via `logger.exception` and surface the error to the user
+without crashing.
+
+### UiBackend Protocol
+
+The `UiBackend` protocol in `src/components/interfaces/ui_backend.py` defines
+a callable interface for UI launchers: `__call__(cfg: AppConfig, adapters:
+Adapters) -> None`. Both `web_ui.launch_ui` and `tk_ui.launch_ui` satisfy this
+protocol. The `ui` CLI command selects the backend via `cfg.ui.backend`
+(`"web"` or `"tk"`, default `"web"` in `config.yaml`).
+
 ### Commit Message Format
 
 ```

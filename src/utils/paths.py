@@ -1,10 +1,27 @@
-"""Path containment validation — rejects path traversal outside a root."""
+"""Path containment validation + config-relative path resolution."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from src.components.translation_pipeline.exceptions import PathContainmentError
+
+
+def resolve_path(path_str: str, *, cfg: object) -> Path:
+    """Resolve a config-relative path against the project root.
+
+    Args:
+        path_str: A relative path string (e.g. ``"logs"``, ``"db/tm.sqlite"``).
+        cfg: The :class:`AppConfig` (used only to find the project root; the
+            root is the parent of the ``src`` package).
+
+    Returns:
+        The resolved absolute path.
+    """
+    # Project root = parent of the ``src`` package (4 levels up from this file:
+    # src/utils/paths.py → src/utils/ → src/ → <root>)
+    root = Path(__file__).resolve().parent.parent.parent
+    return root / path_str
 
 
 def validate_path_in_root(path: Path, root: Path) -> Path:

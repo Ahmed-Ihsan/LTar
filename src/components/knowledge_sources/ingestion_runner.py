@@ -216,10 +216,6 @@ ingest_app = typer.Typer(
 
 @ingest_app.command()
 def ingest(
-    rebuild: Annotated[
-        bool,
-        typer.Option("--rebuild", help="Drop existing stores and re-ingest from scratch."),
-    ] = False,
     glossary_only: Annotated[
         bool,
         typer.Option("--glossary-only", help="Skip corpus; only load glossary into SQLite."),
@@ -238,7 +234,6 @@ def ingest(
     ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
 ) -> None:
     """Ingest glossary and/or corpus into the local stores (DATA_SPEC §4)."""
-    _ = rebuild  # run_ingestion always rebuilds atomically
     try:
         cfg: AppConfig = load_config(config_path)
     except Exception as e:

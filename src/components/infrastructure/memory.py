@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ctypes
 import sys
+import time
 from collections.abc import Callable
 
 from src.components.infrastructure.models import MemoryInfo as MemoryInfo
@@ -110,6 +111,10 @@ def available_ram_gb() -> float | None:
     return mem.available_bytes / _GIB
 
 
+_RAM_GUARD_CACHE_TTL: float = 5.0  # seconds
+_ram_guard_cache_ok: dict[str, float] = {}
+
+
 def check_ram_guard(min_gb: float = RAM_GUARD_MIN_GB) -> None:
     """Abort with :class:`RAMGuardError` if free RAM is below ``min_gb``.
 
@@ -118,9 +123,21 @@ def check_ram_guard(min_gb: float = RAM_GUARD_MIN_GB) -> None:
     measured (``read_memory_info`` returns ``None``) the guard is a no-op: it
     cannot prove RAM is low, so it does not block the call (the ``doctor``
     command surfaces unreadable RAM separately).
+
+    A passing result (sufficient RAM or unreadable) is cached for 5 seconds
+    (PERF-5) so repeated calls within a single translation batch do not
+    re-query the OS. A failing result is never cached so the guard re-checks
+    after a low-RAM condition.
     """
+    cache_key: str = str(min_gb)
+    now: float = time.monotonic()
+    cached_time: float | None = _ram_guard_cache_ok.get(cache_key)
+    if cached_time is not None and (now - cached_time) < _RAM_GUARD_CACHE_TTL:
+        return
+
     mem: MemoryInfo | None = read_memory_info()
     if mem is None:
+        _ram_guard_cache_ok[cache_key] = now
         return
     free_gb: float = mem.available_bytes / _GIB
     if free_gb < min_gb:
@@ -129,3 +146,4 @@ def check_ram_guard(min_gb: float = RAM_GUARD_MIN_GB) -> None:
             f"required). Aborting before the LLM call to avoid an out-of-memory "
             f"crash. Close other applications and retry."
         )
+    _ram_guard_cache_ok[cache_key] = now

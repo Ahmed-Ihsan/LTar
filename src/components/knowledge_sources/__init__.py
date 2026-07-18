@@ -27,7 +27,6 @@ _LAZY: dict[str, str] = {
     "GlossaryHit": f"{__name__}.glossary",
     "GlossaryIndex": f"{__name__}.glossary",
     "build_sqlite_index": f"{__name__}.glossary",
-    "glossary_scan": f"{__name__}.glossary",
     "load_glossary_file": f"{__name__}.glossary",
     "load_glossary_files": f"{__name__}.glossary",
     "load_glossary_index": f"{__name__}.glossary",

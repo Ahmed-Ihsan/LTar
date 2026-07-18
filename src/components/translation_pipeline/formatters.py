@@ -100,11 +100,8 @@ def format_web_search_results(results: list[WebSearchResult]) -> str:
         url: str = r.get("url", "")
         snippet: str = r.get("snippet", "")
         source: str = r.get("source", "")
-        lines.append(
-            f"[{i} | Source: {source}] {title}\n"
-            f"  URL: {url}\n"
-            f"  Snippet: {snippet}" if snippet else
-            f"[{i} | Source: {source}] {title}\n"
-            f"  URL: {url}"
-        )
+        header: str = f"[{i} | Source: {source}] {title}\n  URL: {url}"
+        if snippet:
+            header += f"\n  Snippet: {snippet}"
+        lines.append(header)
     return "\n\n".join(lines)

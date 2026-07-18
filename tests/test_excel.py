@@ -131,38 +131,38 @@ _ALLOWLISTED = {
 class TestProtectRestore:
     def test_placeholder_preserved(self, config: AppConfig) -> None:
         text = "Total for {year}: مبلغ"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert "{year}" not in protected
         assert restore_protected(protected, token_map) == text
 
     def test_url_preserved(self, config: AppConfig) -> None:
         text = "See https://example.org/x for details"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert "https://example.org/x" not in protected
         assert restore_protected(protected, token_map) == text
 
     def test_number_preserved(self, config: AppConfig) -> None:
         text = "المادة 148 تنص على ذلك"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert "148" not in protected
         assert restore_protected(protected, token_map) == text
 
     def test_email_preserved(self, config: AppConfig) -> None:
         text = "Contact admin@justice.gov.iq for info"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert "admin@justice.gov.iq" not in protected
         assert restore_protected(protected, token_map) == text
 
     def test_header_footer_codes_preserved(self, config: AppConfig) -> None:
         text = "Page &P of &N - تقرير"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert "&P" not in protected
         assert "&N" not in protected
         assert restore_protected(protected, token_map) == text
 
     def test_identical_tokens_reuse_sentinel(self, config: AppConfig) -> None:
         text = "{x} and {x} and 148 and 148"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         # Two distinct originals -> two sentinels, each used twice.
         assert protected.count("\x00T0\x00") == 2
         assert protected.count("\x00T1\x00") == 2
@@ -170,7 +170,7 @@ class TestProtectRestore:
 
     def test_plain_text_unchanged(self, config: AppConfig) -> None:
         text = "عقد البيع"
-        protected, token_map = protect_non_translatable(text, cfg=config)
+        protected, token_map = protect_non_translatable(text)
         assert protected == text
         assert token_map == {}
         assert restore_protected(protected, token_map) == text
@@ -223,7 +223,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         shared = _read_part(out, "xl/sharedStrings.xml")
         assert "[T:عقد البيع]" in shared
         # The rich-run cell: each <t> translated independently.
@@ -234,7 +234,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         sheet = _read_part(out, "xl/worksheets/sheet1.xml")
         assert "<f>SUM(B2:B3)</f><v>6</v>" in sheet
 
@@ -242,7 +242,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         sheet = _read_part(out, "xl/worksheets/sheet1.xml")
         assert '<mergeCells count="1"><mergeCell ref="A1:A2"' in sheet
 
@@ -252,7 +252,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         sheet = _read_part(out, "xl/worksheets/sheet1.xml")
         assert "conditionalFormatting" in sheet
         assert "dataValidation" in sheet
@@ -263,7 +263,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         sheet = _read_part(out, "xl/worksheets/sheet1.xml")
         assert "<hyperlink ref=\"A4\"" in sheet
 
@@ -271,7 +271,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         wb = _read_part(out, "xl/workbook.xml")
         assert 'state="hidden"' in wb
 
@@ -279,7 +279,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         with zipfile.ZipFile(BytesIO(data)) as zin, \
                 zipfile.ZipFile(BytesIO(out)) as zout:
             for info in zin.infolist():
@@ -293,7 +293,7 @@ class TestExtractPatch:
         data = _build_workbook()
         segs = extract_translatable_strings(data, cfg=config)
         translations = {s.text: f"[T:{s.text}]" for s in segs}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         with zipfile.ZipFile(BytesIO(data)) as zin, \
                 zipfile.ZipFile(BytesIO(out)) as zout:
             assert zin.read("xl/media/image1.png") == zout.read("xl/media/image1.png")
@@ -340,7 +340,7 @@ class TestExtractPatch:
         # Translate only one segment; the rest must keep original text.
         only = segs[0].text
         translations = {only: "[T:ONLY]"}
-        out = patch_strings(data, segs, translations, cfg=config)
+        out = patch_strings(data, translations, cfg=config)
         shared = _read_part(out, "xl/sharedStrings.xml")
         assert "[T:ONLY]" in shared
         # Another segment's text still present verbatim.

@@ -1,6 +1,6 @@
 """Unit tests for glossary scanning (DATA_SPEC §2.4, task 2.1.3).
 
-Longest-match-first, offset tracking, and the ``glossary_scan`` alias.
+Longest-match-first, offset tracking, and conflict resolution.
 """
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import pytest
 from src.components.knowledge_sources.glossary import (
     GlossaryIndex,
     Term,
-    glossary_scan,
     normalize_arabic,
     scan_glossary_hits,
 )
@@ -168,11 +167,3 @@ class TestAlefVariantMatching:
         assert len(hits) == 2
         terms = {h.source_term for h in hits}
         assert terms == {"عقد البيع", "عقد الإيجار"}
-
-
-class TestGlossaryScanAlias:
-    def test_alias_matches_canonical(self, glossary_index: GlossaryIndex) -> None:
-        text = "هذا عقد البيع المنصوص عليه"
-        assert glossary_scan(text, "ar", index=glossary_index) == scan_glossary_hits(
-            text, "ar", index=glossary_index
-        )

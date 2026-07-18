@@ -32,6 +32,7 @@ dependencies = [
     "beautifulsoup4>=4.12,<5",
     "httpx>=0.27,<1",
     "defusedxml>=0.7,<1",
+    "pyahocorasick>=2.0,<3",
 ]
 
 [project.optional-dependencies]
@@ -149,6 +150,10 @@ strict = true
 
 [[tool.mypy.overrides]]
 module = "mcp.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "ahocorasick.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

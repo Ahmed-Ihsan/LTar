@@ -31,6 +31,13 @@ from src.components.knowledge_sources.legal_search import (
 pytestmark = pytest.mark.unit
 
 
+@pytest.fixture(autouse=True)
+def _clear_search_cache() -> None:
+    import src.components.knowledge_sources.legal_search as ls_mod
+
+    ls_mod._search_cache.clear()
+
+
 # ---------------------------------------------------------------------------
 # Mock HTML fixtures (based on real page structures)
 # ---------------------------------------------------------------------------

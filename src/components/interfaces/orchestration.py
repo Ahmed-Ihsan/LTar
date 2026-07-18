@@ -228,47 +228,95 @@ def run_translation_streamed(
     ``reviewer`` (HITL), when supplied AND ``cfg.hitl_enabled`` is True, pauses
     after the autonomous loop for human review. See :func:`run_translation`.
     """
-    from src.components.translation_pipeline.graph import AUDIT_NODE, TRANSLATE_NODE
-
-    state: TranslationState = _initial_state(input_text, direction)
-    graph = build_graph(
-        llm=llm,
+    coordinator = _HITLStreamCoordinator(
         cfg=cfg,
-        glossary_index=glossary_index,
+        llm=llm,
         embedder=embedder,
+        glossary_index=glossary_index,
         persist_dir=persist_dir,
         run_logger=run_logger,
         tm=tm,
+        reviewer=reviewer,
     )
+    return coordinator.run(input_text, direction)
 
-    history: list[RevisionStep] = []
-    merged: TranslationState = state
-    pending_draft: str | None = None
-    for chunk in graph.stream(state, stream_mode="updates"):
-        for node_name, diff in chunk.items():
-            if not isinstance(diff, dict):
-                continue
-            merged = {**merged, **diff}
-            if node_name == TRANSLATE_NODE and "draft" in diff:
-                pending_draft = str(diff["draft"])
-            elif node_name == AUDIT_NODE and "audit" in diff:
-                history.append(
-                    _step_from_audit(pending_draft or "", diff["audit"])
-                )
-                pending_draft = None
 
-    # HITL: human reviews the draft after the autonomous loop.
-    if reviewer is not None and cfg.hitl_enabled:
-        reviewed: TranslationState = human_review(
-            merged, cfg, llm=llm, reviewer=reviewer, tm=tm
+class _HITLStreamCoordinator:
+    """Encapsulates the streamed graph loop + HITL review (Change 5 task 7.1).
+
+    Extracted from :func:`run_translation_streamed` to keep the orchestration
+    logic testable and isolated. The coordinator:
+    1. Builds the LangGraph with injected adapters.
+    2. Streams per-node updates, capturing revision history (translate→audit).
+    3. Optionally pauses for human review (HITL) after the autonomous loop.
+    """
+
+    def __init__(
+        self,
+        *,
+        cfg: AppConfig,
+        llm: LLMEngineAdapter,
+        embedder: EmbeddingAdapter,
+        glossary_index: GlossaryIndex | None = None,
+        persist_dir: str | None = None,
+        run_logger: RunLogger | None = None,
+        tm: TranslationMemory | None = None,
+        reviewer: HumanReviewer | None = None,
+    ) -> None:
+        self._cfg = cfg
+        self._llm = llm
+        self._embedder = embedder
+        self._glossary_index = glossary_index
+        self._persist_dir = persist_dir
+        self._run_logger = run_logger
+        self._tm = tm
+        self._reviewer = reviewer
+
+    def run(
+        self, input_text: str, direction: str
+    ) -> tuple[TranslationState, list[RevisionStep]]:
+        """Execute the streamed translation + optional HITL review."""
+        from src.components.translation_pipeline.graph import AUDIT_NODE, TRANSLATE_NODE
+
+        state: TranslationState = _initial_state(input_text, direction)
+        graph = build_graph(
+            llm=self._llm,
+            cfg=self._cfg,
+            glossary_index=self._glossary_index,
+            embedder=self._embedder,
+            persist_dir=self._persist_dir,
+            run_logger=self._run_logger,
+            tm=self._tm,
         )
-        if reviewed is not merged:
-            from src.components.translation_pipeline.nodes import finalize_node
 
-            reviewed = finalize_node(reviewed, cfg=cfg)
-            return reviewed, history
+        history: list[RevisionStep] = []
+        merged: TranslationState = state
+        pending_draft: str | None = None
+        for chunk in graph.stream(state, stream_mode="updates"):
+            for node_name, diff in chunk.items():
+                if not isinstance(diff, dict):
+                    continue
+                merged = {**merged, **diff}
+                if node_name == TRANSLATE_NODE and "draft" in diff:
+                    pending_draft = str(diff["draft"])
+                elif node_name == AUDIT_NODE and "audit" in diff:
+                    history.append(
+                        _step_from_audit(pending_draft or "", diff["audit"])
+                    )
+                    pending_draft = None
 
-    return merged, history
+        # HITL: human reviews the draft after the autonomous loop.
+        if self._reviewer is not None and self._cfg.hitl_enabled:
+            reviewed: TranslationState = human_review(
+                merged, self._cfg, llm=self._llm, reviewer=self._reviewer, tm=self._tm
+            )
+            if reviewed is not merged:
+                from src.components.translation_pipeline.nodes import finalize_node
+
+                reviewed = finalize_node(reviewed, cfg=self._cfg)
+                return reviewed, history
+
+        return merged, history
 
 
 def _render_provenance(state: TranslationState) -> str:
