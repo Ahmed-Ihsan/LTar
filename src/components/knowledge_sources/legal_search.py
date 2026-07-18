@@ -21,12 +21,13 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
 from src.components.knowledge_sources.models import SearchHit
+from src.components.translation_pipeline.exceptions import LegalSearchBlockedError
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -42,6 +43,35 @@ _HEADERS: dict[str, str] = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "ar,en;q=0.9",
 }
+
+# ---------------------------------------------------------------------------
+# Security: allowed-host allowlist (harden-untrusted-input-surfaces §7)
+# ---------------------------------------------------------------------------
+
+_ALLOWED_HOSTS: frozenset[str] = frozenset({
+    "moj.gov.iq",
+    "www.moj.gov.iq",
+    "dijlex.com",
+    "www.dijlex.com",
+    "urportal.ur.gov.iq",
+    "www.urportal.ur.gov.iq",
+    "nlb.gov.iq",
+    "www.nlb.gov.iq",
+})
+
+_MAX_REDIRECT_HOPS: int = 3
+_MAX_JSONLD_BYTES: int = 1_048_576  # 1 MiB cap on JSON-LD script content
+
+
+def _validate_url(url: str) -> str:
+    """Validate that *url* points to an allowed host; raise on mismatch."""
+    parsed = urlparse(url)
+    host: str | None = parsed.hostname
+    if host is None or host not in _ALLOWED_HOSTS:
+        raise LegalSearchBlockedError(
+            f"URL host '{host}' is not on the allowed list"
+        )
+    return url
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -66,10 +96,26 @@ class SearchSource:
 
 
 def _fetch_html(url: str) -> str:
-    """Fetch HTML content from ``url`` with a timeout. Returns empty on error."""
+    """Fetch HTML content from ``url`` with a timeout. Returns empty on error.
+
+    Redirects are manually validated against the allowed-host allowlist
+    (harden-untrusted-input-surfaces §7.3) — auto-follow is disabled.
+    """
     try:
-        with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as client:
+        _validate_url(url)
+        with httpx.Client(timeout=_TIMEOUT, follow_redirects=False) as client:
             resp: httpx.Response = client.get(url, headers=_HEADERS)
+            for _ in range(_MAX_REDIRECT_HOPS):
+                if resp.is_redirect:
+                    loc: str = resp.headers.get("location", "")
+                    if not loc:
+                        break
+                    # Resolve relative redirects against the original URL.
+                    next_url: str = str(httpx.URL(url).join(loc))
+                    _validate_url(next_url)
+                    resp = client.get(next_url, headers=_HEADERS)
+                else:
+                    break
             resp.raise_for_status()
             return resp.text
     except Exception:
@@ -77,15 +123,30 @@ def _fetch_html(url: str) -> str:
 
 
 def _post_html(url: str, data: dict[str, str]) -> str:
-    """POST form data and return HTML. Returns empty on error."""
+    """POST form data and return HTML. Returns empty on error.
+
+    Redirects are manually validated against the allowed-host allowlist
+    (harden-untrusted-input-surfaces §7.3) — auto-follow is disabled.
+    """
     try:
-        with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as client:
+        _validate_url(url)
+        with httpx.Client(timeout=_TIMEOUT, follow_redirects=False) as client:
             resp: httpx.Response = client.post(
                 url, data=data, headers={
                     **_HEADERS,
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             )
+            for _ in range(_MAX_REDIRECT_HOPS):
+                if resp.is_redirect:
+                    loc: str = resp.headers.get("location", "")
+                    if not loc:
+                        break
+                    next_url: str = str(httpx.URL(url).join(loc))
+                    _validate_url(next_url)
+                    resp = client.get(next_url, headers=_HEADERS)
+                else:
+                    break
             resp.raise_for_status()
             return resp.text
     except Exception:
@@ -258,7 +319,11 @@ def search_ur_portal(query: str, max_results: int = 10) -> list[SearchHit]:
         try:
             import json
 
-            data = json.loads(script.string or "")
+            raw: str = script.string or ""
+            # Skip oversized JSON-LD blocks (harden-untrusted-input-surfaces §7.4).
+            if len(raw) > _MAX_JSONLD_BYTES:
+                continue
+            data = json.loads(raw)
             if isinstance(data, dict):
                 data = [data]
             for item in data:

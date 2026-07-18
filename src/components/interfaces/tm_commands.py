@@ -7,14 +7,15 @@ remains the single composition root (engineering-principles §3.6).
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 
 from src.components.interfaces.config_loader import load_or_exit
 from src.config import AppConfig
+from src.utils.jsonl_schema import ParallelPair
 
 
 def _resolve_path(cfg: AppConfig, rel: str) -> Path:
@@ -100,19 +101,19 @@ def tm_build_parallel(
             if len(pairs) >= max_pairs:
                 break
             try:
-                record: dict[str, Any] = json.loads(line)
+                record = ParallelPair.model_validate_json(line)
                 pairs.append((
-                    record["source_sentence"],
-                    record["target_sentence"],
-                    record.get("source_lang", "ar"),
-                    record.get("target_lang", "en"),
+                    record.source_sentence,
+                    record.target_sentence,
+                    record.source_lang,
+                    record.target_lang,
                 ))
-            except (json.JSONDecodeError, KeyError) as e:
+            except ValidationError as e:
                 typer.secho(
                     f"error: malformed JSONL line in {jsonl_path}: {e}",
                     fg=typer.colors.RED, err=True,
                 )
-                raise typer.Exit(code=1) from e
+                raise typer.Exit(code=5) from e
 
     if not pairs:
         typer.secho(f"error: no valid pairs found in {jsonl_path}",
@@ -171,19 +172,19 @@ def tm_add_parallel(
             if len(pairs) >= max_pairs:
                 break
             try:
-                record: dict[str, Any] = json.loads(line)
+                record = ParallelPair.model_validate_json(line)
                 pairs.append((
-                    record["source_sentence"],
-                    record["target_sentence"],
-                    record.get("source_lang", "ar"),
-                    record.get("target_lang", "en"),
+                    record.source_sentence,
+                    record.target_sentence,
+                    record.source_lang,
+                    record.target_lang,
                 ))
-            except (json.JSONDecodeError, KeyError) as e:
+            except ValidationError as e:
                 typer.secho(
                     f"error: malformed JSONL line in {jsonl_path}: {e}",
                     fg=typer.colors.RED, err=True,
                 )
-                raise typer.Exit(code=1) from e
+                raise typer.Exit(code=5) from e
 
     if not pairs:
         typer.secho(f"error: no valid pairs found in {jsonl_path}",

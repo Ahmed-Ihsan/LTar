@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 import typer
+from pydantic import ValidationError
 
 from src.components.infrastructure.embeddings import EmbeddingAdapter
 from src.components.infrastructure.llm import LLMEngineAdapter
@@ -25,6 +26,7 @@ from src.components.knowledge_sources.tm import TranslationMemory
 from src.components.translation_pipeline.graph import build_graph
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
+from src.utils.jsonl_schema import BatchRecord
 from src.utils.paths import validate_path_in_root
 
 
@@ -536,15 +538,28 @@ def _process_batch(
     Returns the number of records processed.
     """
     count: int = 0
+    line_no: int = 0
     with open(input_path, encoding="utf-8") as fin, \
             open(output_path, "w", encoding="utf-8") as fout:
         for line in fin:
+            line_no += 1
             line = line.strip()
             if not line:
                 continue
-            record: dict[str, Any] = json.loads(line)
+            try:
+                record = BatchRecord.model_validate_json(line)
+            except ValidationError:
+                # Skip malformed records (harden-untrusted-input-surfaces §6.1).
+                fout.write(
+                    json.dumps(
+                        {"error": f"malformed record at line {line_no}"},
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+                continue
             state = run_translation(
-                record["input"], record["direction"], cfg,
+                record.input, record.direction, cfg,
                 llm=llm, embedder=embedder,
                 glossary_index=glossary_index, persist_dir=persist_dir,
                 run_logger=run_logger, tm=tm,
