@@ -410,6 +410,81 @@ textarea:disabled { opacity: 0.55; }
 .skel-line { height: 10px; margin-bottom: 8px; border-radius: var(--r-xs); }
 .skel-line:last-child { margin-bottom: 0; width: 70%; }
 
+/* ── Excel tab ──────────────────────────────────────────────────── */
+.excel-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-5);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  flex-shrink: 0;
+}
+.excel-col { display: flex; flex-direction: column; gap: var(--sp-1); }
+.picker-row { display: flex; align-items: center; gap: var(--sp-2); }
+.picker-path {
+  font-size: var(--fs-sm); color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1; font-family: var(--font-mono);
+}
+.xl-opt {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-md); color: var(--text); cursor: pointer;
+  padding: var(--sp-1) 0;
+}
+.xl-opt input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+.xl-num {
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 6px 10px; font-size: var(--fs-md); font-family: var(--font-ui);
+  width: 120px; outline: none;
+}
+.xl-num:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.xl-error {
+  background: rgba(248,113,113,0.10); border: 1px solid var(--error);
+  border-radius: var(--r-md); padding: var(--sp-3); color: var(--error);
+  font-size: var(--fs-sm); flex-shrink: 0;
+}
+.xl-progress { display: flex; flex-direction: column; gap: var(--sp-2); flex-shrink: 0; }
+.xl-bar-track {
+  height: 8px; background: var(--surface3); border-radius: var(--r-xs);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.xl-bar-fill {
+  height: 100%; width: 0%; background: var(--grad);
+  transition: width .2s ease;
+}
+.xl-current {
+  font-size: var(--fs-xs); color: var(--text-mute);
+  font-family: var(--font-mono); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.xl-report { display: flex; flex-direction: column; gap: var(--sp-2); flex: 1; min-height: 0; }
+.xl-report-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2); flex-shrink: 0;
+}
+.xl-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.xl-stat .label {
+  font-size: var(--fs-xs); color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.xl-stat .value {
+  font-size: var(--fs-lg); font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.xl-warnings {
+  flex: 1; overflow-y: auto; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: var(--sp-3); font-size: var(--fs-sm); font-family: var(--font-mono);
+  color: var(--text-dim); white-space: pre-wrap; min-height: 60px;
+}
+
 /* ── Inline icon helper ─────────────────────────────────────────── */
 .icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex-shrink: 0; }
 .icon-sm { width: 14px; height: 14px; }
@@ -436,6 +511,7 @@ textarea:disabled { opacity: 0.55; }
   <div class="tab active" onclick="switchTab(event,'translate')">Translate</div>
   <div class="tab" onclick="switchTab(event,'trace')">Audit Trace</div>
   <div class="tab" onclick="switchTab(event,'history')">History</div>
+  <div class="tab" onclick="switchTab(event,'excel')">Excel</div>
 </div>
 
 <div class="content">
@@ -525,6 +601,63 @@ textarea:disabled { opacity: 0.55; }
     </div>
   </div>
 
+  <!-- Excel Tab -->
+  <div id="tab-excel" class="tab-content">
+    <div class="excel-form">
+      <div class="excel-col">
+        <div class="field-label">Input Workbook (.xlsx)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickExcelInput()">Browse…</button>
+          <span id="xl-input-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="field-label" style="margin-top:var(--sp-4);">Output Workbook (.xlsx)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickExcelOutput()">Save As…</button>
+          <span id="xl-output-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="control-group" style="margin-top:var(--sp-4);">
+          <label>Direction</label>
+          <select id="xl-direction">
+            <option value="ar-en">AR &rarr; EN</option>
+            <option value="en-ar">EN &rarr; AR</option>
+          </select>
+        </div>
+      </div>
+      <div class="excel-col">
+        <div class="field-label">Excel Options</div>
+        <label class="xl-opt"><input type="checkbox" id="xl-opt-comments" checked> Translate comments</label>
+        <label class="xl-opt"><input type="checkbox" id="xl-opt-headers" checked> Translate headers &amp; footers</label>
+        <label class="xl-opt"><input type="checkbox" id="xl-opt-charts" checked> Translate chart titles</label>
+        <div class="field-label" style="margin-top:var(--sp-3);">Max segment chars</div>
+        <input type="number" id="xl-opt-maxchars" min="16" value="4096" class="xl-num">
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-xl-translate" onclick="doTranslateExcel()" disabled>Translate Excel</button>
+      <button class="btn btn-secondary" id="btn-xl-cancel" onclick="cancelExcel()" style="display:none;">Cancel</button>
+      <button class="btn btn-secondary btn-small" id="btn-xl-open" onclick="openExcelOutput()" style="display:none;margin-left:auto;">Open output</button>
+    </div>
+
+    <div id="xl-error" class="xl-error" style="display:none;"></div>
+
+    <div id="xl-progress" class="xl-progress" style="display:none;">
+      <div class="field-label">
+        <span>Progress</span>
+        <span class="count" id="xl-counter">0 / 0</span>
+      </div>
+      <div class="xl-bar-track"><div id="xl-bar-fill" class="xl-bar-fill"></div></div>
+      <div id="xl-current" class="xl-current"></div>
+    </div>
+
+    <div id="xl-report" class="xl-report" style="display:none;">
+      <div class="field-label">Report</div>
+      <div class="xl-report-grid" id="xl-report-grid"></div>
+      <div class="field-label" style="margin-top:var(--sp-3);">Warnings</div>
+      <div id="xl-warnings" class="xl-warnings"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="status-bar">
@@ -599,6 +732,7 @@ async function init() {
   });
   toggleRtl();
   updateCount();
+  initExcel();
 }
 
 function toggleRtl() {
@@ -639,6 +773,173 @@ function switchTab(ev, name) {
   ev.target.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'history') loadHistory();
+  if (name === 'translate') refreshTranslateButtonBusy();
+}
+
+// ── Excel tab ─────────────────────────────────────────────────────
+let xlState = {
+  inputPath: null, outputPath: null, jobId: null,
+  pollTimer: null, running: false,
+};
+
+async function initExcel() {
+  const opts = await pywebview.api.get_excel_options();
+  document.getElementById('xl-opt-comments').checked = opts.translate_comments;
+  document.getElementById('xl-opt-headers').checked = opts.translate_headers_footers;
+  document.getElementById('xl-opt-charts').checked = opts.translate_chart_titles;
+  document.getElementById('xl-opt-maxchars').value = opts.max_segment_chars;
+  ['xl-input-path','xl-output-path','xl-direction','xl-opt-comments','xl-opt-headers','xl-opt-charts','xl-opt-maxchars']
+    .forEach(id => document.getElementById(id).addEventListener('change', updateExcelButtonState));
+  updateExcelButtonState();
+}
+
+async function pickExcelInput() {
+  const path = await pywebview.api.pick_excel_input(window.__SESSION_TOKEN);
+  if (path) {
+    xlState.inputPath = path;
+    document.getElementById('xl-input-path').textContent = path;
+    // Auto-suggest output: <stem>_translated.xlsx in the same directory.
+    if (!xlState.outputPath) {
+      const stem = path.replace(/\.xlsx$/i, '');
+      document.getElementById('xl-output-path').textContent = stem + '_translated.xlsx (suggested)';
+      xlState.outputPath = stem + '_translated.xlsx';
+    }
+    updateExcelButtonState();
+  }
+}
+
+async function pickExcelOutput() {
+  const defaultName = xlState.inputPath
+    ? xlState.inputPath.replace(/\.xlsx$/i, '') + '_translated.xlsx'
+    : 'workbook_translated.xlsx';
+  const path = await pywebview.api.pick_excel_output(window.__SESSION_TOKEN, defaultName);
+  if (path) {
+    xlState.outputPath = path;
+    document.getElementById('xl-output-path').textContent = path;
+    updateExcelButtonState();
+  }
+}
+
+function updateExcelButtonState() {
+  const ready = xlState.inputPath && xlState.outputPath && !xlState.running;
+  document.getElementById('btn-xl-translate').disabled = !ready;
+}
+
+async function refreshTranslateButtonBusy() {
+  // Cross-tab disablement: disable the single-sentence Translate button
+  // while an Excel run is in progress (concurrency = 1).
+  const busy = await pywebview.api.is_busy();
+  document.getElementById('btn-translate').disabled = busy;
+}
+
+function xlOptions() {
+  return {
+    translate_comments: document.getElementById('xl-opt-comments').checked,
+    translate_headers_footers: document.getElementById('xl-opt-headers').checked,
+    translate_chart_titles: document.getElementById('xl-opt-charts').checked,
+    max_segment_chars: parseInt(document.getElementById('xl-opt-maxchars').value, 10) || 4096,
+  };
+}
+
+async function doTranslateExcel() {
+  if (!xlState.inputPath || !xlState.outputPath) return;
+  // Overwrite confirmation.
+  const exists = await pywebview.api.path_exists(xlState.outputPath);
+  if (exists && !confirm('Output file already exists. Overwrite?')) return;
+  document.getElementById('xl-error').style.display = 'none';
+  document.getElementById('xl-report').style.display = 'none';
+  document.getElementById('xl-progress').style.display = 'flex';
+  document.getElementById('xl-bar-fill').style.width = '0%';
+  document.getElementById('xl-counter').textContent = '0 / 0';
+  document.getElementById('xl-current').textContent = '';
+  document.getElementById('btn-xl-translate').disabled = true;
+  document.getElementById('btn-xl-cancel').style.display = 'inline-block';
+  document.getElementById('btn-xl-open').style.display = 'none';
+  xlState.running = true;
+  setStatus('active', 'Translating Excel\u2026');
+  refreshTranslateButtonBusy();
+
+  const direction = document.getElementById('xl-direction').value;
+  const res = await pywebview.api.translate_excel(
+    window.__SESSION_TOKEN, xlState.inputPath, xlState.outputPath, direction, xlOptions()
+  );
+  if (res.state === 'error') {
+    xlRunEnded();
+    showExcelError(res.error);
+    return;
+  }
+  xlState.jobId = res.job_id;
+  xlState.pollTimer = setInterval(pollExcelStatus, 300);
+}
+
+async function pollExcelStatus() {
+  const s = await pywebview.api.get_excel_status(xlState.jobId);
+  if (s.state === 'running') {
+    const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+    document.getElementById('xl-bar-fill').style.width = pct + '%';
+    document.getElementById('xl-counter').textContent = s.completed + ' / ' + s.total;
+    document.getElementById('xl-current').textContent = s.current ? truncate(s.current, 80) : '';
+    return;
+  }
+  clearInterval(xlState.pollTimer); xlState.pollTimer = null;
+  document.getElementById('xl-bar-fill').style.width = '100%';
+  document.getElementById('xl-progress').style.display = 'none';
+  document.getElementById('btn-xl-cancel').style.display = 'none';
+  if (s.state === 'done' || s.state === 'cancelled') {
+    renderExcelReport(s.report, s.state === 'cancelled');
+    document.getElementById('btn-xl-open').style.display = 'inline-block';
+    setStatus(s.state === 'cancelled' ? 'success' : 'success',
+      s.state === 'cancelled' ? 'Cancelled (partial output written)' : 'Excel complete');
+  } else if (s.state === 'error') {
+    showExcelError(s.error);
+    setStatus('error', 'Excel run failed');
+  }
+  xlRunEnded();
+}
+
+function xlRunEnded() {
+  xlState.running = false;
+  updateExcelButtonState();
+  refreshTranslateButtonBusy();
+}
+
+function showExcelError(msg) {
+  const el = document.getElementById('xl-error');
+  el.textContent = msg || 'Unknown error';
+  el.style.display = 'block';
+  document.getElementById('xl-progress').style.display = 'none';
+  setStatus('error', 'Excel run failed');
+}
+
+function renderExcelReport(r, cancelled) {
+  const grid = document.getElementById('xl-report-grid');
+  const stats = [
+    ['Total', r.total_segments], ['Translated', r.translated],
+    ['Skipped', r.skipped], ['Failed', r.failed],
+    ['Cancelled', r.cancelled ? 'Yes' : 'No'],
+  ];
+  grid.innerHTML = stats.map(function(s) {
+    return '<div class="xl-stat"><span class="label">' + s[0] + '</span>' +
+      '<span class="value">' + s[1] + '</span></div>';
+  }).join('');
+  const w = document.getElementById('xl-warnings');
+  w.textContent = r.warnings && r.warnings.length
+    ? r.warnings.join('\n')
+    : (cancelled ? 'Run cancelled; remaining segments kept their original text.'
+       : 'No warnings.');
+  document.getElementById('xl-report').style.display = 'flex';
+}
+
+async function cancelExcel() {
+  if (xlState.jobId) await pywebview.api.cancel_excel(xlState.jobId);
+}
+
+async function openExcelOutput() {
+  if (xlState.outputPath) await pywebview.api.open_in_explorer(window.__SESSION_TOKEN, xlState.outputPath);
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '\u2026' : s;
 }
 
 function clearAll() {
@@ -690,7 +991,7 @@ async function doTranslate() {
     document.getElementById('timer').textContent = elapsed + 's';
   }, 100);
 
-  const result = await pywebview.api.translate(input, direction, model);
+  const result = await pywebview.api.translate(window.__SESSION_TOKEN, input, direction, model);
   if (result === 'empty') {
     setStatus('error', 'Input is empty');
     document.getElementById('btn-translate').disabled = false;
@@ -794,7 +1095,7 @@ function hideReviewPanel() {
 }
 
 async function approveDraft() {
-  await pywebview.api.approve_review();
+  await pywebview.api.approve_review(window.__SESSION_TOKEN);
   setStatus('active', 'Finalizing\u2026');
   startTime = Date.now();
   timerInterval = setInterval(function() {
@@ -806,7 +1107,7 @@ async function approveDraft() {
 
 async function submitEdit() {
   const edited = document.getElementById('review-edit').value;
-  await pywebview.api.submit_review(edited);
+  await pywebview.api.submit_review(window.__SESSION_TOKEN, edited);
   setStatus('active', 'Re-auditing edit\u2026');
   startTime = Date.now();
   timerInterval = setInterval(function() {

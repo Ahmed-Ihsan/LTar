@@ -23,20 +23,33 @@ Features:
 """
 from __future__ import annotations
 
+import os
+import secrets
+import subprocess
 import threading
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 import webview
 
 from src.components.interfaces.cli import _new_run_logger
 from src.components.interfaces.diagnostics import _list_ollama_models
-from src.components.interfaces.models import Adapters, UiTranslationResult
+from src.components.interfaces.excel import translate_excel
+from src.components.interfaces.models import Adapters, ExcelTranslationReport, UiTranslationResult
 from src.components.interfaces.orchestration import (
     _audit_trace_markdown,
     _provenance_markdown,
     _translate_for_ui,
 )
 from src.components.interfaces.web_frontend import _HTML
+from src.components.translation_pipeline.exceptions import (
+    EmbeddingConnectionError,
+    LegalTranslationError,
+    OllamaConnectionError,
+    RAMGuardError,
+)
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
 
@@ -62,6 +75,26 @@ class _PendingResult:
     provenance: str = ""
     audit_trace: str = ""
     error: str = ""
+
+
+@dataclass(slots=True)
+class _ExcelJob:
+    """In-flight Excel translation job state (single-user, single-session).
+
+    ``state`` is one of ``"running"``, ``"done"``, ``"cancelled"``,
+    ``"error"``. ``report`` is the final :class:`ExcelTranslationReport` (or
+    ``None`` while running). ``cancel_event`` is wired to
+    :func:`translate_excel`'s ``cancel_event`` parameter.
+    """
+
+    job_id: str
+    state: str = "running"
+    completed: int = 0
+    total: int = 0
+    current: str = ""
+    report: ExcelTranslationReport | None = None
+    error: str = ""
+    cancel_event: threading.Event = field(default_factory=threading.Event)
 
 
 class _UiHumanReviewer:
@@ -110,10 +143,13 @@ class Api:
 
     Thread-safe: translation runs in a background thread; JS polls
     :meth:`get_result` until the status changes from "translating".
+
+    Security: every state-mutating method requires a session token
+    (generated at construction, injected into the page at load time).
     """
 
     __slots__ = ("_cfg", "_adapters", "_models", "_result", "_lock", "_history",
-                 "_reviewer")
+                 "_reviewer", "_excel_job", "_token")
 
     def __init__(self, cfg: AppConfig, adapters: Adapters) -> None:
         self._cfg: AppConfig = cfg
@@ -123,6 +159,17 @@ class Api:
         self._lock: threading.Lock = threading.Lock()
         self._history: list[dict[str, str]] = []
         self._reviewer: _UiHumanReviewer | None = None
+        self._excel_job: _ExcelJob | None = None
+        self._token: str = secrets.token_urlsafe(32)
+
+    def get_token(self) -> str:
+        """Return the session token (called once at page load)."""
+        return self._token
+
+    def _check_token(self, token: str) -> None:
+        """Raise ``PermissionError`` if *token* does not match the session token."""
+        if token != self._token:
+            raise PermissionError("invalid or missing session token")
 
     def get_models(self) -> list[str]:
         """Return available Ollama models, falling back to config default."""
@@ -183,11 +230,15 @@ class Api:
         with self._lock:
             return list(self._history)
 
-    def translate(self, input_text: str, direction: str, model: str) -> str:
+    def translate(self, token: str, input_text: str, direction: str, model: str) -> str:
         """Start a translation in a background thread. Returns 'started'."""
+        self._check_token(token)
         if not input_text.strip():
             return "empty"
         with self._lock:
+            # Concurrency = 1: refuse while an Excel run is in progress.
+            if self._excel_job is not None and self._excel_job.state == "running":
+                return "busy"
             self._result = _PendingResult(status="translating")
 
         # Override the configured model if the user selected a different one.
@@ -286,14 +337,16 @@ class Api:
         threading.Thread(target=_worker, daemon=True).start()
         return "started"
 
-    def submit_review(self, edited_text: str) -> str:
+    def submit_review(self, token: str, edited_text: str) -> str:
         """Human submitted an edited draft — unblock the worker thread."""
+        self._check_token(token)
         if self._reviewer is not None:
             self._reviewer.submit_review(edited_text)
         return "submitted"
 
-    def approve_review(self) -> str:
+    def approve_review(self, token: str) -> str:
         """Human approved the draft as-is — unblock the worker thread."""
+        self._check_token(token)
         if self._reviewer is not None:
             self._reviewer.approve_review()
         return "approved"
@@ -310,6 +363,204 @@ class Api:
             "error": r.error,
         }
 
+    # ------------------------------------------------------------------
+    # Excel translation feature
+    # ------------------------------------------------------------------
+
+    def is_busy(self) -> bool:
+        """Return True if a single-sentence or Excel run is in progress."""
+        with self._lock:
+            if self._result.status == "translating":
+                return True
+            return self._excel_job is not None and self._excel_job.state == "running"
+
+    def path_exists(self, path: str) -> bool:
+        """Return True if ``path`` exists on disk (for overwrite confirmation)."""
+        return Path(path).exists()
+
+    def pick_excel_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.xlsx`` input; return the path or None."""
+        self._check_token(token)
+        if not webview.windows:
+            return None
+        result = webview.windows[0].create_file_dialog(
+            webview.OPEN_DIALOG, file_types=("Excel Workbook (*.xlsx)",),
+        )
+        if not result:
+            return None
+        return result[0]
+
+    def pick_excel_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for ``.xlsx`` output; return the path or None."""
+        self._check_token(token)
+        if not webview.windows:
+            return None
+        result = webview.windows[0].create_file_dialog(
+            webview.SAVE_DIALOG, save_filename=default_name,
+            file_types=("Excel Workbook (*.xlsx)",),
+        )
+        if not result:
+            return None
+        return result[0]
+
+    def get_excel_options(self) -> dict[str, Any]:
+        """Return the current ``cfg.excel`` values for the UI toggles."""
+        ex = self._cfg.excel
+        return {
+            "translate_comments": ex.translate_comments,
+            "translate_headers_footers": ex.translate_headers_footers,
+            "translate_chart_titles": ex.translate_chart_titles,
+            "max_segment_chars": ex.max_segment_chars,
+        }
+
+    def translate_excel(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start an Excel run in a background thread. Returns a job descriptor.
+
+        Returns immediately with ``{"job_id": ..., "state": "running"}`` (or
+        ``{"state": "error", "error": ...}`` if the run could not start). The
+        result is delivered via :meth:`get_excel_status` polling.
+        """
+        self._check_token(token)
+        # Validate input up front (no run started on invalid input).
+        in_path = Path(input_path)
+        if not in_path.is_file():
+            return {"state": "error", "error": f"input file not found: {input_path}"}
+        if in_path.suffix.lower() != ".xlsx":
+            return {"state": "error", "error": f"input must be an .xlsx file, got: {in_path.suffix}"}
+        if direction not in ("ar-en", "en-ar"):
+            return {"state": "error", "error": f"invalid direction: {direction}"}
+
+        with self._lock:
+            # Concurrency = 1: refuse while a single-sentence run is in progress.
+            if self._result.status == "translating":
+                return {"state": "error", "error": "A translation is already in progress"}
+            if self._excel_job is not None and self._excel_job.state == "running":
+                return {"state": "error", "error": "An Excel run is already in progress"}
+            job: _ExcelJob = _ExcelJob(job_id=uuid.uuid4().hex)
+            self._excel_job = job
+
+        # Apply option overrides to a deep copy of cfg (never mutate global cfg).
+        base_cfg: AppConfig = self._cfg.model_copy(deep=True)
+        excel_update: dict[str, Any] = {
+            "translate_comments": bool(options.get("translate_comments", base_cfg.excel.translate_comments)),
+            "translate_headers_footers": bool(options.get("translate_headers_footers", base_cfg.excel.translate_headers_footers)),
+            "translate_chart_titles": bool(options.get("translate_chart_titles", base_cfg.excel.translate_chart_titles)),
+            "max_segment_chars": int(options.get("max_segment_chars", base_cfg.excel.max_segment_chars)),
+        }
+        effective_cfg: AppConfig = base_cfg.model_copy(
+            update={"excel": base_cfg.excel.model_copy(update=excel_update)}
+        )
+
+        def _worker() -> None:
+            try:
+                report = translate_excel(
+                    input_path, output_path, direction, effective_cfg,
+                    llm=self._adapters.llm, embedder=self._adapters.embedder,
+                    glossary_index=self._adapters.glossary_index,
+                    persist_dir=self._adapters.persist_dir,
+                    run_logger=_new_run_logger(self._cfg),
+                    tm=self._adapters.tm,
+                    progress=_progress,
+                    cancel_event=job.cancel_event,
+                )
+                with self._lock:
+                    job.report = report
+                    job.completed = report.total_segments
+                    job.total = report.total_segments
+                    job.current = ""
+                    job.state = "cancelled" if report.cancelled else "done"
+            except (OllamaConnectionError, EmbeddingConnectionError) as e:
+                with self._lock:
+                    job.state = "error"
+                    job.error = (
+                        f"Cannot reach the Ollama daemon: {e}\n"
+                        "Is `ollama serve` running? Start it, then retry."
+                    )
+            except RAMGuardError as e:
+                with self._lock:
+                    job.state = "error"
+                    job.error = (
+                        f"RAM guard aborted the Excel run: {e}\n"
+                        "Free up memory (close other applications) and retry."
+                    )
+            except LegalTranslationError as e:
+                with self._lock:
+                    job.state = "error"
+                    job.error = str(e)
+            except Exception as e:  # noqa: BLE001 — UI must not crash
+                with self._lock:
+                    job.state = "error"
+                    job.error = f"excel error: {e}"
+
+        def _progress(completed: int, total: int, current: str) -> None:
+            with self._lock:
+                job.completed = completed
+                job.total = total
+                job.current = current
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return {"job_id": job.job_id, "state": "running"}
+
+    def get_excel_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the Excel job status. Called by JS every 300ms."""
+        with self._lock:
+            job: _ExcelJob | None = self._excel_job
+            if job is None or job.job_id != job_id:
+                return {"state": "error", "error": "unknown job"}
+            report_dict: dict[str, Any] | None = None
+            if job.report is not None:
+                r = job.report
+                report_dict = {
+                    "total_segments": r.total_segments,
+                    "translated": r.translated,
+                    "skipped": r.skipped,
+                    "failed": r.failed,
+                    "cancelled": r.cancelled,
+                    "warnings": list(r.warnings),
+                }
+            return {
+                "state": job.state,
+                "completed": job.completed,
+                "total": job.total,
+                "current": job.current,
+                "report": report_dict,
+                "error": job.error,
+            }
+
+    def cancel_excel(self, job_id: str) -> str:
+        """Set the cancel event for the given Excel job."""
+        with self._lock:
+            job: _ExcelJob | None = self._excel_job
+            if job is not None and job.job_id == job_id:
+                job.cancel_event.set()
+        return "cancelled"
+
+    def open_in_explorer(self, token: str, path: str) -> str:
+        """Open the OS file explorer with ``path`` selected (Windows)."""
+        self._check_token(token)
+        p: Path = Path(path)
+        if not p.exists():
+            return "missing"
+        try:
+            if os.name == "nt":  # Windows: select the file in Explorer.
+                subprocess.Popen(  # noqa: S603 — explorer is a known OS binary
+                    ["explorer", "/select,", str(p)],
+                )
+            else:  # Non-Windows fallback: open the parent directory.
+                startfile = getattr(os, "startfile", None)
+                if startfile is not None:
+                    startfile(str(p.parent))
+        except Exception as e:  # noqa: BLE001 — UI must not crash
+            return f"error: {e}"
+        return "ok"
+
 
 
 
@@ -322,7 +573,7 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
     engineering-principles §3.6) and injected here.
     """
     api: Api = Api(cfg, adapters)
-    webview.create_window(
+    window = webview.create_window(
         title="Iraqi Legal Translation Agent",
         html=_HTML,
         js_api=api,
@@ -331,4 +582,10 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
         min_size=(750, 600),
         text_select=True,
     )
-    webview.start()
+
+    def _inject_token() -> None:
+        """Inject the session token into the page once it has loaded."""
+        token: str = api.get_token()
+        window.evaluate_js(f"window.__SESSION_TOKEN='{token}';")
+
+    webview.start(func=_inject_token)

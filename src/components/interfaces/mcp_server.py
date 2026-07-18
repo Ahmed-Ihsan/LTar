@@ -40,6 +40,27 @@ from src.components.knowledge_sources.legal_search import (
 from src.components.knowledge_sources.legal_search import (
     search_ur_portal as _search_ur_portal,
 )
+from src.components.translation_pipeline.exceptions import InputValidationError
+from src.utils.rate_limit import TokenBucket
+
+_MAX_QUERY_LEN: int = 500
+_rate_limiter: TokenBucket = TokenBucket(rate=10.0 / 60.0, capacity=10)
+
+
+def _validate_query(query: str) -> str:
+    """Validate a search query; raise on empty or oversized input."""
+    if not query or not query.strip():
+        raise InputValidationError("query must not be empty")
+    if len(query) > _MAX_QUERY_LEN:
+        raise InputValidationError(
+            f"query exceeds {_MAX_QUERY_LEN} characters (got {len(query)})"
+        )
+    return query
+
+
+def _validate_max_results(n: int) -> int:
+    """Clamp max_results to the allowed range [1, 100]."""
+    return max(1, min(n, 100))
 
 # ---------------------------------------------------------------------------
 # MCP server — tool registration
@@ -71,7 +92,11 @@ def search_dijlex(query: str, max_results: int = 10) -> str:
     Returns:
         JSON string of search results.
     """
-    hits = _search_dijlex(query, max_results)
+    _validate_query(query)
+    n = _validate_max_results(max_results)
+    if not _rate_limiter.acquire():
+        return json.dumps({"error": "rate limit exceeded"}, ensure_ascii=False)
+    hits = _search_dijlex(query, n)
     return json.dumps([h.to_dict() for h in hits], ensure_ascii=False, indent=2)
 
 
@@ -89,7 +114,11 @@ def search_moj(query: str, max_results: int = 10) -> str:
     Returns:
         JSON string of search results.
     """
-    hits = _search_moj(query, max_results)
+    _validate_query(query)
+    n = _validate_max_results(max_results)
+    if not _rate_limiter.acquire():
+        return json.dumps({"error": "rate limit exceeded"}, ensure_ascii=False)
+    hits = _search_moj(query, n)
     return json.dumps([h.to_dict() for h in hits], ensure_ascii=False, indent=2)
 
 
@@ -107,7 +136,11 @@ def search_ur_portal(query: str, max_results: int = 10) -> str:
     Returns:
         JSON string of search results.
     """
-    hits = _search_ur_portal(query, max_results)
+    _validate_query(query)
+    n = _validate_max_results(max_results)
+    if not _rate_limiter.acquire():
+        return json.dumps({"error": "rate limit exceeded"}, ensure_ascii=False)
+    hits = _search_ur_portal(query, n)
     return json.dumps([h.to_dict() for h in hits], ensure_ascii=False, indent=2)
 
 
@@ -125,7 +158,11 @@ def search_national_library(query: str, max_results: int = 10) -> str:
     Returns:
         JSON string of search results.
     """
-    hits = _search_national_library(query, max_results)
+    _validate_query(query)
+    n = _validate_max_results(max_results)
+    if not _rate_limiter.acquire():
+        return json.dumps({"error": "rate limit exceeded"}, ensure_ascii=False)
+    hits = _search_national_library(query, n)
     return json.dumps([h.to_dict() for h in hits], ensure_ascii=False, indent=2)
 
 
@@ -143,7 +180,11 @@ def search_all(query: str, max_results: int = 5) -> str:
     Returns:
         JSON string of aggregated search results.
     """
-    hits = search_all_sources(query, max_results_per_source=max_results)
+    _validate_query(query)
+    n = _validate_max_results(max_results)
+    if not _rate_limiter.acquire():
+        return json.dumps({"error": "rate limit exceeded"}, ensure_ascii=False)
+    hits = search_all_sources(query, max_results_per_source=n)
     return json.dumps(
         [h.to_dict() for h in hits], ensure_ascii=False, indent=2
     )
