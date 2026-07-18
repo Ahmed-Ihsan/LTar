@@ -17,11 +17,14 @@ Implemented in Phase 4 (task 4.3.1).
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO
 
 from src.components.translation_pipeline.models import TranslationState
+
+logger = logging.getLogger(__name__)
 
 # Mandated metric fields per TODO 4.3.1 — the closed set this logger emits.
 _LOG_FIELDS: tuple[str, ...] = (
@@ -51,7 +54,7 @@ class RunLogger:
     deterministic filename (``run_<id>.jsonl``).
     """
 
-    __slots__ = ("_log_dir", "_run_id", "_path", "_fh")
+    __slots__ = ("_log_dir", "_run_id", "_path", "_fh", "_disabled")
 
     def __init__(
         self, log_dir: Path | str, run_id: str | None = None
@@ -60,7 +63,8 @@ class RunLogger:
         self._log_dir.mkdir(parents=True, exist_ok=True)
         self._run_id: str = run_id if run_id is not None else _new_run_id()
         self._path: Path = self._log_dir / f"run_{self._run_id}.jsonl"
-        self._fh: IO[str] = self._path.open("a", encoding="utf-8")
+        self._fh: IO[str] | None = self._path.open("a", encoding="utf-8")
+        self._disabled: bool = False
 
     @property
     def run_id(self) -> str:
@@ -84,16 +88,28 @@ class RunLogger:
         node has not yet populated is recorded as ``0`` / ``None`` rather than
         raising, so the preprocess node (which runs before ``draft`` / ``audit``
         exist) logs cleanly.
+
+        If the underlying file handle raises ``OSError`` (e.g. disk full), the
+        logger disables itself and logs a warning — the pipeline continues
+        uninterrupted.
         """
+        if self._disabled:
+            return
         snapshot: dict[str, object] = _extract_state_snapshot(state)
         line: str = _serialize_record(node_name, latency_ms, self._run_id, snapshot)
-        self._fh.write(line + "\n")
-        self._fh.flush()
+        try:
+            if self._fh is not None:
+                self._fh.write(line + "\n")
+                self._fh.flush()
+        except OSError as exc:
+            logger.warning("RunLogger disabled: %s", exc)
+            self._disabled = True
 
     def close(self) -> None:
         """Close the underlying file handle. Idempotent."""
-        if not self._fh.closed:
+        if self._fh is not None:
             self._fh.close()
+            self._fh = None
 
     def __enter__(self) -> RunLogger:
         return self

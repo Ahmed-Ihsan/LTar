@@ -52,12 +52,11 @@ def tm_build(
 
     from src.components.knowledge_sources.tm import TranslationMemory
 
-    tm = TranslationMemory(
+    with TranslationMemory(
         db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
-    )
-    tm.build_from_corpus(cdir)
-    entries = tm.list_all()
-    tm.close()
+    ) as tm:
+        tm.build_from_corpus(cdir)
+        entries = tm.list_all()
     typer.echo(f"TM built: {len(entries)} entries in {dbpath}")
 
 
@@ -122,12 +121,11 @@ def tm_build_parallel(
 
     from src.components.knowledge_sources.tm import TranslationMemory
 
-    tm = TranslationMemory(
+    with TranslationMemory(
         db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
-    )
-    tm.build_from_parallel(pairs)
-    entries = tm.list_all()
-    tm.close()
+    ) as tm:
+        tm.build_from_parallel(pairs)
+        entries = tm.list_all()
     typer.echo(f"TM built from parallel: {len(entries)} entries ({len(pairs)} pairs) in {dbpath}")
 
 
@@ -193,13 +191,12 @@ def tm_add_parallel(
 
     from src.components.knowledge_sources.tm import TranslationMemory
 
-    tm = TranslationMemory(
+    with TranslationMemory(
         db_path=dbpath, similarity_threshold=cfg.tm_similarity_threshold
-    )
-    before: int = len(tm.list_all())
-    added: int = tm.add_parallel(pairs)
-    after: int = len(tm.list_all())
-    tm.close()
+    ) as tm:
+        before: int = len(tm.list_all())
+        added: int = tm.add_parallel(pairs)
+        after: int = len(tm.list_all())
     typer.echo(
         f"TM augmented: {added} pairs added ({before} → {after} entries) in {dbpath}"
     )

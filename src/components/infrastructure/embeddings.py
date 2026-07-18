@@ -23,7 +23,6 @@ import ollama
 
 from src.components.infrastructure.ollama_errors import translate_engine_error
 from src.components.translation_pipeline.exceptions import EmbeddingError
-from src.config import load_config
 
 # ``nomic-embed-text`` produces 768-dimensional vectors. Kept here as the
 # single source of truth for the expected embedding dimension (DRY).
@@ -61,7 +60,7 @@ class Embedder:
     translates engine exceptions to the domain hierarchy.
     """
 
-    __slots__ = ("_client", "_model", "_host")
+    __slots__ = ("_client", "_model", "_host", "_closed")
 
     def __init__(
         self,
@@ -82,11 +81,30 @@ class Embedder:
         self._client: ollama.Client = (
             client if client is not None else ollama.Client(host=self._host)
         )
+        self._closed: bool = False
 
     @property
     def model(self) -> str:
         """The embedding model name used for all calls."""
         return self._model
+
+    def close(self) -> None:
+        """Close the underlying Ollama client if it supports ``close()``.
+
+        Idempotent — safe to call multiple times.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        client_close = getattr(self._client, "close", None)
+        if callable(client_close):
+            client_close()
+
+    def __enter__(self) -> Embedder:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     def embed(self, text: str) -> list[float]:
         """Embed a single ``text`` into a 768-dim vector.
@@ -152,35 +170,16 @@ class Embedder:
         return vectors
 
 
-# Module-level default embedder (lazy). The convenience functions below use it
-# so callers that do not need dependency injection can call ``embed_batch``
-# directly. Tests and the ingestion CLI inject an explicit :class:`Embedder`
-# (or a mock) instead.
-_default_embedder: Embedder | None = None
-
-
-def _get_default_embedder() -> Embedder:
-    """Return the lazily-created module-level default embedder."""
-    global _default_embedder
-    if _default_embedder is None:
-        cfg = load_config()
-        _default_embedder = Embedder(model=cfg.embed_model, host=cfg.ollama_host)
-    return _default_embedder
-
-
 def embed_batch(
     texts: list[str],
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: int,
     *,
-    embedder: EmbeddingAdapter | None = None,
+    embedder: EmbeddingAdapter,
 ) -> list[list[float]]:
-    """Embed ``texts`` in bounded batches using ``nomic-embed-text``.
+    """Embed ``texts`` in bounded batches using the given ``embedder``.
 
-    Convenience wrapper around the :class:`Embedder` adapter (TODO 2.3.1
-    signature). If ``embedder`` is given (real or mock), it is used directly —
-    this is the dependency-injection seam for deterministic tests
-    (engineering-principles §1.5). Otherwise the module-level default
-    :class:`Embedder` is used lazily.
+    Convenience wrapper around the :class:`Embedder` adapter. The
+    ``embedder`` argument is mandatory (DIP — no module-level default).
 
     Raises:
         EmbeddingConnectionError: cannot reach the Ollama daemon.
@@ -190,17 +189,13 @@ def embed_batch(
     """
     if batch_size <= 0:
         raise ValueError(f"batch_size must be positive, got {batch_size}")
-    if embedder is not None:
-        return embedder.embed_batch(texts, batch_size=batch_size)
-    return _get_default_embedder().embed_batch(texts, batch_size=batch_size)
+    return embedder.embed_batch(texts, batch_size=batch_size)
 
 
 def embed_text(
     text: str,
     *,
-    embedder: EmbeddingAdapter | None = None,
+    embedder: EmbeddingAdapter,
 ) -> list[float]:
     """Embed a single ``text`` (convenience wrapper around :func:`embed_batch`)."""
-    if embedder is not None:
-        return embedder.embed(text)
-    return _get_default_embedder().embed(text)
+    return embedder.embed(text)

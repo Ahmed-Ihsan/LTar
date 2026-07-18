@@ -225,7 +225,6 @@ def iter_articles(path: Path) -> Iterator[Article]:
     """
     file_path: Path = path
     law_slug: str = _law_slug_from_path(path)
-    handle = open(path, encoding="utf-8", errors="strict", newline="")
 
     header_lines: list[str] = []
     header_parsed: dict[str, str] | None = None
@@ -234,7 +233,7 @@ def iter_articles(path: Path) -> Iterator[Article]:
     current_body_start: int = 0
     current_lines: list[str] = []
 
-    with handle:
+    with open(path, encoding="utf-8", errors="strict", newline="") as handle:
         for line in _strict_utf8_lines(handle, path):
             line_len: int = len(line)
             stripped: str = line.rstrip("\r\n")

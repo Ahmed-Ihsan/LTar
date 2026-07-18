@@ -590,3 +590,18 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
             window.evaluate_js(f"window.__SESSION_TOKEN='{token}';")
 
     webview.start(func=_inject_token)
+
+    # Clean up resources after the window closes (task 6.5).
+    _close_adapters(adapters)
+
+
+def _close_adapters(adapters: Adapters) -> None:
+    """Close all resource-owning adapters (LLM, embedder, TM)."""
+    llm_close = getattr(adapters.llm, "close", None)
+    if callable(llm_close):
+        llm_close()
+    embedder_close = getattr(adapters.embedder, "close", None)
+    if callable(embedder_close):
+        embedder_close()
+    if adapters.tm is not None:
+        adapters.tm.close()

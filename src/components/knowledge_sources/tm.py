@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import threading
+import weakref
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -143,11 +145,15 @@ class TranslationMemory:
     millions of entries without O(n) comparisons.
     """
 
-    __slots__ = ("_db_path", "_threshold", "_conn")
+    __slots__ = ("_db_path", "_threshold", "_conn", "_lock", "__weakref__")
 
     def __init__(self, *, db_path: str, similarity_threshold: float = 0.98) -> None:
         self._db_path: str = db_path
         self._threshold: float = similarity_threshold
+        self._lock = threading.RLock()
+        # check_same_thread=False is required because the TM is shared across
+        # threads (e.g. CLI batch + UI). The RLock above serializes all access
+        # so the connection is never used concurrently.
         self._conn: sqlite3.Connection = sqlite3.connect(
             db_path, check_same_thread=False
         )
@@ -183,38 +189,41 @@ class TranslationMemory:
             "ON tm_trigrams(entry_id)"
         )
         self._conn.commit()
+        weakref.finalize(self, self._close_impl)
 
     def build_from_corpus(self, corpus_dir: Path) -> None:
         """Build the TM by aligning ar/en article pairs. Idempotent rebuild."""
-        self._conn.execute("DELETE FROM tm_entries")
-        self._conn.execute("DELETE FROM tm_trigrams")
-        entries: list[TmEntry] = _align_corpus(corpus_dir)
-        self._conn.executemany(
-            """
-            INSERT INTO tm_entries
-                (source_sentence, target_sentence, source_lang,
-                 target_lang, law_slug, article)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            [(e.source_sentence, e.target_sentence, e.source_lang,
-              e.target_lang, e.law_slug, e.article) for e in entries],
-        )
-        self._build_trigram_index()
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM tm_entries")
+            self._conn.execute("DELETE FROM tm_trigrams")
+            entries: list[TmEntry] = _align_corpus(corpus_dir)
+            self._conn.executemany(
+                """
+                INSERT INTO tm_entries
+                    (source_sentence, target_sentence, source_lang,
+                     target_lang, law_slug, article)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [(e.source_sentence, e.target_sentence, e.source_lang,
+                  e.target_lang, e.law_slug, e.article) for e in entries],
+            )
+            self._build_trigram_index()
+            self._conn.commit()
 
     def _build_trigram_index(self) -> None:
         """Build the trigram index from all entries in ``tm_entries``."""
-        rows = self._conn.execute(
-            "SELECT id, source_sentence, source_lang FROM tm_entries"
-        ).fetchall()
-        trigram_rows: list[tuple[str, int, str]] = []
-        for entry_id, sentence, lang in rows:
-            for trigram in _extract_trigrams(sentence):
-                trigram_rows.append((trigram, entry_id, lang))
-        self._conn.executemany(
-            "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
-            trigram_rows,
-        )
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, source_sentence, source_lang FROM tm_entries"
+            ).fetchall()
+            trigram_rows: list[tuple[str, int, str]] = []
+            for entry_id, sentence, lang in rows:
+                for trigram in _extract_trigrams(sentence):
+                    trigram_rows.append((trigram, entry_id, lang))
+            self._conn.executemany(
+                "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
+                trigram_rows,
+            )
 
     def build_from_parallel(
         self, pairs: list[tuple[str, str, str, str]],
@@ -225,19 +234,20 @@ class TranslationMemory:
         target_lang)``. Used by external corpus importers (e.g. MultiUN).
         Idempotent: clears all existing entries first.
         """
-        self._conn.execute("DELETE FROM tm_entries")
-        self._conn.execute("DELETE FROM tm_trigrams")
-        self._conn.executemany(
-            """
-            INSERT INTO tm_entries
-                (source_sentence, target_sentence, source_lang,
-                 target_lang, law_slug, article)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
-        )
-        self._build_trigram_index()
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM tm_entries")
+            self._conn.execute("DELETE FROM tm_trigrams")
+            self._conn.executemany(
+                """
+                INSERT INTO tm_entries
+                    (source_sentence, target_sentence, source_lang,
+                     target_lang, law_slug, article)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
+            )
+            self._build_trigram_index()
+            self._conn.commit()
 
     def add_parallel(
         self, pairs: list[tuple[str, str, str, str]],
@@ -251,75 +261,79 @@ class TranslationMemory:
         """
         if not pairs:
             return 0
-        self._conn.executemany(
-            """
-            INSERT INTO tm_entries
-                (source_sentence, target_sentence, source_lang,
-                 target_lang, law_slug, article)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
-        )
-        # Build trigram index only for the newly inserted rows.
-        rows = self._conn.execute(
-            "SELECT id, source_sentence, source_lang FROM tm_entries "
-            "ORDER BY id DESC LIMIT ?", (len(pairs),),
-        ).fetchall()
-        trigram_rows: list[tuple[str, int, str]] = []
-        for entry_id, sentence, lang in rows:
-            for trigram in _extract_trigrams(sentence):
-                trigram_rows.append((trigram, entry_id, lang))
-        self._conn.executemany(
-            "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
-            trigram_rows,
-        )
-        self._conn.commit()
-        return len(pairs)
+        with self._lock:
+            self._conn.executemany(
+                """
+                INSERT INTO tm_entries
+                    (source_sentence, target_sentence, source_lang,
+                     target_lang, law_slug, article)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [(s, t, sl, tl, "external", "") for s, t, sl, tl in pairs],
+            )
+            # Build trigram index only for the newly inserted rows.
+            rows = self._conn.execute(
+                "SELECT id, source_sentence, source_lang FROM tm_entries "
+                "ORDER BY id DESC LIMIT ?", (len(pairs),),
+            ).fetchall()
+            trigram_rows: list[tuple[str, int, str]] = []
+            for entry_id, sentence, lang in rows:
+                for trigram in _extract_trigrams(sentence):
+                    trigram_rows.append((trigram, entry_id, lang))
+            self._conn.executemany(
+                "INSERT INTO tm_trigrams (trigram, entry_id, source_lang) VALUES (?, ?, ?)",
+                trigram_rows,
+            )
+            self._conn.commit()
+            return len(pairs)
 
     def _trigram_candidates(
         self, query_trigrams: set[str], source_lang: str
     ) -> list[int]:
         """Stage 1: fast trigram-based candidate filtering."""
-        placeholders: str = ",".join("?" * len(query_trigrams))
-        candidates = self._conn.execute(
-            f"""
-            SELECT entry_id, COUNT(*) AS shared
-            FROM tm_trigrams
-            WHERE source_lang = ? AND trigram IN ({placeholders})
-            GROUP BY entry_id
-            ORDER BY shared DESC
-            LIMIT ?
-            """,
-            (source_lang, *query_trigrams, _MAX_CANDIDATES),
-        ).fetchall()
-        return [c[0] for c in candidates]
+        with self._lock:
+            placeholders: str = ",".join("?" * len(query_trigrams))
+            candidates = self._conn.execute(
+                f"""
+                SELECT entry_id, COUNT(*) AS shared
+                FROM tm_trigrams
+                WHERE source_lang = ? AND trigram IN ({placeholders})
+                GROUP BY entry_id
+                ORDER BY shared DESC
+                LIMIT ?
+                """,
+                (source_lang, *query_trigrams, _MAX_CANDIDATES),
+            ).fetchall()
+            return [c[0] for c in candidates]
 
     def _full_scan_candidates(
         self, source_lang: str
     ) -> tuple[list[int], dict[int, tuple[str, str]]]:
         """Fallback: full scan when the trigram index is empty (old DB)."""
-        rows = self._conn.execute(
-            "SELECT id, source_sentence, target_sentence FROM tm_entries "
-            "WHERE source_lang = ?",
-            (source_lang,),
-        ).fetchall()
-        candidate_ids: list[int] = [r[0] for r in rows]
-        candidate_map: dict[int, tuple[str, str]] = {
-            r[0]: (r[1], r[2]) for r in rows
-        }
-        return candidate_ids, candidate_map
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, source_sentence, target_sentence FROM tm_entries "
+                "WHERE source_lang = ?",
+                (source_lang,),
+            ).fetchall()
+            candidate_ids: list[int] = [r[0] for r in rows]
+            candidate_map: dict[int, tuple[str, str]] = {
+                r[0]: (r[1], r[2]) for r in rows
+            }
+            return candidate_ids, candidate_map
 
     def _load_candidate_map(
         self, candidate_ids: list[int]
     ) -> dict[int, tuple[str, str]]:
         """Load source/target sentences for the given candidate IDs."""
-        placeholders_ids: str = ",".join("?" * len(candidate_ids))
-        rows = self._conn.execute(
-            f"SELECT id, source_sentence, target_sentence FROM tm_entries "
-            f"WHERE id IN ({placeholders_ids})",
-            candidate_ids,
-        ).fetchall()
-        return {r[0]: (r[1], r[2]) for r in rows}
+        with self._lock:
+            placeholders_ids: str = ",".join("?" * len(candidate_ids))
+            rows = self._conn.execute(
+                f"SELECT id, source_sentence, target_sentence FROM tm_entries "
+                f"WHERE id IN ({placeholders_ids})",
+                candidate_ids,
+            ).fetchall()
+            return {r[0]: (r[1], r[2]) for r in rows}
 
     def _verify_candidates(
         self,
@@ -379,17 +393,32 @@ class TranslationMemory:
 
     def list_all(self) -> list[dict[str, str]]:
         """Return all entries as dicts (for testing / inspection)."""
-        rows = self._conn.execute(
-            "SELECT source_sentence, target_sentence, source_lang, "
-            "target_lang, law_slug, article FROM tm_entries"
-        ).fetchall()
-        return [
-            {"source_sentence": r[0], "target_sentence": r[1],
-             "source_lang": r[2], "target_lang": r[3],
-             "law_slug": r[4], "article": r[5]}
-            for r in rows
-        ]
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT source_sentence, target_sentence, source_lang, "
+                "target_lang, law_slug, article FROM tm_entries"
+            ).fetchall()
+            return [
+                {"source_sentence": r[0], "target_sentence": r[1],
+                 "source_lang": r[2], "target_lang": r[3],
+                 "law_slug": r[4], "article": r[5]}
+                for r in rows
+            ]
+
+    def _close_impl(self) -> None:
+        """Idempotent close — safe to call from both ``close()`` and the
+        ``weakref`` finalizer."""
+        with self._lock:
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None  # type: ignore[assignment]
 
     def close(self) -> None:
-        """Close the SQLite connection."""
-        self._conn.close()
+        """Close the SQLite connection (idempotent)."""
+        self._close_impl()
+
+    def __enter__(self) -> TranslationMemory:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._close_impl()

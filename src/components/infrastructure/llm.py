@@ -70,7 +70,7 @@ class OllamaEngineAdapter:
     a second timeout becomes :class:`OllamaTimeoutError`.
     """
 
-    __slots__ = ("_client", "_model", "_host")
+    __slots__ = ("_client", "_model", "_host", "_closed")
 
     def __init__(
         self,
@@ -91,11 +91,30 @@ class OllamaEngineAdapter:
         self._client: ollama.Client = (
             client if client is not None else ollama.Client(host=self._host)
         )
+        self._closed: bool = False
 
     @property
     def model(self) -> str:
         """The default chat model name used when none is passed to ``generate``."""
         return self._model
+
+    def close(self) -> None:
+        """Close the underlying Ollama client if it supports ``close()``.
+
+        Idempotent — safe to call multiple times.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        client_close = getattr(self._client, "close", None)
+        if callable(client_close):
+            client_close()
+
+    def __enter__(self) -> OllamaEngineAdapter:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     def generate(
         self,

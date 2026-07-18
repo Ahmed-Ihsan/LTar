@@ -142,7 +142,12 @@ class ChromaStore:
         return len(chunks)
 
     def _write_collection(self, target_dir: Path, chunks: list[Chunk]) -> None:
-        """Create the collection in ``target_dir`` and add all chunks batched."""
+        """Create the collection in ``target_dir`` and add all chunks batched.
+
+        On exception, handles are released via ``_close_handles`` in the
+        ``finally`` block so Windows file locks are freed before the caller
+        removes the temp directory.
+        """
         client = chromadb.PersistentClient(
             path=str(target_dir), settings=_TELEMETRY_SETTINGS
         )
@@ -153,25 +158,30 @@ class ChromaStore:
         self._client = client
         self._collection = collection
 
-        if not chunks:
-            return
+        try:
+            if not chunks:
+                return
 
-        # Embed all chunk texts in bounded batches (offline-architecture §1.4).
-        texts: list[str] = [c.text for c in chunks]
-        embeddings: list[list[float]] = self._embedder.embed_batch(
-            texts, batch_size=self._cfg.embedding_batch_size
-        )
-
-        # Add in batches of 64 to minimize persistence fsync count (§3.3).
-        for start in range(0, len(chunks), DEFAULT_ADD_BATCH):
-            end: int = start + DEFAULT_ADD_BATCH
-            batch_chunks: list[Chunk] = chunks[start:end]
-            collection.add(
-                ids=[c.chunk_id for c in batch_chunks],
-                documents=[c.text for c in batch_chunks],
-                embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
-                metadatas=[_chunk_metadata(c) for c in batch_chunks],
+            # Embed all chunk texts in bounded batches (offline-architecture §1.4).
+            texts: list[str] = [c.text for c in chunks]
+            embeddings: list[list[float]] = self._embedder.embed_batch(
+                texts, batch_size=self._cfg.embedding_batch_size
             )
+
+            # Add in batches of 64 to minimize persistence fsync count (§3.3).
+            for start in range(0, len(chunks), DEFAULT_ADD_BATCH):
+                end: int = start + DEFAULT_ADD_BATCH
+                batch_chunks: list[Chunk] = chunks[start:end]
+                collection.add(
+                    ids=[c.chunk_id for c in batch_chunks],
+                    documents=[c.text for c in batch_chunks],
+                    embeddings=embeddings[start:end],  # type: ignore[arg-type]  # ChromaDB stubs require ndarray, runtime accepts list[list[float]]
+                    metadatas=[_chunk_metadata(c) for c in batch_chunks],
+                )
+        except Exception:
+            # Release handles before the caller removes the temp dir.
+            self._close_handles()
+            raise
 
     def _atomic_swap(self, temp_dir: Path) -> None:
         """Swap ``temp_dir`` into ``persist_dir`` (offline-architecture §3.4).
@@ -205,9 +215,18 @@ class ChromaStore:
             SharedSystemClient.clear_system_cache()
         except Exception:  # cache already empty / not initialized
             pass
+        # Second gc.collect() after clearing the system cache is required on
+        # Windows to fully release SQLite file handles before the atomic
+        # rename in ``_atomic_swap`` (otherwise PermissionError [WinError 5]).
         gc.collect()
 
     # -- query --------------------------------------------------------------
+
+    def __enter__(self) -> ChromaStore:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._close_handles()
 
     def add_chunks(self, chunks: list[Chunk]) -> int:
         """Add ``chunks`` to the existing collection (incremental, non-destructive).

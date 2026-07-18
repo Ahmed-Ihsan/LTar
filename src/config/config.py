@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-from src.config.models import ChromaConfig, PathsConfig
+from src.config.models import ChromaConfig, ExcelConfig, PathsConfig
 
 # Default config location: config.yaml next to the project root.
 # This module lives at src/config/config.py, so project root is three
@@ -63,6 +63,9 @@ class AppConfig(BaseModel):
     # --- Web search (Iraqi legal sources) ---
     web_search_enabled: bool = False
     web_search_max_results: int = 5
+
+    # --- Excel (.xlsx) workbook translation ---
+    excel: ExcelConfig = Field(default_factory=ExcelConfig)
 
     @field_validator("chunk_size", "chunk_overlap", "top_k",
                      "embedding_batch_size", "chroma_add_batch",

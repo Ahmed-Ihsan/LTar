@@ -233,14 +233,15 @@ def translate(
     adapters: Adapters = _construct_adapters(cfg)
 
     try:
-        state = run_translation(
-            input_text, direction.value, cfg,
-            llm=adapters.llm, embedder=adapters.embedder,
-            glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
-            run_logger=_new_run_logger(cfg),
-            tm=adapters.tm,
-            reviewer=StdinHumanReviewer() if cfg.hitl_enabled else None,
-        )
+        with _new_run_logger(cfg) as run_logger:
+            state = run_translation(
+                input_text, direction.value, cfg,
+                llm=adapters.llm, embedder=adapters.embedder,
+                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
+                run_logger=run_logger,
+                tm=adapters.tm,
+                reviewer=StdinHumanReviewer() if cfg.hitl_enabled else None,
+            )
     except (OllamaConnectionError, EmbeddingConnectionError) as e:
         typer.secho(
             f"Cannot reach the Ollama daemon: {e}\n"
@@ -318,13 +319,14 @@ def batch(
     adapters: Adapters = _construct_adapters(cfg)
 
     try:
-        count: int = _process_batch(
-            input_arg, out, cfg,
-            llm=adapters.llm, embedder=adapters.embedder,
-            glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
-            run_logger=_new_run_logger(cfg),
-            tm=adapters.tm,
-        )
+        with _new_run_logger(cfg) as run_logger:
+            count: int = _process_batch(
+                input_arg, out, cfg,
+                llm=adapters.llm, embedder=adapters.embedder,
+                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
+                run_logger=run_logger,
+                tm=adapters.tm,
+            )
     except (OllamaConnectionError, EmbeddingConnectionError) as e:
         typer.secho(
             f"Cannot reach the Ollama daemon: {e}\n"
@@ -510,14 +512,15 @@ def excel(
     adapters: Adapters = _construct_adapters(cfg)
 
     try:
-        report = translate_excel(
-            str(input_arg), str(out), direction.value, cfg,
-            llm=adapters.llm, embedder=adapters.embedder,
-            glossary_index=adapters.glossary_index,
-            persist_dir=adapters.persist_dir,
-            run_logger=_new_run_logger(cfg),
-            tm=adapters.tm,
-        )
+        with _new_run_logger(cfg) as run_logger:
+            report = translate_excel(
+                str(input_arg), str(out), direction.value, cfg,
+                llm=adapters.llm, embedder=adapters.embedder,
+                glossary_index=adapters.glossary_index,
+                persist_dir=adapters.persist_dir,
+                run_logger=run_logger,
+                tm=adapters.tm,
+            )
     except (OllamaConnectionError, EmbeddingConnectionError) as e:
         typer.secho(
             f"Cannot reach the Ollama daemon: {e}\n"

@@ -13,13 +13,14 @@ from src.config.config import (
     ConfigError,
     load_config,
 )
-from src.config.models import ChromaConfig, PathsConfig
+from src.config.models import ChromaConfig, ExcelConfig, PathsConfig
 
 __all__ = [
     "DEFAULT_CONFIG_PATH",
     "AppConfig",
     "ChromaConfig",
     "ConfigError",
+    "ExcelConfig",
     "PathsConfig",
     "app",
     "load",

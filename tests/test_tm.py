@@ -1,6 +1,8 @@
 """Tests for the TranslationMemory class (task 3)."""
 from __future__ import annotations
 
+import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -84,3 +86,65 @@ def test_lookup_en_ar_direction(tmp_path: Path):
     assert hit is not None
     assert "عقد البيع" in hit["target_sentence"]
     tm.close()
+
+
+# ---------------------------------------------------------------------------
+# Task 1.7 — context manager + thread safety tests
+# ---------------------------------------------------------------------------
+
+
+def test_tm_context_manager_closes_connection(tmp_path: Path):
+    """Using ``with TranslationMemory(...)`` closes the connection on exit."""
+    with TranslationMemory(
+        db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98
+    ) as tm:
+        tm.build_from_corpus(_make_corpus(tmp_path))
+        assert tm.list_all()
+    # After context exit, the connection is closed — further use raises.
+    with pytest.raises((sqlite3.ProgrammingError, AttributeError)):
+        tm.list_all()
+
+
+def test_tm_close_is_idempotent(tmp_path: Path):
+    """Calling ``close()`` twice is safe (no error on second call)."""
+    tm = TranslationMemory(
+        db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98
+    )
+    tm.close()
+    tm.close()  # second close must not raise
+
+
+def test_tm_thread_safe_under_concurrent_writes(tmp_path: Path):
+    """Two threads each inserting 50 rows concurrently must not raise
+    ``sqlite3.ProgrammingError`` and all 100 rows must be present."""
+    tm = TranslationMemory(
+        db_path=str(tmp_path / "tm.sqlite"), similarity_threshold=0.98
+    )
+    errors: list[Exception] = []
+
+    def worker(start: int) -> None:
+        try:
+            pairs = [
+                (f"src {i}", f"tgt {i}", "ar", "en")
+                for i in range(start, start + 50)
+            ]
+            tm.add_parallel(pairs)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    t1 = threading.Thread(target=worker, args=(0,))
+    t2 = threading.Thread(target=worker, args=(1000,))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+    assert not errors, f"concurrent writes raised: {errors}"
+    assert len(tm.list_all()) == 100
+    tm.close()
+
+
+def _make_corpus(corpus_dir_parent: Path) -> Path:
+    corpus_dir = corpus_dir_parent / "corpus"
+    corpus_dir.mkdir(exist_ok=True)
+    _write_corpus(corpus_dir)
+    return corpus_dir

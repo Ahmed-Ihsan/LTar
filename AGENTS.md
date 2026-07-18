@@ -628,6 +628,32 @@ and the component-level guards:
   (plus `www.` variants) are allowed. Redirects are manually validated
   (max 3 hops); JSON-LD scripts are capped at 1 MiB.
 
+### 12.2 Resource management (fix-resource-lifetimes)
+
+All resource-owning classes implement the context-manager protocol
+(`__enter__`/`__exit__`/`close()`) as the standard for resource cleanup:
+
+- **`TranslationMemory`** (`tm.py`): Uses `threading.RLock` to serialize
+  all SQLite access (thread-safe). `close()` is idempotent and guarded
+  by `weakref.finalize` as a safety net. Use `with TranslationMemory(...) as tm:`.
+- **`RunLogger`** (`run_logging.py`): `log_node` catches `OSError` (disk
+  full) and disables itself non-fatally — the pipeline continues. Use
+  `with RunLogger(...) as logger:`.
+- **`Embedder`** (`embeddings.py`): `close()` calls `client.close()` if
+  available; idempotent. The module-level `_default_embedder` global has
+  been removed — callers must inject an `Embedder` explicitly (DIP). Use
+  `with Embedder(...) as embedder:`.
+- **`OllamaEngineAdapter`** (`llm.py`): Same pattern as `Embedder`.
+  Use `with OllamaEngineAdapter(...) as llm:`.
+- **`ChromaStore`** (`retrieval.py`): `__exit__` calls `_close_handles()`.
+  `_write_collection` wraps its body in `try/except` that releases handles
+  on failure (Windows file-lock safety). Use `with ChromaStore(...) as store:`.
+- **CLI callers**: `translate`, `batch`, `excel` commands wrap `RunLogger`
+  in `with`. `tm_build`, `tm_build_parallel`, `tm_add_parallel` wrap
+  `TranslationMemory` in `with`.
+- **Web UI**: `launch_ui` calls `_close_adapters(adapters)` after
+  `webview.start()` returns (window closed), releasing LLM, embedder, and TM.
+
 ---
 
 ## 13. Documentation Guidelines

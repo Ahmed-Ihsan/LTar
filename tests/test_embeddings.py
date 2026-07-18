@@ -78,10 +78,73 @@ class TestRealOllamaEmbedder:
             f"sample legal text number {i} about contract and sale"
             for i in range(16)
         ] + [f"sample arabic text {i}" for i in range(16)]
-        vecs: list[list[float]] = embed_batch(texts, batch_size=32)
+        embedder = Embedder(model="nomic-embed-text", host="http://localhost:11434")
+        vecs: list[list[float]] = embed_batch(texts, batch_size=32, embedder=embedder)
         assert len(vecs) == 32
         assert all(len(v) == EMBED_DIM for v in vecs)
 
     def test_real_embed_empty_returns_empty(self) -> None:
         embedder = Embedder(model="nomic-embed-text", host="http://localhost:11434")
         assert embedder.embed_batch([], batch_size=32) == []
+
+
+# ---------------------------------------------------------------------------
+# Task 3.8 — context manager tests
+# ---------------------------------------------------------------------------
+
+
+class TestEmbedderContextManager:
+    def test_context_manager_closes_client(self) -> None:
+        """Using ``with Embedder(...)`` calls ``close()`` on exit."""
+        close_calls: list[int] = []
+
+        class FakeClient:
+            def close(self) -> None:
+                close_calls.append(1)
+
+        embedder = Embedder(
+            client=FakeClient(),  # type: ignore[arg-type]
+            model="nomic-embed-text",
+            host="http://localhost:11434",
+        )
+        with embedder:
+            pass
+        assert close_calls == [1]
+
+    def test_close_is_idempotent(self) -> None:
+        """Calling ``close()`` twice is safe."""
+        close_calls: list[int] = []
+
+        class FakeClient:
+            def close(self) -> None:
+                close_calls.append(1)
+
+        embedder = Embedder(
+            client=FakeClient(),  # type: ignore[arg-type]
+            model="nomic-embed-text",
+            host="http://localhost:11434",
+        )
+        embedder.close()
+        embedder.close()
+        assert close_calls == [1]
+
+
+class TestLLMAdapterContextManager:
+    def test_context_manager_closes_client(self) -> None:
+        """Using ``with OllamaEngineAdapter(...)`` calls ``close()`` on exit."""
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+
+        close_calls: list[int] = []
+
+        class FakeClient:
+            def close(self) -> None:
+                close_calls.append(1)
+
+        adapter = OllamaEngineAdapter(
+            client=FakeClient(),  # type: ignore[arg-type]
+            model="gemma3:4b",
+            host="http://localhost:11434",
+        )
+        with adapter:
+            pass
+        assert close_calls == [1]

@@ -210,3 +210,58 @@ class TestRealOllamaRetrieval:
             embedder=embedder,
         )
         assert results[0].chunk_id == "civil_code_en_25_0"
+
+
+# ---------------------------------------------------------------------------
+# Task 4.5 — context manager + exception-safe cleanup tests
+# ---------------------------------------------------------------------------
+
+
+class TestChromaStoreContextManager:
+    def test_context_manager_closes_handles(
+        self, mock_embedder, config, tmp_path: Path
+    ) -> None:
+        """Using ``with ChromaStore(...)`` closes handles on exit."""
+        from src.components.knowledge_sources.retrieval import ChromaStore
+
+        store = ChromaStore(
+            tmp_path / "chroma", embedder=mock_embedder, cfg=config
+        )
+        chunks = _make_chunks(3)
+        with store:
+            store.build(chunks)
+        # After context exit, handles are closed — _client and _collection are None.
+        assert store._client is None
+        assert store._collection is None
+
+    def test_closes_handles_on_exception(
+        self, mock_embedder, config, tmp_path: Path
+    ) -> None:
+        """If an exception occurs during ``_write_collection``, handles are
+        released via the ``except`` block in ``_write_collection``."""
+        from src.components.knowledge_sources.retrieval import ChromaStore
+
+        store = ChromaStore(
+            tmp_path / "chroma", embedder=mock_embedder, cfg=config
+        )
+        chunks = _make_chunks(3)
+
+        # Mock embed_batch to raise on the second batch.
+        original_embed_batch = mock_embedder.embed_batch
+        call_count = 0
+
+        def failing_embed_batch(texts, batch_size=32):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 1:
+                raise RuntimeError("simulated embedding failure")
+            return original_embed_batch(texts, batch_size=batch_size)
+
+        mock_embedder.embed_batch = failing_embed_batch  # type: ignore[method-assign]
+
+        with pytest.raises(RuntimeError, match="simulated"):
+            store.build(chunks)
+
+        # Handles were released by the except block in _write_collection.
+        assert store._client is None
+        assert store._collection is None

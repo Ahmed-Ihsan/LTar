@@ -80,3 +80,23 @@ class UiTranslationResult:
     translation: str
     provenance_md: str
     audit_trace_md: str
+
+
+@dataclass(slots=True, frozen=True)
+class ExcelTranslationReport:
+    """Outcome of an ``excel`` workbook translation run.
+
+    Counts are over the deduplicated set of unique source segments extracted
+    from the workbook. ``skipped`` covers segments left untranslated due to
+    cancellation or the ``max_segment_chars`` cap; ``failed`` covers segments
+    whose translation raised a domain error or returned empty output (the
+    original text is preserved in both cases). ``cancelled`` is True when the
+    run was interrupted via ``cancel_event``.
+    """
+
+    total_segments: int
+    translated: int
+    skipped: int
+    failed: int
+    cancelled: bool
+    warnings: list[str]

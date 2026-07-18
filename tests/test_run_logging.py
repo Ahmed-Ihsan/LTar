@@ -225,3 +225,46 @@ class TestRunTranslationLogging:
         )
         assert state["final_output"] == "contract of sale"
         assert not log_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# Task 2.7 — context manager + non-fatal logging tests
+# ---------------------------------------------------------------------------
+
+
+class TestRunLoggerContextManager:
+    def test_context_manager_closes_file(self, tmp_path: Path) -> None:
+        """Using ``with RunLogger(...)`` closes the file handle on exit."""
+        with RunLogger(log_dir=tmp_path, run_id="cm1") as logger:
+            logger.log_node("preprocess", 1.0, _state_with_metrics())
+        log_file: Path = tmp_path / "run_cm1.jsonl"
+        assert log_file.is_file()
+        lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 1
+
+    def test_non_fatal_on_disk_full(self, tmp_path: Path) -> None:
+        """If ``self._fh.write`` raises ``OSError``, ``log_node`` must not
+        propagate the error and subsequent calls must be no-ops."""
+        logger = RunLogger(log_dir=tmp_path, run_id="df1")
+        # Force the file handle's write to raise OSError.
+        original_write = logger._fh.write  # type: ignore[union-attr]
+        call_count = 0
+
+        def raising_write(_data: str) -> int:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise OSError("disk full")
+            return original_write(_data)
+
+        logger._fh.write = raising_write  # type: ignore[union-attr,method-assign]
+
+        # First call: triggers OSError → logger disables itself, no raise.
+        logger.log_node("translate", 1.0, _state_with_metrics())
+
+        # Second call: must be a no-op (disabled flag set).
+        logger.log_node("audit", 2.0, _state_with_metrics())
+
+        # The logger is disabled — no exception, call_count stayed at 1.
+        assert call_count == 1
+        logger.close()
