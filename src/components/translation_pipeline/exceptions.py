@@ -119,3 +119,18 @@ class RAMGuardError(LegalTranslationError):
     when free RAM is under ``RAM_GUARD_MIN_GB`` (1.5 GB), so the process aborts
     with a clear message instead of risking an out-of-memory kill mid-run.
     """
+
+
+# --- Input validation (harden-untrusted-input-surfaces) ---------------------
+
+
+class InputValidationError(LegalTranslationError):
+    """Untrusted input failed validation (oversized, malformed, or unsafe)."""
+
+
+class PathContainmentError(InputValidationError):
+    """A file path is outside the allowed project root directory."""
+
+
+class LegalSearchBlockedError(LegalTranslationError):
+    """A legal-search URL or redirect target is not on the allowed host list."""

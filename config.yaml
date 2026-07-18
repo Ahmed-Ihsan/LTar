@@ -64,3 +64,17 @@ hitl_feedback_dir: data/feedback
 # Disabled by default — requires internet access and adds ~5-15s per translation.
 web_search_enabled: false
 web_search_max_results: 5
+
+# --- Excel (.xlsx) workbook translation ---
+# Controls which human-readable text locations the `excel` CLI command
+# translates. Non-text artifacts (formulas, merged cells, charts, images,
+# comments structure, conditional formatting, data validation, page layout)
+# are always preserved byte-for-byte; these toggles only select which text
+# gets routed through the translation pipeline.
+excel:
+  translate_comments: true
+  translate_headers_footers: true
+  translate_chart_titles: true
+  max_segment_chars: 4096    # segments longer than this are skipped (original kept)
+  max_xlsx_bytes: 104857600  # 100 MiB — workbooks larger than this are rejected
+  max_segments: 10000        # workbooks with more translatable segments are rejected

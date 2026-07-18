@@ -50,3 +50,40 @@ class ChromaConfig(BaseModel):
         if v < 1:
             raise ValueError(f"ef must be >= 1, got {v}")
         return v
+
+
+class ExcelConfig(BaseModel):
+    """Excel (.xlsx) translation feature toggles and limits.
+
+    Controls which human-readable text locations the Excel adapter translates,
+    and the per-segment size cap. Defaults translate every supported location
+    so a plain ``excel`` run translates the whole workbook.
+    """
+
+    translate_comments: bool = True
+    translate_headers_footers: bool = True
+    translate_chart_titles: bool = True
+    max_segment_chars: int = 4096
+    max_xlsx_bytes: int = 100 * 1024 * 1024
+    max_segments: int = 10000
+
+    @field_validator("max_segment_chars")
+    @classmethod
+    def _max_segment_chars_min(cls, v: int) -> int:
+        if v < 16:
+            raise ValueError(f"max_segment_chars must be >= 16, got {v}")
+        return v
+
+    @field_validator("max_xlsx_bytes")
+    @classmethod
+    def _max_xlsx_bytes_min(cls, v: int) -> int:
+        if v < 1_048_576:
+            raise ValueError(f"max_xlsx_bytes must be >= 1 MiB, got {v}")
+        return v
+
+    @field_validator("max_segments")
+    @classmethod
+    def _max_segments_min(cls, v: int) -> int:
+        if v < 100:
+            raise ValueError(f"max_segments must be >= 100, got {v}")
+        return v
