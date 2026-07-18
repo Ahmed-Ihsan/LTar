@@ -586,6 +586,7 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
     def _inject_token() -> None:
         """Inject the session token into the page once it has loaded."""
         token: str = api.get_token()
-        window.evaluate_js(f"window.__SESSION_TOKEN='{token}';")
+        if window is not None:
+            window.evaluate_js(f"window.__SESSION_TOKEN='{token}';")
 
     webview.start(func=_inject_token)

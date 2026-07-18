@@ -149,9 +149,13 @@ pip install -e .
 ```
 
 `requirements.txt` is the canonical install list — it includes every runtime
-dependency needed for the CLI and the desktop UI (including `pywebview`).
-`pyproject.toml` mirrors it for editable installs (`pip install -e .`); both
-install paths produce the same runtime environment.
+dependency needed for the CLI and the desktop UI (including `pywebview` and
+`defusedxml` for XXE-safe XML parsing). `pyproject.toml` mirrors it for
+editable installs (`pip install -e .`); both install paths produce the same
+runtime environment.
+
+**Path containment:** All `--input` and `--out` paths must be inside the
+project root directory. Paths outside the root are rejected with exit code 4.
 
 **Optional dependencies:**
 
@@ -197,6 +201,9 @@ python -m src.app tm-build
 # Launch desktop UI (pywebview)
 python -m src.app ui
 ```
+
+> **Path containment:** `--input` and `--out` paths must be inside the project
+> root. Paths outside the root are rejected with exit code 4.
 
 > **Note:** On Windows, set UTF-8 encoding for Arabic output:
 > ```powershell

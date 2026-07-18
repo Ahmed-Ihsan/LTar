@@ -42,6 +42,7 @@ dev = [
     "mypy>=1.10,<2",
     "radon>=6,<7",
     "types-PyYAML>=6,<7",
+    "types-defusedxml>=0.7,<1",
 ]
 gradio = [
     "gradio>=4.0,<5",
@@ -138,6 +139,9 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # test_web_ui_excel.py reuses test_excel.py's single-line OOXML fixture literals
 # (sharedStrings, sheet XML) for the .xlsx builder — same E501 precedent.
 "tests/test_web_ui_excel.py" = ["E501"]
+# test_security_hardening.py reuses the same OOXML fixture literals for the
+# XXE / zip-slip / injection tests — same E501 precedent.
+"tests/test_security_hardening.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"
