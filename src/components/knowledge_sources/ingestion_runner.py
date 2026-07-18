@@ -10,6 +10,7 @@ manifest. It calls into the single-source-of-truth functions in
 from __future__ import annotations
 
 import gc
+import logging
 import time
 from pathlib import Path
 from typing import Annotated
@@ -40,6 +41,8 @@ from src.components.translation_pipeline.exceptions import (
 )
 from src.config import AppConfig, load_config
 
+logger = logging.getLogger(__name__)
+
 
 def _ingest_glossary(cfg: AppConfig) -> tuple[GlossarySummary, list[FileHash]]:
     """Load glossary files into SQLite; return summary and file hashes."""
@@ -54,9 +57,11 @@ def _ingest_glossary(cfg: AppConfig) -> tuple[GlossarySummary, list[FileHash]]:
         try:
             terms = load_glossary_files(fp)
             all_terms.extend(terms)
-        except GlossaryConflictError:
+        except GlossaryConflictError as e:
+            logger.warning("Glossary conflict in %s: %s", fp, e)
             conflicts += 1
-        except GlossaryValidationError:
+        except GlossaryValidationError as e:
+            logger.warning("Glossary validation error in %s: %s", fp, e)
             validation_errors += 1
 
     if all_terms and conflicts == 0 and validation_errors == 0:
@@ -103,7 +108,8 @@ def _iter_corpus_chunks(
                 chunks.extend(
                     chunk_article(article, cfg.chunk_size, cfg.chunk_overlap)
                 )
-        except (CorpusParseError, CorpusEncodingError):
+        except (CorpusParseError, CorpusEncodingError) as e:
+            logger.warning("Corpus parse/encoding error in %s: %s", fp, e)
             parse_errors += 1
 
     summary = CorpusSummary(

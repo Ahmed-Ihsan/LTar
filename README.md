@@ -218,6 +218,16 @@ python -m src.app doctor
 
 The `doctor` command checks: Ollama daemon reachable, required models present, ChromaDB directory initialized, glossary SQLite populated, RAM headroom estimate.
 
+### 5.8 Logging
+
+All entry points (CLI, web UI, Tkinter UI) call `configure_logging()` from
+`src/utils/logging_setup.py` before any component runs. Logs are written to
+**stderr** with format `%(asctime)s %(levelname)s %(name)s %(message)s` and,
+when a `log_dir` is configured (default: `logs/`), also to
+`logs/app.log` (UTF-8, appended). The logging level defaults to `INFO` and
+can be set via `config.yaml`. The setup is idempotent — repeated calls do not
+add duplicate handlers.
+
 ---
 
 ## 6. Architecture

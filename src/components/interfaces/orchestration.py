@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import enum
 import json
+import logging
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
@@ -28,6 +29,8 @@ from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
 from src.utils.jsonl_schema import BatchRecord
 from src.utils.paths import validate_path_in_root
+
+logger = logging.getLogger(__name__)
 
 
 class Direction(enum.Enum):

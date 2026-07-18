@@ -265,3 +265,28 @@ class TestChromaStoreContextManager:
         # Handles were released by the except block in _write_collection.
         assert store._client is None
         assert store._collection is None
+
+
+class TestCloseHandlesLogging:
+    def test_close_handles_logs_on_oserror(
+        self, mock_embedder, config, tmp_path: Path, caplog
+    ) -> None:
+        """_close_handles logs a warning on OSError from clear_system_cache."""
+        import logging
+        from unittest.mock import patch
+
+        from src.components.knowledge_sources.retrieval import ChromaStore
+
+        store = ChromaStore(
+            tmp_path / "chroma_log", embedder=mock_embedder, cfg=config
+        )
+        with patch(
+            "src.components.knowledge_sources.retrieval.SharedSystemClient.clear_system_cache",
+            side_effect=OSError("test error"),
+        ):
+            with caplog.at_level(
+                logging.WARNING,
+                logger="src.components.knowledge_sources.retrieval",
+            ):
+                store._close_handles()
+        assert any("ChromaStore close OSError" in r.message for r in caplog.records)

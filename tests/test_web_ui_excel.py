@@ -347,3 +347,49 @@ class TestWebUiExcel:
         )
         assert res["state"] == "error"
         assert ".xlsx" in res["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Task 5.4 — UI-boundary logger.exception tests
+# ---------------------------------------------------------------------------
+
+
+class TestApiLogsExceptionOnFailure:
+    def test_translate_logs_exception_on_failure(
+        self, mock_llm, mock_embedder, glossary_index, config, tmp_path, caplog
+    ) -> None:
+        """Api.translate logs an exception when the pipeline raises."""
+        import logging
+        from unittest.mock import patch
+
+        from src.components.interfaces.models import Adapters
+        from src.components.interfaces.web_ui import Api
+
+        adapters = Adapters(
+            llm=mock_llm, embedder=mock_embedder,
+            glossary_index=glossary_index,
+            persist_dir=str(tmp_path / "chroma"),
+            tm=None,
+        )
+        api = Api(config, adapters)
+
+        with patch(
+            "src.components.interfaces.web_ui._translate_for_ui",
+            side_effect=RuntimeError("pipeline boom"),
+        ):
+            with caplog.at_level(
+                logging.ERROR,
+                logger="src.components.interfaces.web_ui",
+            ):
+                api.translate(api.get_token(), "test", "ar-en", "gemma3:4b")
+                # Wait for the background thread to finish.
+                for _ in range(50):
+                    time.sleep(0.1)
+                    with api._lock:
+                        if api._result is not None:
+                            break
+
+        assert any(
+            "Api.translate failed" in r.message and r.levelno == logging.ERROR
+            for r in caplog.records
+        )

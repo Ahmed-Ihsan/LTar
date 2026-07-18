@@ -25,6 +25,10 @@ Implemented in Phase 3 (tasks 3.2.x).
 """
 from __future__ import annotations
 
+import logging
+
+import httpx
+
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.knowledge_sources.tm import TranslationMemory
 from src.components.translation_pipeline.constants import (
@@ -32,6 +36,7 @@ from src.components.translation_pipeline.constants import (
     VERDICT_APPROVE,
     VERDICT_REVISE,
 )
+from src.components.translation_pipeline.exceptions import LegalSearchBlockedError
 from src.components.translation_pipeline.formatters import (
     augment_query_for_retrieval,
     format_context_chunks,
@@ -57,6 +62,8 @@ from src.components.translation_pipeline.protocols import (
     WebSearcher,
 )
 from src.config import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 def _require_fields(state: TranslationState, fields: tuple[str, ...]) -> None:
@@ -427,8 +434,9 @@ def web_search_node(
 
     try:
         results = searcher.search(query)
-    except Exception:
+    except (httpx.HTTPError, ValueError, LegalSearchBlockedError) as e:
         # Web search must never crash the pipeline.
+        logger.warning("web_search failed for query=%r: %s", query, e)
         results = []
 
     warnings: list[str] = list(state.get("warnings", []))

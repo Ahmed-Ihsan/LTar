@@ -17,6 +17,7 @@ Implemented in Phase 2 (tasks 2.3.2, 2.3.3).
 from __future__ import annotations
 
 import gc
+import logging
 import shutil
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,8 @@ from src.components.translation_pipeline.exceptions import (
     RetrievalError,
 )
 from src.config import AppConfig, load_config
+
+logger = logging.getLogger(__name__)
 
 # Default collection name (DATA_SPEC §4 / offline-architecture §3.1).
 DEFAULT_COLLECTION: str = "iraqi_laws"
@@ -213,8 +216,10 @@ class ChromaStore:
         gc.collect()
         try:
             SharedSystemClient.clear_system_cache()
-        except Exception:  # cache already empty / not initialized
-            pass
+        except OSError as e:
+            logger.warning("ChromaStore close OSError: %s", e)
+        except Exception as e:  # noqa: BLE001 -- ChromaDB cache cleanup
+            logger.warning("ChromaStore close unexpected: %s", e)
         # Second gc.collect() after clearing the system cache is required on
         # Windows to fully release SQLite file handles before the atomic
         # rename in ``_atomic_swap`` (otherwise PermissionError [WinError 5]).

@@ -15,6 +15,7 @@ Implemented in Phase 2 (tasks 2.1.x).
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
@@ -27,6 +28,8 @@ from src.components.translation_pipeline.exceptions import (
     GlossaryError,
     GlossaryValidationError,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "GlossaryConflictError",

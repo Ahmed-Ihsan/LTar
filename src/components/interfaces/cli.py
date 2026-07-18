@@ -152,6 +152,9 @@ def main(
 ) -> None:
     """Iraqi Legal Translation Agent CLI."""
     _ = ctx
+    from src.utils.logging_setup import configure_logging
+
+    configure_logging()
 
 
 @app.command()

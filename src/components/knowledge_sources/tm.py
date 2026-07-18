@@ -23,6 +23,7 @@ O(n) cost of comparing against every row.
 """
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
 import threading
@@ -32,6 +33,8 @@ from pathlib import Path
 
 from src.components.knowledge_sources.models import TmEntry
 from src.components.translation_pipeline.models import TmHit
+
+logger = logging.getLogger(__name__)
 
 _ARTICLE_MARKER_RE: re.Pattern[str] = re.compile(r"^ARTICLE\s+(.+?)\s*$")
 _HEADER_SEPARATOR: str = "---"

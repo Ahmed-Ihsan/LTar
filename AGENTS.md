@@ -430,6 +430,10 @@ The AI agent **must never**:
 - Use Protocols (PEP 544, `@runtime_checkable`) for adapter seams.
 - Write docstrings on public APIs; comments only where logic is non-obvious.
 - Follow `ruff` line-length 100 and `mypy strict`.
+- Add `import logging; logger = logging.getLogger(__name__)` to every module
+  that can raise or catch exceptions. Use `logger.warning` for expected
+  failures, `logger.exception` at UI/process boundaries (the exception is
+  already being surfaced to the caller — log the traceback for diagnostics).
 
 ### Never
 
@@ -441,6 +445,10 @@ The AI agent **must never**:
 - Reformat versioned prompt constants (they are code, not prose).
 - Import concrete engines inside the pipeline — depend on protocols.
 - Mutate state inside LangGraph conditional-edge routing functions.
+- Use a bare `except Exception:` without a `logger.exception` (or
+  `logger.warning`) call. UI boundaries are the only exception — they may
+  use `except Exception as e: # noqa: BLE001 -- UI boundary: log + surface
+  to user` followed by `logger.exception(...)`.
 
 ### Per-File Ignore Policy
 

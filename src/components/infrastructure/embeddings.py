@@ -17,12 +17,15 @@ Implemented in Phase 2 (task 2.3.1).
 """
 from __future__ import annotations
 
+import logging
 from typing import Protocol, runtime_checkable
 
 import ollama
 
 from src.components.infrastructure.ollama_errors import translate_engine_error
 from src.components.translation_pipeline.exceptions import EmbeddingError
+
+logger = logging.getLogger(__name__)
 
 # ``nomic-embed-text`` produces 768-dimensional vectors. Kept here as the
 # single source of truth for the expected embedding dimension (DRY).
@@ -144,11 +147,7 @@ class Embedder:
                 response = self._client.embed(
                     model=self._model, input=batch
                 )
-            except (ConnectionError, OSError, TimeoutError) as err:
-                raise translate_engine_error(
-                    err, model=self._model, host=self._host, kind="embedding"
-                ) from err
-            except Exception as err:  # ollama.RequestError / ResponseError / others
+            except Exception as err:  # noqa: BLE001 -- single boundary; translate_engine_error classifies
                 raise translate_engine_error(
                     err, model=self._model, host=self._host, kind="embedding"
                 ) from err

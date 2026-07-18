@@ -19,13 +19,17 @@ nodes).
 """
 from __future__ import annotations
 
+import logging
 from typing import Protocol, runtime_checkable
 
+import httpx
 import ollama
 
 from src.components.infrastructure.memory import check_ram_guard
 from src.components.infrastructure.ollama_errors import translate_engine_error
 from src.components.translation_pipeline.exceptions import LLMRuntimeError
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -179,7 +183,11 @@ class OllamaEngineAdapter:
                 first_err=err,
             )
         except Exception as err:  # ollama.ResponseError / httpx.* / others
-            if "timeout" in str(err).lower() or "timed out" in str(err).lower():
+            # isinstance-first timeout detection; string-match kept as a
+            # fallback for ollama-py wrappers that don't subclass httpx.
+            if isinstance(err, httpx.TimeoutException | TimeoutError) or (
+                "timeout" in str(err).lower() or "timed out" in str(err).lower()
+            ):
                 return self._retry_on_timeout(
                     messages=messages, model=model, options=options,
                     timeout=timeout, first_err=err,

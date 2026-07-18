@@ -23,6 +23,7 @@ Features:
 """
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 import subprocess
@@ -34,7 +35,7 @@ from typing import Any
 
 import webview
 
-from src.components.interfaces.cli import _new_run_logger
+from src.components.interfaces.cli import _new_run_logger, _resolve_path
 from src.components.interfaces.diagnostics import _list_ollama_models
 from src.components.interfaces.excel import translate_excel
 from src.components.interfaces.models import Adapters, ExcelTranslationReport, UiTranslationResult
@@ -52,6 +53,8 @@ from src.components.translation_pipeline.exceptions import (
 )
 from src.components.translation_pipeline.models import TranslationState
 from src.config import AppConfig
+
+logger = logging.getLogger(__name__)
 
 # Example legal sentences for the dropdown (covers different domains).
 _EXAMPLES: list[dict[str, str]] = [
@@ -327,7 +330,8 @@ class Api:
                     })
                     if len(self._history) > 10:
                         self._history.pop(0)
-            except Exception as e:  # noqa: BLE001 — UI must not crash
+            except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
+                logger.exception("Api.translate failed")
                 with self._lock:
                     self._result = _PendingResult(
                         status="error", error=str(e),
@@ -494,7 +498,8 @@ class Api:
                 with self._lock:
                     job.state = "error"
                     job.error = str(e)
-            except Exception as e:  # noqa: BLE001 — UI must not crash
+            except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
+                logger.exception("Api.translate_excel failed")
                 with self._lock:
                     job.state = "error"
                     job.error = f"excel error: {e}"
@@ -557,7 +562,8 @@ class Api:
                 startfile = getattr(os, "startfile", None)
                 if startfile is not None:
                     startfile(str(p.parent))
-        except Exception as e:  # noqa: BLE001 — UI must not crash
+        except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
+            logger.exception("Api.open_in_explorer failed")
             return f"error: {e}"
         return "ok"
 
@@ -572,6 +578,9 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
     constructed by the CLI (the only place concrete adapters are built,
     engineering-principles §3.6) and injected here.
     """
+    from src.utils.logging_setup import configure_logging
+
+    configure_logging(log_dir=_resolve_path(cfg, "logs"))
     api: Api = Api(cfg, adapters)
     window = webview.create_window(
         title="Iraqi Legal Translation Agent",

@@ -20,6 +20,7 @@ thread-safe, so the worker thread writes results into a
 """
 from __future__ import annotations
 
+import logging
 import queue
 import threading
 import tkinter
@@ -27,13 +28,15 @@ from dataclasses import dataclass
 from tkinter import DISABLED, NORMAL, Tk, messagebox, ttk
 from typing import Any
 
-from src.components.interfaces.cli import _new_run_logger
+from src.components.interfaces.cli import _new_run_logger, _resolve_path
 from src.components.interfaces.models import Adapters, UiTranslationResult
 from src.components.interfaces.orchestration import (
     _audit_trace_markdown,
     _translate_for_ui,
 )
 from src.config import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -132,7 +135,8 @@ def _start_translation(
                 tm=adapters.tm,
             )
             result_queue.put(("ok", result))
-        except Exception as e:  # noqa: BLE001 — UI must not crash
+        except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
+            logger.exception("Tk translation worker failed")
             result_queue.put(("error", str(e)))
 
     threading.Thread(target=_worker, daemon=True).start()
@@ -171,6 +175,9 @@ def launch_ui(cfg: AppConfig, adapters: Adapters) -> None:
     constructed by the CLI (the only place concrete adapters are built,
     engineering-principles §3.6) and injected here.
     """
+    from src.utils.logging_setup import configure_logging
+
+    configure_logging(log_dir=_resolve_path(cfg, "logs"))
     root: Tk = Tk()
     root.title("Iraqi Legal Translation Agent")
     root.geometry("800x700")

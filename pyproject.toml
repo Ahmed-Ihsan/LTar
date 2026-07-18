@@ -138,7 +138,7 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 "tests/test_excel.py" = ["E501"]
 # test_web_ui_excel.py reuses test_excel.py's single-line OOXML fixture literals
 # (sharedStrings, sheet XML) for the .xlsx builder — same E501 precedent.
-"tests/test_web_ui_excel.py" = ["E501"]
+"tests/test_web_ui_excel.py" = ["E501", "PLR0913"]
 # test_security_hardening.py reuses the same OOXML fixture literals for the
 # XXE / zip-slip / injection tests — same E501 precedent.
 "tests/test_security_hardening.py" = ["E501"]

@@ -10,6 +10,7 @@ Uses a fake ``WebSearcher`` protocol implementation (no real network calls in CI
 """
 from __future__ import annotations
 
+import httpx
 import pytest
 
 from src.components.translation_pipeline.models import TranslationState, WebSearchResult
@@ -147,7 +148,7 @@ class TestWebSearchErrorHandling:
     def test_network_error_returns_empty_with_warning(self) -> None:
         cfg: AppConfig = _cfg()
         state: TranslationState = _state()
-        searcher: _FakeSearcher = _FakeSearcher(raise_exc=Exception("Network error"))
+        searcher: _FakeSearcher = _FakeSearcher(raise_exc=httpx.HTTPError("Network error"))
         result: TranslationState = web_search_node(state, cfg=cfg, searcher=searcher)
         assert result["web_search_results"] == []
         assert any("web search" in w.lower() for w in result["warnings"])
@@ -183,3 +184,32 @@ class TestWebSearchEdgeCases:
         result: TranslationState = web_search_node(state, cfg=cfg, searcher=searcher)
         assert "Existing warning" in result["warnings"]
         assert len(result["warnings"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Task 4.7 — narrowed exception + logger.warning tests
+# ---------------------------------------------------------------------------
+
+
+class TestWebSearchNarrowedExceptions:
+    def test_httpx_error_logs_warning(self, caplog) -> None:
+        """httpx.HTTPError is caught and logged."""
+        cfg: AppConfig = _cfg()
+        state: TranslationState = _state()
+        searcher: _FakeSearcher = _FakeSearcher(
+            raise_exc=httpx.ConnectError("connection refused")
+        )
+        with caplog.at_level("WARNING", logger="src.components.translation_pipeline.nodes"):
+            result: TranslationState = web_search_node(state, cfg=cfg, searcher=searcher)
+        assert result["web_search_results"] == []
+        assert any("web_search failed" in r.message for r in caplog.records)
+
+    def test_value_error_logs_warning(self, caplog) -> None:
+        """ValueError is caught and logged."""
+        cfg: AppConfig = _cfg()
+        state: TranslationState = _state()
+        searcher: _FakeSearcher = _FakeSearcher(raise_exc=ValueError("bad query"))
+        with caplog.at_level("WARNING", logger="src.components.translation_pipeline.nodes"):
+            result: TranslationState = web_search_node(state, cfg=cfg, searcher=searcher)
+        assert result["web_search_results"] == []
+        assert any("web_search failed" in r.message for r in caplog.records)

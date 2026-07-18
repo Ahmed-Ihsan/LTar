@@ -10,6 +10,9 @@ exceptions to the correct domain hierarchy based on the ``kind`` parameter.
 """
 from __future__ import annotations
 
+import logging
+
+import httpx
 import ollama
 
 from src.components.translation_pipeline.exceptions import (
@@ -21,6 +24,8 @@ from src.components.translation_pipeline.exceptions import (
     OllamaModelNotLoadedError,
     OllamaTimeoutError,
 )
+
+logger = logging.getLogger(__name__)
 
 # HTTP 404 from Ollama indicates the requested model is not pulled locally.
 _MODEL_NOT_FOUND_STATUS: int = 404
@@ -55,8 +60,14 @@ def translate_engine_error(
         The mapped domain exception (caller should ``raise … from err``).
     """
     msg: str = str(err).lower()
-    is_timeout: bool = isinstance(err, TimeoutError) or "timeout" in msg or "timed out" in msg
-    is_connection: bool = isinstance(err, ConnectionError | OSError)
+    # isinstance-first detection; string-match kept as a fallback for
+    # ollama-py wrappers that don't subclass httpx.
+    is_timeout: bool = isinstance(err, httpx.TimeoutException | TimeoutError) or (
+        "timeout" in msg or "timed out" in msg
+    )
+    is_connection: bool = isinstance(
+        err, ConnectionError | OSError | httpx.ConnectError
+    )
 
     if kind == _KIND_LLM:
         return _translate_llm_error(err, model=model, host=host, is_timeout=is_timeout,

@@ -18,6 +18,7 @@ a web search failure).
 """
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -28,6 +29,8 @@ from bs4 import BeautifulSoup
 
 from src.components.knowledge_sources.models import SearchHit
 from src.components.translation_pipeline.exceptions import LegalSearchBlockedError
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -118,7 +121,8 @@ def _fetch_html(url: str) -> str:
                     break
             resp.raise_for_status()
             return resp.text
-    except Exception:
+    except (httpx.HTTPError, ValueError, LegalSearchBlockedError) as e:
+        logger.warning("legal_search fetch failed: %s", e)
         return ""
 
 
@@ -149,7 +153,8 @@ def _post_html(url: str, data: dict[str, str]) -> str:
                     break
             resp.raise_for_status()
             return resp.text
-    except Exception:
+    except (httpx.HTTPError, ValueError, LegalSearchBlockedError) as e:
+        logger.warning("legal_search POST failed: %s", e)
         return ""
 
 

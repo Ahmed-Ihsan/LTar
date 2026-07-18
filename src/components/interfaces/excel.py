@@ -29,6 +29,7 @@ preserved exactly.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import threading
@@ -56,6 +57,8 @@ from src.components.translation_pipeline.exceptions import (
 from src.config import AppConfig
 from src.utils.xml_escape import escape_xml_text
 from src.utils.zip_safe import validate_zip_path
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # OOXML namespaces (registered so round-tripped XML keeps Excel's prefixes).
