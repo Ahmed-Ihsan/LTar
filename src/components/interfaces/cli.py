@@ -1,73 +1,66 @@
 """Command-line interface for the Iraqi Legal Translation Agent.
 
-Entry point: ``python -m src.cli`` or the ``iraqi-translate`` console script.
+Entry point: ``python -m src.app`` or the ``iraqi-translate`` console script.
 
-Subcommands:
-- ``doctor``  — environment diagnostics (task 1.3.3).
-- ``translate`` — translate a single text or file (task 4.1.1).
-- ``batch``   — translate a JSONL batch sequentially (task 4.1.2).
-- ``ingest``  — wrapper around ``src.ingestion`` (task 4.1.3).
-- ``tm-build`` / ``tm-build-parallel`` / ``tm-add-parallel`` — TM management (task 8).
-- ``ui``      — launch the web-based desktop UI (task 4.2.1/4.2.2).
-
-Responsibility (engineering-principles §1.1): parse CLI args, construct
-concrete adapters (the CLI is the only place adapters are constructed,
-engineering-principles §3.6), and render output. Diagnostics, orchestration,
-and TM commands live in dedicated modules (:mod:`diagnostics`,
-:mod:`orchestration`, :mod:`tm_commands`); this module is the thin
-composition root that wires them onto the Typer ``app``.
+This module is the thin composition root that owns the Typer ``app``, the
+shared adapter-construction helpers, and re-exports of orchestration /
+diagnostics symbols used by tests and UI modules. Each CLI command lives in
+its own module under :mod:`src.components.interfaces.commands` and registers
+itself on ``app`` at import time (engineering-principles §1.1, §3.6).
 """
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
-import ollama
 import typer
 
 from src.components.infrastructure.run_logging import RunLogger
-from src.components.interfaces.config_loader import load_or_exit
+from src.components.interfaces.config_loader import load_or_exit  # noqa: F401
 from src.components.interfaces.diagnostics import (
-    _check_chroma_dir,
-    _check_glossary_db,
-    _check_models_present,
-    _check_ollama_reachable,
-    _check_ram_headroom,
     _list_ollama_models,  # noqa: F401  — re-exported for web_ui / tk_ui
-    _render_result,
 )
-from src.components.interfaces.excel import translate_excel
-from src.components.interfaces.models import Adapters, CheckResult
+from src.components.interfaces.models import Adapters
 from src.components.interfaces.orchestration import (
-    Direction,
     RevisionStep,  # noqa: F401  — re-exported for tests / UI
-    StdinHumanReviewer,
     _audit_trace_markdown,  # noqa: F401  — re-exported for tests / UI
     _initial_state,  # noqa: F401  — re-exported for tests
-    _process_batch,
+    _process_batch,  # noqa: F401  — re-exported for tests / command modules
     _provenance_markdown,  # noqa: F401  — re-exported for tests / UI
-    _render_provenance,  # noqa: F401  — re-exported for tests
-    _resolve_input,
+    _render_provenance,  # noqa: F401  — re-exported for tests / command modules
     _translate_for_ui,  # noqa: F401  — re-exported for tests / UI
-    run_translation,
+    run_translation,  # noqa: F401  — re-exported for tests / command modules
     run_translation_streamed,  # noqa: F401  — re-exported for tests / UI
 )
-from src.components.interfaces.tm_commands import (
-    tm_add_parallel,
-    tm_build,
-    tm_build_parallel,
-)
-from src.components.translation_pipeline.exceptions import (
-    EmbeddingConnectionError,
-    OllamaConnectionError,
-    PathContainmentError,
-    RAMGuardError,
-)
 from src.config import AppConfig
-from src.utils.paths import validate_path_in_root
+from src.utils.paths import (
+    validate_path_in_root,  # noqa: F401  — re-exported for command modules / patching
+)
 
 if TYPE_CHECKING:
     from src.components.knowledge_sources.tm import TranslationMemory
+
+__all__ = [
+    "_audit_trace_markdown",
+    "_construct_adapters",
+    "_DEFAULT_CONFIG",
+    "_initial_state",
+    "_list_ollama_models",
+    "_new_run_logger",
+    "_process_batch",
+    "_project_root",
+    "_provenance_markdown",
+    "_render_provenance",
+    "_resolve_path",
+    "_translate_for_ui",
+    "app",
+    "load_or_exit",
+    "main",
+    "RevisionStep",
+    "run_translation",
+    "run_translation_streamed",
+    "validate_path_in_root",
+]
 
 app = typer.Typer(
     add_completion=False,
@@ -75,6 +68,8 @@ app = typer.Typer(
     help="Iraqi Legal Translation Agent — local offline Arabic<->English "
          "translation of Iraqi legal texts.",
 )
+
+_DEFAULT_CONFIG: Path = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml"
 
 
 def _project_root(cfg: AppConfig) -> Path:
@@ -163,433 +158,13 @@ def main(
     configure_logging()
 
 
-@app.command()
-def doctor(
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Run environment diagnostics: Ollama, models, DB stores, RAM headroom."""
-    cfg: AppConfig = load_or_exit(config_path)
-    client: ollama.Client = ollama.Client(host=cfg.ollama_host)
-    checks: list[CheckResult] = [
-        _check_ollama_reachable(client),
-        _check_models_present(client, cfg),
-        _check_chroma_dir(cfg),
-        _check_glossary_db(cfg),
-        _check_ram_headroom(client, cfg),
-    ]
-    typer.secho("doctor: running environment checks", fg=typer.colors.CYAN)
-    for result in checks:
-        _render_result(result)
-    all_ok: bool = all(r.ok for r in checks)
-    if all_ok:
-        typer.secho("\nAll checks passed.", fg=typer.colors.GREEN)
-    else:
-        failed: int = sum(1 for r in checks if not r.ok)
-        typer.secho(
-            f"\n{failed} check(s) failed.", fg=typer.colors.RED, err=True,
-        )
-        # Exit code 2 if the Ollama connection check failed, else 1
-        # (Change 5 task 8.2 — standardized exit codes).
-        ollama_failed: bool = any(
-            not r.ok and "ollama" in r.name.lower() for r in checks
-        )
-        raise typer.Exit(code=2 if ollama_failed else 1)
-
-
 # ---------------------------------------------------------------------------
-# 4.1.1 translate command
+# Register all commands from the commands/ subpackage.
+# Importing the package triggers each command module to register itself on
+# ``app`` via ``app.command()`` (engineering-principles §3.6 — cli is the
+# single composition root).
 # ---------------------------------------------------------------------------
-
-
-@app.command()
-def translate(
-    input_arg: Annotated[
-        str,
-        typer.Option("--input", help="Text to translate, or path to a file."),
-    ],
-    direction: Annotated[
-        Direction,
-        typer.Option("--direction", help="Translation direction."),
-    ],
-    out: Annotated[
-        str,
-        typer.Option("--out", help="Output destination: file path or 'stdout'."),
-    ] = "stdout",
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Translate a single text or file and print output + provenance."""
-    cfg: AppConfig = load_or_exit(config_path)
-
-    root: Path = _project_root(cfg)
-    input_text: str
-    try:
-        if Path(input_arg).exists():
-            validate_path_in_root(Path(input_arg), root)
-        input_text = _resolve_input(input_arg)
-    except PathContainmentError as e:
-        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=4) from e
-    except OSError as e:
-        typer.secho(f"cannot read input file: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-
-    if not input_text.strip():
-        typer.secho("input text is empty.", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
-
-    # Construct concrete adapters (engineering-principles §3.6).
-    adapters: Adapters = _construct_adapters(cfg)
-
-    try:
-        with _new_run_logger(cfg) as run_logger:
-            state = run_translation(
-                input_text, direction.value, cfg,
-                llm=adapters.llm, embedder=adapters.embedder,
-                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
-                run_logger=run_logger,
-                tm=adapters.tm,
-                reviewer=StdinHumanReviewer() if cfg.hitl_enabled else None,
-            )
-    except (OllamaConnectionError, EmbeddingConnectionError) as e:
-        typer.secho(
-            f"Cannot reach the Ollama daemon: {e}\n"
-            "Is `ollama serve` running? Start it, then retry.",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=2) from e
-    except RAMGuardError as e:
-        typer.secho(
-            f"RAM guard aborted the translation: {e}\n"
-            "Free up memory (close other applications) and retry.",
-            fg=typer.colors.YELLOW, err=True,
-        )
-        raise typer.Exit(code=3) from e
-    except Exception as e:
-        typer.secho(f"translation error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-    finally:
-        if adapters.tm is not None:
-            adapters.tm.close()
-
-    final_output: str = state.get("final_output") or ""
-    provenance: str = _render_provenance(state)
-    output_text: str = f"{final_output}\n\n{provenance}\n"
-
-    if out.lower() == "stdout":
-        typer.echo(output_text)
-    else:
-        try:
-            Path(out).write_text(output_text, encoding="utf-8")
-            typer.secho(f"output written to {out}", fg=typer.colors.GREEN)
-        except OSError as e:
-            typer.secho(f"cannot write output: {e}", fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=1) from e
-
-
-# ---------------------------------------------------------------------------
-# 4.1.2 batch command
-# ---------------------------------------------------------------------------
-
-
-@app.command()
-def batch(
-    input_arg: Annotated[
-        Path,
-        typer.Option("--input", help="Path to input JSONL file."),
-    ],
-    out: Annotated[
-        Path,
-        typer.Option("--out", help="Path to output JSONL file."),
-    ],
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Translate a JSONL batch sequentially and write JSONL output."""
-    if not input_arg.is_file():
-        typer.secho(
-            f"input file not found: {input_arg}", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1)
-
-    cfg: AppConfig = load_or_exit(config_path)
-
-    root: Path = _project_root(cfg)
-    try:
-        validate_path_in_root(input_arg, root)
-        validate_path_in_root(out, root)
-    except PathContainmentError as e:
-        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=4) from e
-
-    # Construct concrete adapters (engineering-principles §3.6).
-    adapters: Adapters = _construct_adapters(cfg)
-
-    try:
-        with _new_run_logger(cfg) as run_logger:
-            count: int = _process_batch(
-                input_arg, out, cfg,
-                llm=adapters.llm, embedder=adapters.embedder,
-                glossary_index=adapters.glossary_index, persist_dir=adapters.persist_dir,
-                run_logger=run_logger,
-                tm=adapters.tm,
-            )
-    except (OllamaConnectionError, EmbeddingConnectionError) as e:
-        typer.secho(
-            f"Cannot reach the Ollama daemon: {e}\n"
-            "Is `ollama serve` running? Start it, then retry.",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=2) from e
-    except RAMGuardError as e:
-        typer.secho(
-            f"RAM guard aborted the batch: {e}\n"
-            "Free up memory (close other applications) and retry.",
-            fg=typer.colors.YELLOW, err=True,
-        )
-        raise typer.Exit(code=3) from e
-    except Exception as e:
-        typer.secho(f"batch error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-    finally:
-        if adapters.tm is not None:
-            adapters.tm.close()
-
-    typer.secho(
-        f"batch complete: {count} record(s) written to {out}",
-        fg=typer.colors.GREEN,
-    )
-
-
-# ---------------------------------------------------------------------------
-# 4.1.3 ingest wrapper
-# ---------------------------------------------------------------------------
-
-
-@app.command()
-def ingest(
-    glossary_only: Annotated[
-        bool,
-        typer.Option("--glossary-only", help="Skip corpus; only load glossary."),
-    ] = False,
-    corpus_only: Annotated[
-        bool,
-        typer.Option("--corpus-only", help="Skip glossary; only embed corpus."),
-    ] = False,
-    limit: Annotated[
-        int | None,
-        typer.Option("--limit", help="Process only the first N articles per file."),
-    ] = None,
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Ingest glossary and/or corpus into local stores (wrapper around src.ingestion)."""
-    from src.components.knowledge_sources.ingestion import run_ingestion
-
-    cfg: AppConfig = load_or_exit(config_path)
-
-    try:
-        result = run_ingestion(
-            cfg,
-            glossary_only=glossary_only,
-            corpus_only=corpus_only,
-            limit=limit,
-        )
-    except (OllamaConnectionError, EmbeddingConnectionError) as e:
-        typer.secho(
-            f"Cannot reach the Ollama/embedding engine: {e}\n"
-            "Is `ollama serve` running? Start it, then retry.",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=2) from e
-    except RAMGuardError as e:
-        typer.secho(
-            f"RAM guard aborted ingestion: {e}\n"
-            "Free up memory (close other applications) and retry.",
-            fg=typer.colors.YELLOW, err=True,
-        )
-        raise typer.Exit(code=3) from e
-
-    error_count: int = 0
-    if result.glossary:
-        error_count += (
-            result.glossary.conflict_count
-            + result.glossary.validation_error_count
-        )
-    if result.corpus:
-        error_count += result.corpus.parse_error_count
-
-    if error_count > 0:
-        typer.secho(
-            f"\n{error_count} error(s) during ingestion.",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1)
-    typer.secho("\nIngestion complete (0 errors).", fg=typer.colors.GREEN)
-
-
-# ---------------------------------------------------------------------------
-# tm-build commands (task 8) — registered from tm_commands module
-# ---------------------------------------------------------------------------
-
-app.command("tm-build")(tm_build)
-app.command("tm-build-parallel")(tm_build_parallel)
-app.command("tm-add-parallel")(tm_add_parallel)
-
-
-# ---------------------------------------------------------------------------
-# 4.2.1 / 4.2.2 web-based desktop UI command
-# ---------------------------------------------------------------------------
-
-
-@app.command()
-def ui(
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Launch a web-based desktop UI for interactive translation + audit trace.
-
-    Tab "Translate": source text box, direction + model dropdowns, Translate
-    button, and an output panel with the translation plus a provenance block
-    (glossary hits, retrieved chunks, audit verdict).
-
-    Tab "Audit Trace": the full revision history (each draft + critique) for
-    the last run (task 4.2.2).
-    """
-    cfg: AppConfig = load_or_exit(config_path)
-
-    # Construct concrete adapters once at launch (engineering-principles §3.6).
-    adapters: Adapters = _construct_adapters(cfg)
-
-    # Config-driven backend selection (Change 5 task 6.5).
-    if cfg.ui.backend == "tk":
-        from src.components.interfaces.tk_ui import launch_ui
-        typer.secho("Launching Tkinter desktop UI…", fg=typer.colors.CYAN)
-    else:
-        from src.components.interfaces.web_ui import launch_ui
-        typer.secho("Launching web desktop UI…", fg=typer.colors.CYAN)
-
-    launch_ui(cfg, adapters)
-
-
-# ---------------------------------------------------------------------------
-# excel command — translate an Excel (.xlsx) workbook in place
-# ---------------------------------------------------------------------------
-
-
-@app.command()
-def excel(
-    input_arg: Annotated[
-        Path,
-        typer.Option("--input", help="Path to the input .xlsx workbook."),
-    ],
-    out: Annotated[
-        Path,
-        typer.Option("--out", help="Path to the output .xlsx workbook."),
-    ],
-    direction: Annotated[
-        Direction,
-        typer.Option("--direction", help="Translation direction."),
-    ],
-    config_path: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Path to config.yaml."),
-    ] = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml",
-) -> None:
-    """Translate an Excel (.xlsx) workbook, preserving all non-text artifacts.
-
-    Translates human-readable text (cell strings, inline strings, comments,
-    headers/footers, chart titles) through the translation pipeline and writes
-    a new workbook with formulas, merged cells, charts, images, conditional
-    formatting, data validation, hyperlinks, page layout, and structure
-    preserved exactly.
-    """
-    if not input_arg.is_file():
-        typer.secho(
-            f"input file not found: {input_arg}", fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1)
-    if input_arg.suffix.lower() != ".xlsx":
-        typer.secho(
-            f"input must be an .xlsx file, got: {input_arg.suffix}",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=1)
-
-    cfg: AppConfig = load_or_exit(config_path)
-
-    root: Path = _project_root(cfg)
-    try:
-        validate_path_in_root(input_arg, root)
-        validate_path_in_root(out, root)
-    except PathContainmentError as e:
-        typer.secho(f"path not allowed: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=4) from e
-
-    # Construct concrete adapters (engineering-principles §3.6).
-    adapters: Adapters = _construct_adapters(cfg)
-
-    try:
-        with _new_run_logger(cfg) as run_logger:
-            report = translate_excel(
-                str(input_arg), str(out), direction.value, cfg,
-                llm=adapters.llm, embedder=adapters.embedder,
-                glossary_index=adapters.glossary_index,
-                persist_dir=adapters.persist_dir,
-                run_logger=run_logger,
-                tm=adapters.tm,
-            )
-    except (OllamaConnectionError, EmbeddingConnectionError) as e:
-        typer.secho(
-            f"Cannot reach the Ollama daemon: {e}\n"
-            "Is `ollama serve` running? Start it, then retry.",
-            fg=typer.colors.RED, err=True,
-        )
-        raise typer.Exit(code=2) from e
-    except RAMGuardError as e:
-        typer.secho(
-            f"RAM guard aborted the Excel run: {e}\n"
-            "Free up memory (close other applications) and retry.",
-            fg=typer.colors.YELLOW, err=True,
-        )
-        raise typer.Exit(code=3) from e
-    except Exception as e:
-        typer.secho(f"excel error: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from e
-    finally:
-        if adapters.tm is not None:
-            adapters.tm.close()
-
-    typer.secho(
-        f"excel complete: {report.translated}/{report.total_segments} "
-        f"segment(s) translated -> {out}",
-        fg=typer.colors.GREEN,
-    )
-    if report.failed:
-        typer.secho(
-            f"  {report.failed} segment(s) failed (original text preserved).",
-            fg=typer.colors.YELLOW,
-        )
-    if report.skipped:
-        typer.secho(
-            f"  {report.skipped} segment(s) skipped.", fg=typer.colors.YELLOW,
-        )
-    if report.cancelled:
-        typer.secho("  run was cancelled.", fg=typer.colors.YELLOW)
-    for w in report.warnings:
-        typer.secho(f"  warning: {w}", fg=typer.colors.YELLOW)
-
+from src.components.interfaces import commands as _commands  # noqa: E402, F401
 
 if __name__ == "__main__":
     app()

@@ -33,19 +33,20 @@ _LAZY: dict[str, str] = {
     "tm_commands": f"{__name__}.tm_commands",
     # web_frontend (extracted from web_ui.py — SRP)
     "web_frontend": f"{__name__}.web_frontend",
-    # cli
+    # cli — app, main callback, and orchestration re-exports stay in cli.py;
+    # per-command modules live under .commands (Change 5 task 4).
     "app": f"{__name__}.cli",
-    "batch": f"{__name__}.cli",
-    "doctor": f"{__name__}.cli",
-    "ingest": f"{__name__}.cli",
+    "batch": f"{__name__}.commands.batch",
+    "doctor": f"{__name__}.commands.doctor",
+    "ingest": f"{__name__}.commands.ingest",
     "main": f"{__name__}.cli",
     "run_translation": f"{__name__}.cli",
     "run_translation_streamed": f"{__name__}.cli",
-    "tm_add_parallel": f"{__name__}.cli",
-    "tm_build": f"{__name__}.cli",
-    "tm_build_parallel": f"{__name__}.cli",
-    "translate": f"{__name__}.cli",
-    "ui": f"{__name__}.cli",
+    "tm_add_parallel": f"{__name__}.tm_commands",
+    "tm_build": f"{__name__}.tm_commands",
+    "tm_build_parallel": f"{__name__}.tm_commands",
+    "translate": f"{__name__}.commands.translate",
+    "ui": f"{__name__}.commands.ui",
 }
 
 

@@ -141,52 +141,59 @@ class _UiHumanReviewer:
         self._event.set()
 
 
-class Api:
-    """Python API exposed to the JS frontend via ``pywebview.api.*``.
+class _ApiContext:
+    """Shared mutable state + dependencies for the API facades.
 
-    Thread-safe: translation runs in a background thread; JS polls
-    :meth:`get_result` until the status changes from "translating".
-
-    Security: every state-mutating method requires a session token
-    (generated at construction, injected into the page at load time).
+    The facades (:class:`TranslationApi`, :class:`ExcelApi`,
+    :class:`SystemApi`) are split out of the original ``Api`` class for
+    maintainability, but they share concurrency state (a single lock, the
+    in-flight translation result, the Excel job slot, the reviewer, and the
+    history log) because the JS-facing ``Api`` enforces concurrency = 1
+    across *both* single-sentence and Excel runs. This context object holds
+    that shared state so the facades stay focused without duplicating it.
     """
 
-    __slots__ = ("_cfg", "_adapters", "_models", "_result", "_lock", "_history",
-                 "_reviewer", "_excel_job", "_token")
+    __slots__ = ("cfg", "adapters", "models", "token", "lock", "result",
+                 "history", "reviewer", "excel_job")
 
     def __init__(self, cfg: AppConfig, adapters: Adapters) -> None:
-        self._cfg: AppConfig = cfg
-        self._adapters: Adapters = adapters
-        self._models: list[str] = _list_ollama_models(cfg.ollama_host)
-        self._result: _PendingResult = _PendingResult(status="idle")
-        self._lock: threading.Lock = threading.Lock()
-        self._history: list[dict[str, str]] = []
-        self._reviewer: _UiHumanReviewer | None = None
-        self._excel_job: _ExcelJob | None = None
-        self._token: str = secrets.token_urlsafe(32)
+        self.cfg: AppConfig = cfg
+        self.adapters: Adapters = adapters
+        self.models: list[str] = _list_ollama_models(cfg.ollama_host)
+        self.token: str = secrets.token_urlsafe(32)
+        self.lock: threading.Lock = threading.Lock()
+        self.result: _PendingResult = _PendingResult(status="idle")
+        self.history: list[dict[str, str]] = []
+        self.reviewer: _UiHumanReviewer | None = None
+        self.excel_job: _ExcelJob | None = None
 
-    def get_token(self) -> str:
-        """Return the session token (called once at page load)."""
-        return self._token
-
-    def _check_token(self, token: str) -> None:
+    def check_token(self, token: str) -> None:
         """Raise ``PermissionError`` if *token* does not match the session token."""
-        if token != self._token:
+        if token != self.token:
             raise PermissionError("invalid or missing session token")
+
+
+class SystemApi:
+    """System/config facade: models, examples, and live store counts."""
+
+    __slots__ = ("_ctx",)
+
+    def __init__(self, ctx: _ApiContext) -> None:
+        self._ctx: _ApiContext = ctx
 
     def get_models(self) -> list[str]:
         """Return available Ollama models, falling back to config default."""
-        if self._models:
-            return self._models
-        return [self._cfg.llm_model]
+        if self._ctx.models:
+            return self._ctx.models
+        return [self._ctx.cfg.llm_model]
 
     def get_default_model(self) -> str:
         """Return the default model (config value if available, else first)."""
-        if self._cfg.llm_model in self._models:
-            return self._cfg.llm_model
-        if self._models:
-            return self._models[0]
-        return self._cfg.llm_model
+        if self._ctx.cfg.llm_model in self._ctx.models:
+            return self._ctx.cfg.llm_model
+        if self._ctx.models:
+            return self._ctx.models[0]
+        return self._ctx.cfg.llm_model
 
     def get_examples(self) -> list[dict[str, str]]:
         """Return example legal sentences for the dropdown."""
@@ -202,8 +209,8 @@ class Api:
         """
         counts: dict[str, int] = {"glossary": 0, "chroma": 0, "tm": 0}
         try:
-            if self._adapters.glossary_index is not None:
-                counts["glossary"] = len(self._adapters.glossary_index.terms)
+            if self._ctx.adapters.glossary_index is not None:
+                counts["glossary"] = len(self._ctx.adapters.glossary_index.terms)
         except Exception:  # noqa: BLE001
             pass
         try:
@@ -211,53 +218,62 @@ class Api:
 
             from src.components.knowledge_sources.retrieval import ChromaStore
 
-            persist = Path(self._adapters.persist_dir)
+            persist = Path(self._ctx.adapters.persist_dir)
             if persist.exists():
                 store = ChromaStore(
                     persist_dir=persist,
-                    embedder=self._adapters.embedder,
-                    cfg=self._cfg,
+                    embedder=self._ctx.adapters.embedder,
+                    cfg=self._ctx.cfg,
                 )
                 counts["chroma"] = store.count()
         except Exception:  # noqa: BLE001
             pass
         try:
-            if self._adapters.tm is not None:
-                counts["tm"] = len(self._adapters.tm.list_all())
+            if self._ctx.adapters.tm is not None:
+                counts["tm"] = len(self._ctx.adapters.tm.list_all())
         except Exception:  # noqa: BLE001
             pass
         return counts
 
+
+class TranslationApi:
+    """Translation workflow facade: async translate, review, history."""
+
+    __slots__ = ("_ctx",)
+
+    def __init__(self, ctx: _ApiContext) -> None:
+        self._ctx: _ApiContext = ctx
+
     def get_history(self) -> list[dict[str, str]]:
         """Return the last 10 translations (input + direction + output)."""
-        with self._lock:
-            return list(self._history)
+        with self._ctx.lock:
+            return list(self._ctx.history)
 
     def translate(self, token: str, input_text: str, direction: str, model: str) -> str:
         """Start a translation in a background thread. Returns 'started'."""
-        self._check_token(token)
+        self._ctx.check_token(token)
         if not input_text.strip():
             return "empty"
-        with self._lock:
+        with self._ctx.lock:
             # Concurrency = 1: refuse while an Excel run is in progress.
-            if self._excel_job is not None and self._excel_job.state == "running":
+            if self._ctx.excel_job is not None and self._ctx.excel_job.state == "running":
                 return "busy"
-            self._result = _PendingResult(status="translating")
+            self._ctx.result = _PendingResult(status="translating")
 
         # Override the configured model if the user selected a different one.
-        effective_cfg: AppConfig = self._cfg
-        if model and model != self._cfg.llm_model:
-            effective_cfg = self._cfg.model_copy(update={"llm_model": model})
+        effective_cfg: AppConfig = self._ctx.cfg
+        if model and model != self._ctx.cfg.llm_model:
+            effective_cfg = self._ctx.cfg.model_copy(update={"llm_model": model})
 
         # HITL: create a reviewer if hitl_enabled. The reviewer blocks the
         # worker thread at the review step; JS calls submit_review/approve_review
         # to unblock it. The reviewer signals via _PendingResult status.
         hitl_active: bool = effective_cfg.hitl_enabled
         if hitl_active:
-            self._reviewer = _UiHumanReviewer()
+            self._ctx.reviewer = _UiHumanReviewer()
         else:
-            self._reviewer = None
-        reviewer = self._reviewer
+            self._ctx.reviewer = None
+        reviewer = self._ctx.reviewer
 
         def _worker() -> None:
             try:
@@ -269,19 +285,19 @@ class Api:
 
                     state, history = run_translation_streamed(
                         input_text, direction, effective_cfg,
-                        llm=self._adapters.llm, embedder=self._adapters.embedder,
-                        glossary_index=self._adapters.glossary_index,
-                        persist_dir=self._adapters.persist_dir,
-                        run_logger=_new_run_logger(self._cfg),
-                        tm=self._adapters.tm,
+                        llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                        glossary_index=self._ctx.adapters.glossary_index,
+                        persist_dir=self._ctx.adapters.persist_dir,
+                        run_logger=_new_run_logger(self._ctx.cfg),
+                        tm=self._ctx.adapters.tm,
                         reviewer=None,  # no HITL in phase 1
                     )
                     draft: str = state.get("draft", "")
                     reviewer.set_draft(draft)
 
                     # Signal JS: show the review panel with the draft.
-                    with self._lock:
-                        self._result = _PendingResult(
+                    with self._ctx.lock:
+                        self._ctx.result = _PendingResult(
                             status="review_pending",
                             translation=draft,
                             provenance=_provenance_markdown(state),
@@ -293,8 +309,8 @@ class Api:
 
                     reviewed: TranslationState = human_review(
                         state, effective_cfg,
-                        llm=self._adapters.llm, reviewer=reviewer,
-                        tm=self._adapters.tm,
+                        llm=self._ctx.adapters.llm, reviewer=reviewer,
+                        tm=self._ctx.adapters.tm,
                     )
                     if reviewed is not state:
                         reviewed = finalize_node(reviewed, cfg=effective_cfg)
@@ -307,33 +323,33 @@ class Api:
                 else:
                     result = _translate_for_ui(
                         input_text, direction, effective_cfg,
-                        llm=self._adapters.llm, embedder=self._adapters.embedder,
-                        glossary_index=self._adapters.glossary_index,
-                        persist_dir=self._adapters.persist_dir,
-                        run_logger=_new_run_logger(self._cfg),
-                        tm=self._adapters.tm,
+                        llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                        glossary_index=self._ctx.adapters.glossary_index,
+                        persist_dir=self._ctx.adapters.persist_dir,
+                        run_logger=_new_run_logger(self._ctx.cfg),
+                        tm=self._ctx.adapters.tm,
                     )
-                with self._lock:
-                    self._result = _PendingResult(
+                with self._ctx.lock:
+                    self._ctx.result = _PendingResult(
                         status="ok",
                         translation=result.translation,
                         provenance=result.provenance_md,
                         audit_trace=result.audit_trace_md,
                     )
                     # Append to history (keep last 10).
-                    self._history.append({
+                    self._ctx.history.append({
                         "input": input_text[:200],
                         "direction": direction,
                         "translation": result.translation[:200],
                         "provenance": result.provenance_md[:500],
                         "audit_trace": result.audit_trace_md[:500],
                     })
-                    if len(self._history) > 10:
-                        self._history.pop(0)
+                    if len(self._ctx.history) > 10:
+                        self._ctx.history.pop(0)
             except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
                 logger.exception("Api.translate failed")
-                with self._lock:
-                    self._result = _PendingResult(
+                with self._ctx.lock:
+                    self._ctx.result = _PendingResult(
                         status="error", error=str(e),
                         audit_trace=_audit_trace_markdown([]),
                     )
@@ -343,48 +359,30 @@ class Api:
 
     def submit_review(self, token: str, edited_text: str) -> str:
         """Human submitted an edited draft — unblock the worker thread."""
-        self._check_token(token)
-        if self._reviewer is not None:
-            self._reviewer.submit_review(edited_text)
+        self._ctx.check_token(token)
+        if self._ctx.reviewer is not None:
+            self._ctx.reviewer.submit_review(edited_text)
         return "submitted"
 
     def approve_review(self, token: str) -> str:
         """Human approved the draft as-is — unblock the worker thread."""
-        self._check_token(token)
-        if self._reviewer is not None:
-            self._reviewer.approve_review()
+        self._ctx.check_token(token)
+        if self._ctx.reviewer is not None:
+            self._ctx.reviewer.approve_review()
         return "approved"
 
-    def get_result(self) -> dict[str, str]:
-        """Poll for the translation result. Called by JS every 300ms."""
-        with self._lock:
-            r: _PendingResult = self._result
-        return {
-            "status": r.status,
-            "translation": r.translation,
-            "provenance": r.provenance,
-            "audit_trace": r.audit_trace,
-            "error": r.error,
-        }
 
-    # ------------------------------------------------------------------
-    # Excel translation feature
-    # ------------------------------------------------------------------
+class ExcelApi:
+    """Excel translation workflow facade: run, pick paths, status, cancel."""
 
-    def is_busy(self) -> bool:
-        """Return True if a single-sentence or Excel run is in progress."""
-        with self._lock:
-            if self._result.status == "translating":
-                return True
-            return self._excel_job is not None and self._excel_job.state == "running"
+    __slots__ = ("_ctx",)
 
-    def path_exists(self, path: str) -> bool:
-        """Return True if ``path`` exists on disk (for overwrite confirmation)."""
-        return Path(path).exists()
+    def __init__(self, ctx: _ApiContext) -> None:
+        self._ctx: _ApiContext = ctx
 
     def pick_excel_input(self, token: str) -> str | None:
         """Open a native file dialog for ``.xlsx`` input; return the path or None."""
-        self._check_token(token)
+        self._ctx.check_token(token)
         if not webview.windows:
             return None
         result = webview.windows[0].create_file_dialog(
@@ -396,7 +394,7 @@ class Api:
 
     def pick_excel_output(self, token: str, default_name: str) -> str | None:
         """Open a native save dialog for ``.xlsx`` output; return the path or None."""
-        self._check_token(token)
+        self._ctx.check_token(token)
         if not webview.windows:
             return None
         result = webview.windows[0].create_file_dialog(
@@ -406,16 +404,6 @@ class Api:
         if not result:
             return None
         return result[0]
-
-    def get_excel_options(self) -> dict[str, Any]:
-        """Return the current ``cfg.excel`` values for the UI toggles."""
-        ex = self._cfg.excel
-        return {
-            "translate_comments": ex.translate_comments,
-            "translate_headers_footers": ex.translate_headers_footers,
-            "translate_chart_titles": ex.translate_chart_titles,
-            "max_segment_chars": ex.max_segment_chars,
-        }
 
     def translate_excel(
         self,
@@ -431,7 +419,7 @@ class Api:
         ``{"state": "error", "error": ...}`` if the run could not start). The
         result is delivered via :meth:`get_excel_status` polling.
         """
-        self._check_token(token)
+        self._ctx.check_token(token)
         # Validate input up front (no run started on invalid input).
         in_path = Path(input_path)
         if not in_path.is_file():
@@ -441,17 +429,17 @@ class Api:
         if direction not in ("ar-en", "en-ar"):
             return {"state": "error", "error": f"invalid direction: {direction}"}
 
-        with self._lock:
+        with self._ctx.lock:
             # Concurrency = 1: refuse while a single-sentence run is in progress.
-            if self._result.status == "translating":
+            if self._ctx.result.status == "translating":
                 return {"state": "error", "error": "A translation is already in progress"}
-            if self._excel_job is not None and self._excel_job.state == "running":
+            if self._ctx.excel_job is not None and self._ctx.excel_job.state == "running":
                 return {"state": "error", "error": "An Excel run is already in progress"}
             job: _ExcelJob = _ExcelJob(job_id=uuid.uuid4().hex)
-            self._excel_job = job
+            self._ctx.excel_job = job
 
         # Apply option overrides to a deep copy of cfg (never mutate global cfg).
-        base_cfg: AppConfig = self._cfg.model_copy(deep=True)
+        base_cfg: AppConfig = self._ctx.cfg.model_copy(deep=True)
         excel_update: dict[str, Any] = {
             "translate_comments": bool(options.get("translate_comments", base_cfg.excel.translate_comments)),
             "translate_headers_footers": bool(options.get("translate_headers_footers", base_cfg.excel.translate_headers_footers)),
@@ -466,46 +454,46 @@ class Api:
             try:
                 report = translate_excel(
                     input_path, output_path, direction, effective_cfg,
-                    llm=self._adapters.llm, embedder=self._adapters.embedder,
-                    glossary_index=self._adapters.glossary_index,
-                    persist_dir=self._adapters.persist_dir,
-                    run_logger=_new_run_logger(self._cfg),
-                    tm=self._adapters.tm,
+                    llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                    glossary_index=self._ctx.adapters.glossary_index,
+                    persist_dir=self._ctx.adapters.persist_dir,
+                    run_logger=_new_run_logger(self._ctx.cfg),
+                    tm=self._ctx.adapters.tm,
                     progress=_progress,
                     cancel_event=job.cancel_event,
                 )
-                with self._lock:
+                with self._ctx.lock:
                     job.report = report
                     job.completed = report.total_segments
                     job.total = report.total_segments
                     job.current = ""
                     job.state = "cancelled" if report.cancelled else "done"
             except (OllamaConnectionError, EmbeddingConnectionError) as e:
-                with self._lock:
+                with self._ctx.lock:
                     job.state = "error"
                     job.error = (
                         f"Cannot reach the Ollama daemon: {e}\n"
                         "Is `ollama serve` running? Start it, then retry."
                     )
             except RAMGuardError as e:
-                with self._lock:
+                with self._ctx.lock:
                     job.state = "error"
                     job.error = (
                         f"RAM guard aborted the Excel run: {e}\n"
                         "Free up memory (close other applications) and retry."
                     )
             except LegalTranslationError as e:
-                with self._lock:
+                with self._ctx.lock:
                     job.state = "error"
                     job.error = str(e)
             except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
                 logger.exception("Api.translate_excel failed")
-                with self._lock:
+                with self._ctx.lock:
                     job.state = "error"
                     job.error = f"excel error: {e}"
 
         def _progress(completed: int, total: int, current: str) -> None:
-            with self._lock:
+            with self._ctx.lock:
                 job.completed = completed
                 job.total = total
                 job.current = current
@@ -515,8 +503,8 @@ class Api:
 
     def get_excel_status(self, job_id: str) -> dict[str, Any]:
         """Poll for the Excel job status. Called by JS every 300ms."""
-        with self._lock:
-            job: _ExcelJob | None = self._excel_job
+        with self._ctx.lock:
+            job: _ExcelJob | None = self._ctx.excel_job
             if job is None or job.job_id != job_id:
                 return {"state": "error", "error": "unknown job"}
             report_dict: dict[str, Any] | None = None
@@ -541,15 +529,15 @@ class Api:
 
     def cancel_excel(self, job_id: str) -> str:
         """Set the cancel event for the given Excel job."""
-        with self._lock:
-            job: _ExcelJob | None = self._excel_job
+        with self._ctx.lock:
+            job: _ExcelJob | None = self._ctx.excel_job
             if job is not None and job.job_id == job_id:
                 job.cancel_event.set()
         return "cancelled"
 
     def open_in_explorer(self, token: str, path: str) -> str:
         """Open the OS file explorer with ``path`` selected (Windows)."""
-        self._check_token(token)
+        self._ctx.check_token(token)
         p: Path = Path(path)
         if not p.exists():
             return "missing"
@@ -566,6 +554,152 @@ class Api:
             logger.exception("Api.open_in_explorer failed")
             return f"error: {e}"
         return "ok"
+
+
+class Api:
+    """Python API exposed to the JS frontend via ``pywebview.api.*``.
+
+    Thin facade that composes :class:`TranslationApi`, :class:`ExcelApi`, and
+    :class:`SystemApi` and exposes the same JS-facing method names as the
+    original monolithic ``Api``. Only this class is exposed to JS; the facades
+    are internal implementation detail.
+
+    Thread-safe: translation runs in a background thread; JS polls
+    :meth:`get_result` until the status changes from "translating".
+
+    Security: every state-mutating method requires a session token
+    (generated at construction, injected into the page at load time).
+    """
+
+    __slots__ = ("_ctx", "_translation", "_excel", "_system")
+
+    def __init__(self, cfg: AppConfig, adapters: Adapters) -> None:
+        self._ctx: _ApiContext = _ApiContext(cfg, adapters)
+        self._translation: TranslationApi = TranslationApi(self._ctx)
+        self._excel: ExcelApi = ExcelApi(self._ctx)
+        self._system: SystemApi = SystemApi(self._ctx)
+
+    @property
+    def _lock(self) -> threading.Lock:
+        """Shared concurrency lock (exposed for backward compatibility)."""
+        return self._ctx.lock
+
+    @property
+    def _result(self) -> _PendingResult:
+        """Current pending translation result (exposed for backward compatibility)."""
+        return self._ctx.result
+
+    def get_token(self) -> str:
+        """Return the session token (called once at page load)."""
+        return self._ctx.token
+
+    def _check_token(self, token: str) -> None:
+        """Raise ``PermissionError`` if *token* does not match the session token."""
+        self._ctx.check_token(token)
+
+    # -- System facade -------------------------------------------------
+
+    def get_models(self) -> list[str]:
+        """Return available Ollama models, falling back to config default."""
+        return self._system.get_models()
+
+    def get_default_model(self) -> str:
+        """Return the default model (config value if available, else first)."""
+        return self._system.get_default_model()
+
+    def get_examples(self) -> list[dict[str, str]]:
+        """Return example legal sentences for the dropdown."""
+        return self._system.get_examples()
+
+    def get_store_counts(self) -> dict[str, int]:
+        """Return live counts for glossary, ChromaDB, and TM stores."""
+        return self._system.get_store_counts()
+
+    # -- Translation facade --------------------------------------------
+
+    def get_history(self) -> list[dict[str, str]]:
+        """Return the last 10 translations (input + direction + output)."""
+        return self._translation.get_history()
+
+    def translate(self, token: str, input_text: str, direction: str, model: str) -> str:
+        """Start a translation in a background thread. Returns 'started'."""
+        return self._translation.translate(token, input_text, direction, model)
+
+    def submit_review(self, token: str, edited_text: str) -> str:
+        """Human submitted an edited draft — unblock the worker thread."""
+        return self._translation.submit_review(token, edited_text)
+
+    def approve_review(self, token: str) -> str:
+        """Human approved the draft as-is — unblock the worker thread."""
+        return self._translation.approve_review(token)
+
+    def get_result(self) -> dict[str, str]:
+        """Poll for the translation result. Called by JS every 300ms."""
+        with self._ctx.lock:
+            r: _PendingResult = self._ctx.result
+        return {
+            "status": r.status,
+            "translation": r.translation,
+            "provenance": r.provenance,
+            "audit_trace": r.audit_trace,
+            "error": r.error,
+        }
+
+    # -- Excel facade --------------------------------------------------
+
+    def translate_excel(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start an Excel run in a background thread. Returns a job descriptor."""
+        return self._excel.translate_excel(token, input_path, output_path, direction, options)
+
+    def pick_excel_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.xlsx`` input; return the path or None."""
+        return self._excel.pick_excel_input(token)
+
+    def pick_excel_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for ``.xlsx`` output; return the path or None."""
+        return self._excel.pick_excel_output(token, default_name)
+
+    def get_excel_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the Excel job status. Called by JS every 300ms."""
+        return self._excel.get_excel_status(job_id)
+
+    def cancel_excel(self, job_id: str) -> str:
+        """Set the cancel event for the given Excel job."""
+        return self._excel.cancel_excel(job_id)
+
+    def open_in_explorer(self, token: str, path: str) -> str:
+        """Open the OS file explorer with ``path`` selected (Windows)."""
+        return self._excel.open_in_explorer(token, path)
+
+    def get_excel_options(self) -> dict[str, Any]:
+        """Return the current ``cfg.excel`` values for the UI toggles."""
+        ex = self._ctx.cfg.excel
+        return {
+            "translate_comments": ex.translate_comments,
+            "translate_headers_footers": ex.translate_headers_footers,
+            "translate_chart_titles": ex.translate_chart_titles,
+            "max_segment_chars": ex.max_segment_chars,
+        }
+
+    # -- Cross-cutting helpers -----------------------------------------
+
+    def is_busy(self) -> bool:
+        """Return True if a single-sentence or Excel run is in progress."""
+        with self._ctx.lock:
+            if self._ctx.result.status == "translating":
+                return True
+            return self._ctx.excel_job is not None and self._ctx.excel_job.state == "running"
+
+    def path_exists(self, path: str) -> bool:
+        """Return True if ``path`` exists on disk (for overwrite confirmation)."""
+        return Path(path).exists()
 
 
 
