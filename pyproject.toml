@@ -7,7 +7,7 @@ name = "iraqi-legal-translation-agent"
 version = "0.1.0"
 description = "Local, offline-first Agentic RAG system for translating Iraqi legal texts (Arabic <-> English)."
 readme = "README.md"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.10,<3.12"
 license = { text = "MIT" }
 authors = [{ name = "Iraqi Legal Translation Agent" }]
 keywords = ["translation", "legal", "iraqi", "rag", "langgraph", "ollama"]
@@ -29,6 +29,8 @@ dependencies = [
     "pydantic>=2.6,<3",
     "pyyaml>=6.0,<7",
     "pywebview>=5.0,<7",
+    "beautifulsoup4>=4.12,<5",
+    "httpx>=0.27,<1",
 ]
 
 [project.optional-dependencies]
@@ -38,9 +40,13 @@ dev = [
     "ruff>=0.5,<0.8",
     "mypy>=1.10,<2",
     "radon>=6,<7",
+    "types-PyYAML>=6,<7",
 ]
 gradio = [
     "gradio>=4.0,<5",
+]
+mcp = [
+    "mcp>=1.0,<2",
 ]
 
 [project.scripts]
@@ -65,8 +71,9 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 
 [tool.ruff.lint.per-file-ignores]
-# Prompt constants hold the canonical PROMPTS.md text verbatim; wrapping would
-# alter prompt wording (prompts are versioned code, PROMPTS.md §5).
+# Prompt constants hold the canonical prompt text verbatim (see
+# src/components/translation_pipeline/prompts.py); wrapping would
+# alter prompt wording (prompts are versioned code, prompts.py §5).
 "src/components/translation_pipeline/prompts.py" = ["E501"]
 # web_ui.py holds a single embedded HTML/CSS/JS document (no external assets);
 # long lines are inline SVG attributes and compact CSS one-liners that wrapping
@@ -75,7 +82,7 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # web_frontend.py holds the embedded HTML/CSS/JS asset (no external files);
 # long lines are inline SVG attributes and compact CSS one-liners.
 "src/components/interfaces/web_frontend.py" = ["E501"]
-# The LLMEngineAdapter.generate signature is fixed by ARCHITECTURE.md §5.3
+# The LLMEngineAdapter.generate signature is fixed by AGENTS.md §5.3
 # (system, user, model, temperature, max_tokens, timeout) — 6 args is the
 # mandated adapter contract, not an over-engineered function.
 "src/components/infrastructure/llm.py" = ["PLR0913"]
@@ -84,7 +91,7 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 "tests/conftest.py" = ["PLR0913"]
 "tests/test_nodes.py" = ["PLR0913"]
 # The local _SequenceMockLLM.generate mirrors the mandated LLMEngineAdapter
-# protocol signature (6 args, ARCHITECTURE.md §5.3) for REVISE-then-APPROVE
+# protocol signature (6 args, AGENTS.md §5.3) for REVISE-then-APPROVE
 # audit-trace tests; run_translation_streamed takes 7 args for DI (DIP).
 "tests/test_cli.py" = ["PLR0913"]
 # Typer commands require Path(__file__) defaults (standard Typer pattern,
@@ -95,6 +102,9 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # _translate_for_ui / _process_batch take one arg per injected dependency
 # (DIP, engineering-principles §1.5) — moved from cli.py.
 "src/components/interfaces/orchestration.py" = ["PLR0913"]
+# translate_excel takes one arg per injected dependency (DIP, engineering-
+# principles §1.5) — mirrors orchestration.py's run_translation seam.
+"src/components/interfaces/excel.py" = ["PLR0913"]
 # TM commands require Path(__file__) defaults (standard Typer pattern, B008)
 # — moved from cli.py.
 "src/components/interfaces/tm_commands.py" = ["B008"]
@@ -119,10 +129,25 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 "src/components/knowledge_sources/retrieval.py" = ["PLR0913"]
 # _term test helper takes one arg per Term field for readability.
 "tests/test_glossary_conflict.py" = ["PLR0913"]
+# test_excel.py holds single-line OOXML string literals (sharedStrings, sheet,
+# comments, chart XML) that are unreadable if wrapped — same precedent as the
+# embedded HTML/CSS in web_ui.py and the versioned prompt constants.
+"tests/test_excel.py" = ["E501"]
+# test_web_ui_excel.py reuses test_excel.py's single-line OOXML fixture literals
+# (sharedStrings, sheet XML) for the .xlsx builder — same E501 precedent.
+"tests/test_web_ui_excel.py" = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 strict = true
+
+[[tool.mypy.overrides]]
+module = "mcp.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "src.components.interfaces.mcp_server"
+disable_error_code = ["untyped-decorator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

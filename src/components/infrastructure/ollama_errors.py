@@ -56,7 +56,7 @@ def translate_engine_error(
     """
     msg: str = str(err).lower()
     is_timeout: bool = isinstance(err, TimeoutError) or "timeout" in msg or "timed out" in msg
-    is_connection: bool = isinstance(err, (ConnectionError, OSError))
+    is_connection: bool = isinstance(err, ConnectionError | OSError)
 
     if kind == _KIND_LLM:
         return _translate_llm_error(err, model=model, host=host, is_timeout=is_timeout,

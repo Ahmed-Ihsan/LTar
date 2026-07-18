@@ -27,7 +27,7 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 
 | Layer | Technology | Version / Constraint |
 |---|---|---|
-| Language | Python | 3.11.x (test venv runs 3.10) |
+| Language | Python | 3.10.x or 3.11.x |
 | Agent Orchestration | LangGraph | `langgraph >= 0.2, < 0.3` |
 | LLM Runtime | Ollama | Local daemon, `ollama serve` |
 | LLM Model | `gemma3:4b` | Quantized, ≤ 2 GB footprint |
@@ -122,7 +122,7 @@ translater/
 
 - Windows 10/11 (or Linux equivalent), 8 GB RAM minimum.
 - **Ollama** installed: https://ollama.com (Windows installer).
-- Python 3.11.x verified via `python --version`.
+- Python 3.10.x or 3.11.x verified via `python --version`.
 - ~10 GB free disk for models + vector store.
 
 ### 5.2 Install Ollama Models
@@ -146,6 +146,20 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
+```
+
+`requirements.txt` is the canonical install list — it includes every runtime
+dependency needed for the CLI and the desktop UI (including `pywebview`).
+`pyproject.toml` mirrors it for editable installs (`pip install -e .`); both
+install paths produce the same runtime environment.
+
+**Optional dependencies:**
+
+`gradio` is optional and not required for the CLI or desktop UI. To install it,
+uncomment the `gradio` line at the bottom of `requirements.txt` or run:
+
+```powershell
+pip install -e .[gradio]
 ```
 
 ### 5.4 Configure

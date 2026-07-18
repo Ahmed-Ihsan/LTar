@@ -367,7 +367,7 @@ def test_graph_includes_tm_lookup_node_when_enabled(
 ):
     from src.components.translation_pipeline.graph import build_graph
     persist_dir = str(tmp_path / "chroma")
-    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir, embedder=mock_embedder)
     corpus_dir = tmp_path / "corpus"
     corpus_dir.mkdir()
     (corpus_dir / "civil_code_ar.txt").write_text(
@@ -390,7 +390,7 @@ def test_graph_skips_tm_lookup_when_tm_is_none(
     config, mock_llm, mock_embedder, glossary_index, tmp_path
 ):
     persist_dir = str(tmp_path / "chroma")
-    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir, embedder=mock_embedder)
     graph = build_graph(
         llm=mock_llm, cfg=config, glossary_index=glossary_index,
         embedder=mock_embedder, persist_dir=persist_dir, tm=None)
@@ -425,7 +425,7 @@ def test_tm_hit_bypasses_the_llm(
 ):
     """A >= threshold TM hit emits the stored translation without any LLM call."""
     persist_dir = str(tmp_path / "chroma")
-    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir, embedder=mock_embedder)
     tm = _build_tm(tmp_path)
     graph = build_graph(
         llm=mock_llm, cfg=config, glossary_index=glossary_index,
@@ -443,7 +443,7 @@ def test_tm_miss_invokes_the_llm(
 ):
     """A below-threshold input falls through to the normal translate/audit path."""
     persist_dir = str(tmp_path / "chroma")
-    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir)
+    build_chroma_collection(_fixture_chunks(), persist_dir=persist_dir, embedder=mock_embedder)
     tm = _build_tm(tmp_path)
     graph = build_graph(
         llm=mock_llm, cfg=config, glossary_index=glossary_index,

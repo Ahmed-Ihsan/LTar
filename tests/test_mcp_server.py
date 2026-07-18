@@ -6,6 +6,7 @@ cases (empty query, network error, malformed HTML).
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 from unittest.mock import patch
 
@@ -249,6 +250,10 @@ class TestSearchNationalLibrary:
 
 
 class TestMcpToolWrappers:
+    @pytest.mark.skipif(
+        importlib.util.find_spec("mcp") is None,
+        reason="mcp package not installed (optional dependency)",
+    )
     @patch("src.components.knowledge_sources.legal_search._post_html")
     def test_search_moj_tool_returns_json(self, mock_post) -> None:
         from src.components.interfaces.mcp_server import search_moj
@@ -260,6 +265,10 @@ class TestMcpToolWrappers:
         assert len(parsed) == 2
         assert parsed[0]["source"] == "Iraq MoJ"
 
+    @pytest.mark.skipif(
+        importlib.util.find_spec("mcp") is None,
+        reason="mcp package not installed (optional dependency)",
+    )
     @patch("src.components.knowledge_sources.legal_search._fetch_html")
     def test_search_all_tool_aggregates(self, mock_fetch) -> None:
         from src.components.interfaces.mcp_server import search_all
