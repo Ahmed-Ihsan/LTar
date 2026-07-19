@@ -446,3 +446,78 @@ class TestFinalizeNode:
         )
         result = finalize_node(state, cfg=config)
         assert result["warnings"] == []
+
+    def test_script_guard_warns_when_ar_en_output_is_arabic(
+        self, config
+    ) -> None:
+        """ar-en direction but draft is still Arabic -> warning appended."""
+        arabic_draft = "عقد البيع هو اتفاق يلتزم بمقتضاه البائع"
+        state: TranslationState = _state(
+            "عقد البيع هو اتفاق", "ar-en",
+            draft=arabic_draft,
+            audit={
+                "verdict": "APPROVE",
+                "critique": "",
+                "violations": [],
+                "confidence": 1.0,
+            },
+            revision_count=0,
+        )
+        result = finalize_node(state, cfg=config)
+        assert any("script guard" in w.lower() for w in result["warnings"])
+
+    def test_script_guard_no_warning_when_ar_en_output_is_english(
+        self, config
+    ) -> None:
+        """ar-en direction with proper English draft -> no script warning."""
+        state: TranslationState = _state(
+            "عقد البيع", "ar-en",
+            draft="A contract of sale is an agreement.",
+            audit={
+                "verdict": "APPROVE",
+                "critique": "",
+                "violations": [],
+                "confidence": 0.95,
+            },
+            revision_count=0,
+        )
+        result = finalize_node(state, cfg=config)
+        assert not any("script guard" in w.lower()
+                       for w in result["warnings"])
+
+    def test_script_guard_warns_when_en_ar_output_is_english(
+        self, config
+    ) -> None:
+        """en-ar direction but draft is still English -> warning appended."""
+        state: TranslationState = _state(
+            "A contract of sale", "en-ar",
+            draft="A contract of sale is an agreement",
+            audit={
+                "verdict": "APPROVE",
+                "critique": "",
+                "violations": [],
+                "confidence": 1.0,
+            },
+            revision_count=0,
+        )
+        result = finalize_node(state, cfg=config)
+        assert any("script guard" in w.lower() for w in result["warnings"])
+
+    def test_script_guard_tolerates_minor_arabic_in_en_output(
+        self, config
+    ) -> None:
+        """A single Arabic citation term in an English draft is OK."""
+        state: TranslationState = _state(
+            "عقد البيع", "ar-en",
+            draft="Article 5 of the Civil Code (القانون المدني) defines sale.",
+            audit={
+                "verdict": "APPROVE",
+                "critique": "",
+                "violations": [],
+                "confidence": 0.95,
+            },
+            revision_count=0,
+        )
+        result = finalize_node(state, cfg=config)
+        assert not any("script guard" in w.lower()
+                       for w in result["warnings"])

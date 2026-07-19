@@ -479,6 +479,13 @@ class TestV4ArabicScriptEnforcement:
         assert "ROMANIZED ARABIC" in AUDITOR_SYSTEM_V4
         assert "romaniz" in AUDITOR_SYSTEM_V4.lower()
 
+    def test_auditor_v4_has_untranslated_arabic_check(self) -> None:
+        """ar->en direction: auditor must flag Arabic script in English output."""
+        assert "UNTRANSLATED ARABIC" in AUDITOR_SYSTEM_V4
+        assert "arabic -> english" in AUDITOR_SYSTEM_V4.lower()
+        # Must instruct the auditor to issue REVISE when Arabic is present
+        assert "REVISE" in AUDITOR_SYSTEM_V4
+
     def test_revision_addendum_v4_has_romanization_recheck(self) -> None:
         assert "romaniz" in TRANSLATOR_REVISION_ADDENDUM_V4.lower()
 

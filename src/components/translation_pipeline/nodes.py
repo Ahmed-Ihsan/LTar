@@ -305,12 +305,19 @@ def finalize_node(
 ) -> TranslationState:
     """Set ``final_output`` and append terminal warnings.
 
-    Reads: ``draft``, ``audit``, ``revision_count``.
+    Reads: ``draft``, ``audit``, ``revision_count``, ``direction``.
     Writes: ``final_output``; appends to ``warnings``.
 
     On ``APPROVE`` the final output is the approved draft. On ``REVISE`` at the
     revision cap (``revision_count >= max_revisions``) the best-effort draft is
     emitted and a max-revision warning is appended (ARCHITECTURE.md §2.5).
+
+    A **programmatic script guard** (independent of the LLM auditor) checks
+    that the output is in the expected target script. If the draft still
+    contains significant source-script characters after all revisions, a
+    warning is appended so the user knows the translation may be incomplete.
+    This catches the case where a small model (e.g. ``gemma3:4b``) returns
+    the original source text unchanged and the auditor fails to catch it.
     """
     _require_fields(state, ("draft", "audit", "revision_count"))
     audit: object = state.get("audit")
@@ -324,11 +331,71 @@ def finalize_node(
             "Max revisions reached; emitting best-effort draft."
         )
 
+    # Programmatic script guard — catches untranslated output that the
+    # LLM auditor may have approved (small-model failure mode).
+    draft: str = state["draft"]
+    direction: str = state["direction"]
+    script_warning: str | None = _check_output_script(draft, direction)
+    if script_warning is not None:
+        warnings.append(script_warning)
+
     return {
         **state,
         "final_output": state["draft"],
         "warnings": warnings,
     }
+
+
+def _check_output_script(draft: str, direction: str) -> str | None:
+    """Check that the draft is in the expected target script.
+
+    Returns a warning string if the draft contains significant source-script
+    characters (indicating the translator returned the original text largely
+    unchanged), or ``None`` if the script looks correct.
+
+    - ``ar-en``: warns if >20% of words contain Arabic characters (U+0600–
+      U+06FF) — the output should be predominantly English/Latin.
+    - ``en-ar``: warns if >20% of words contain Latin alpha characters and
+      no Arabic — the output should be predominantly Arabic.
+    - Other directions: no check (returns ``None``).
+
+    This is a **heuristic safety net**, not a replacement for the LLM
+    auditor. It only appends a warning — it does not reject the draft or
+    trigger another revision. The threshold (20%) tolerates legitimate
+    mixed-script content (citations, proper nouns, glossary terms).
+    """
+    if not draft.strip():
+        return None
+    words: list[str] = draft.split()
+    if not words:
+        return None
+    arabic_count: int = sum(
+        1 for w in words
+        if any(0x0600 <= ord(c) <= 0x06FF for c in w)
+    )
+    latin_count: int = sum(
+        1 for w in words
+        if any(c.isascii() and c.isalpha() for c in w)
+        and not any(0x0600 <= ord(c) <= 0x06FF for c in w)
+    )
+    total: int = len(words)
+    if direction == "ar-en":
+        arabic_ratio: float = arabic_count / total
+        if arabic_ratio > 0.2:
+            return (
+                f"Output script guard: draft is {arabic_ratio:.0%} Arabic "
+                f"but direction is ar-en (target should be English). "
+                "The translator may have returned the source unchanged."
+            )
+    elif direction == "en-ar":
+        latin_ratio: float = latin_count / total
+        if latin_ratio > 0.8 and arabic_count == 0:
+            return (
+                "Output script guard: draft has no Arabic characters "
+                "but direction is en-ar (target should be Arabic). "
+                "The translator may have returned the source unchanged."
+            )
+    return None
 
 
 # ---------------------------------------------------------------------------

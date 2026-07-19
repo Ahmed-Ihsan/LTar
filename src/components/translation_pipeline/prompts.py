@@ -523,7 +523,7 @@ TRANSLATOR_USER_TEMPLATE_V4: str = (
 """
 )
 
-# Auditor V4: V3 plus a romanized-Arabic detection check.
+# Auditor V4: V3 plus script-direction audit checks.
 AUDITOR_SYSTEM_V4: str = (
     AUDITOR_SYSTEM_V3
     + "\n"
@@ -538,6 +538,24 @@ ARABIC SCRIPT AUDIT CHECK (apply when direction is English -> Arabic):
 - MIXED SCRIPT: an output that mixes Arabic script and Latin-character Arabic
   is also a critical Legal Fidelity violation, even if most of the output is in
   Arabic script. A single romanized word triggers REVISE.
+
+ENGLISH SCRIPT AUDIT CHECK (apply when direction is Arabic -> English):
+- UNTRANSLATED ARABIC: any Arabic-script word (U+0600–U+06FF range) in the
+  draft that is NOT a proper noun, citation, or glossary-preserved term is a
+  CRITICAL Legal Fidelity violation. It means the output is not an English
+  translation at all — the translator returned the original Arabic source
+  unchanged. Flag EVERY Arabic-script word. This is always blocking — verdict
+  MUST be REVISE if any untranslated Arabic is present, and the critique must
+  list each Arabic word with its correct English translation.
+- EXCEPTIONS: Arabic script is permitted ONLY in: (a) the citation format
+  "Article X of [Law Name in Arabic]" per Rule 9, (b) glossary terms that are
+  explicitly bound to an Arabic target (rare for ar->en), or (c) proper nouns
+  that have no English equivalent. When in doubt, flag it — the translator can
+  always clarify in the revision pass.
+- MIXED SCRIPT: an output that is predominantly Arabic script when the target
+  is English is a critical Legal Fidelity violation, even if a few words are
+  in English. If more than 20% of the words contain Arabic characters, verdict
+  MUST be REVISE.
 """
 )
 
