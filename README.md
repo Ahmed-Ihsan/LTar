@@ -8,7 +8,7 @@
 
 The **Iraqi Legal Translation Agent** is a fully local, privacy-preserving translation pipeline built for Iraqi statutory and jurisprudential text. It combines a deterministic **Exact-Match Glossary** (SQLite + JSON) with a **ChromaDB** vector store of Iraqi laws, and orchestrates two specialized LLM agents — a **Translator** and an **Auditor** — through **LangGraph**.
 
-The system is engineered to run on commodity consumer hardware with **8 GB RAM** as the hard ceiling. No external API calls are made; all inference is served by **Ollama** running a quantized local model. This makes the system suitable for offline field deployment, law offices with air-gapped networks, and jurisdictions where legal data must not leave the workstation.
+The system is engineered to run on commodity consumer hardware with **8 GB RAM** as the hard ceiling. The default LLM backend is **Ollama** running a quantized local model, so no external API calls are required. An **opt-in** Google Gemini API cloud backend (`llm_backend: gemini`) is the only sanctioned cloud path; when it is disabled (the default), no component transmits data off the host. This makes the system suitable for offline field deployment, law offices with air-gapped networks, and jurisdictions where legal data must not leave the workstation.
 
 ### Core Capabilities
 
@@ -23,14 +23,158 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 
 ---
 
-## 2. Tech Stack
+## 2. Quick Start (How to Run)
+
+This section is the fast path from a clean clone to a working translation in
+under 10 minutes. For the deeper, annotated setup reference see
+[§6 Setup, Installation, and Run](#6-setup-installation-and-run).
+
+### Prerequisites
+
+- Windows 10/11 or Linux
+- 8 GB RAM minimum
+- Python 3.10.x or 3.11.x
+- Ollama installed (https://ollama.com)
+- ~10 GB free disk (models + vector store)
+
+### 2.1 Pull models
+
+```powershell
+ollama pull gemma3:4b
+ollama pull nomic-embed-text
+ollama list
+```
+
+### 2.2 Create venv and install
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+```
+
+> **Windows launcher note:** `run.bat` invokes
+> `.\.venv310\Scripts\python.exe`, so it expects the virtual environment to be
+> named **`.venv310`** (not `.venv`). If you intend to use `run.bat`, create the
+> venv with `python -m venv .venv310` instead. Both names work with the CLI
+> commands below; only the launcher is hard-coded to `.venv310`.
+
+### 2.3 Configure
+
+Defaults in [`config.yaml`](config.yaml) target the 8 GB RAM offline profile
+and need no edits for a first run. The one key to know about is `llm_backend`:
+
+- **`ollama`** (default) — local daemon, offline. Requires `ollama serve` and
+  the two models from [§2.1](#21-pull-models).
+- **`llamacpp`** — local llama.cpp server (offline). Point `llamacpp_url` at
+  your server.
+- **`gemini`** — opt-in Google Gemini API cloud backend. Requires the
+  `GEMINI_API_KEY` environment variable (never written to `config.yaml`); the
+  `google-genai` SDK is lazily imported so offline users never import it.
+
+```powershell
+# Only if you choose the Gemini backend:
+$env:GEMINI_API_KEY = "your-api-key-here"
+# In config.yaml:  llm_backend: gemini
+```
+
+### 2.4 Ingest the corpus
+
+```powershell
+python -m src.app ingest
+```
+
+This parses `data/corpus/*`, chunks and embeds the text via Ollama into
+`db/chroma/`, and loads `data/glossary/*.json` into `db/glossary.sqlite`.
+
+### 2.5 Run
+
+#### a) Windows launcher (easiest)
+
+Double-click **`run.bat`** for an interactive menu with 8 options:
+
+| # | Menu option | What it runs |
+|---|---|---|
+| 1 | Doctor | `python -m src.app doctor` — environment diagnostics |
+| 2 | Translate AR → EN | `translate --input "<text>" --direction ar-en` |
+| 3 | Translate EN → AR | `translate --input "<text>" --direction en-ar` |
+| 4 | Batch translate | `batch --input <jsonl> --out <jsonl>` |
+| 5 | Ingest corpus | `ingest` |
+| 6 | Build TM | `tm-build` |
+| 7 | Launch UI | `ui` |
+| 8 | Exit | quits |
+
+#### b) CLI
+
+```powershell
+# Check environment
+python -m src.app doctor
+
+# Translate a single sentence (Arabic -> English)
+python -m src.app translate --input "المادة ١" --direction ar-en
+
+# Translate a single sentence (English -> Arabic)
+python -m src.app translate --input "Article 1" --direction en-ar
+
+# Batch translate from JSONL (--out, not --output)
+python -m src.app batch --input data/batch.jsonl --out data/results.jsonl
+
+# Build Translation Memory from corpus
+python -m src.app tm-build
+
+# Launch the desktop UI
+python -m src.app ui
+```
+
+Additional commands (see [§6.6](#66-run-the-agent) for full reference):
+`excel` (translate an `.xlsx` workbook), `tm-build-parallel`, `tm-add-parallel`.
+
+#### c) Desktop UI
+
+```powershell
+python -m src.app ui
+```
+
+`ui.backend: web` (default) launches the pywebview desktop UI; set
+`ui.backend: tk` in [`config.yaml`](config.yaml) for the Tkinter UI (native
+widgets, no browser dependency).
+
+### 2.6 Verify
+
+```powershell
+python -m src.app doctor
+```
+
+`doctor` checks (backend-dependent) that the daemon is reachable, the required
+models are present, the ChromaDB directory and glossary SQLite are populated,
+and the RAM headroom estimate fits the 8 GB ceiling. All checks passed = ready.
+
+### Troubleshooting
+
+- **Garbled Arabic output on Windows:** set
+  `$env:PYTHONIOENCODING='utf-8'` (PowerShell) before running. `run.bat` sets
+  this automatically.
+- **Exit code 4 (path containment):** `--input` and `--out` paths must be
+  inside the project root. Paths outside the root are rejected.
+- **Ollama daemon not running:** start it with `ollama serve` (or launch the
+  Ollama desktop app).
+- **Missing models:** run `ollama list`; if `gemma3:4b` or `nomic-embed-text`
+  is absent, re-run the `ollama pull` commands from [§2.1](#21-pull-models).
+- **Gemini key missing:** when `llm_backend: gemini`, `GEMINI_API_KEY` must be
+  set in the environment or `doctor`/`translate` exit with an error.
+
+---
+
+## 3. Tech Stack
 
 | Layer | Technology | Version / Constraint |
 |---|---|---|
 | Language | Python | 3.10.x or 3.11.x |
 | Agent Orchestration | LangGraph | `langgraph >= 0.2, < 0.3` |
-| LLM Runtime | Ollama (default) or Google Gemini API (opt-in) | Local daemon `ollama serve`, or cloud `google-genai >= 1.0, < 2` |
-| LLM Model | `gemma3:4b` (Ollama) / `gemini-2.0-flash` (Gemini) | Quantized, ≤ 2 GB footprint (Ollama); cloud-hosted (Gemini) |
+| LLM Runtime | Ollama (default), llama.cpp, or Google Gemini API (opt-in) | Local daemon `ollama serve`, local `llamacpp_url` server, or cloud `google-genai >= 1.0, < 2` |
+| LLM Model | `gemma3:4b` (Ollama/llama.cpp) / `gemini-2.0-flash` (Gemini) | Quantized, ≤ 2 GB footprint (Ollama); cloud-hosted (Gemini) |
 | Embeddings | `nomic-embed-text` via Ollama / `text-embedding-004` via Gemini | 768-dim, CPU-friendly (Ollama); 768-dim cloud (Gemini) |
 | Vector Store | ChromaDB | `chromadb >= 0.5`, persistent local directory |
 | Relational Store | SQLite3 (stdlib) | Glossary + Translation Memory |
@@ -51,7 +195,7 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 
 ---
 
-## 3. Hardware Target Constraints (8 GB RAM)
+## 4. Hardware Target Constraints (8 GB RAM)
 
 The system is designed against a **hard 8 GB RAM** ceiling. The following budget must be respected at all times:
 
@@ -74,7 +218,7 @@ The system is designed against a **hard 8 GB RAM** ceiling. The following budget
 
 ---
 
-## 4. Project Structure
+## 5. Project Structure
 
 ```
 translater/
@@ -112,21 +256,24 @@ translater/
 │       ├── knowledge_sources/   # Glossary, retrieval, TM, legal search, ingestion
 │       ├── translation_pipeline/ # LangGraph state machine, nodes, prompts
 │       └── interfaces/          # CLI, web UI, Tkinter UI, HITL, MCP server
-└── tests/                       # 390 tests
+└── tests/                       # 465 tests
 ```
 
 ---
 
-## 5. Setup, Installation, and Run
+## 6. Setup, Installation, and Run
 
-### 5.1 Prerequisites
+> This is the deeper, annotated setup reference. For the fast path see
+> [§2 Quick Start (How to Run)](#2-quick-start-how-to-run).
+
+### 6.1 Prerequisites
 
 - Windows 10/11 (or Linux equivalent), 8 GB RAM minimum.
 - **Ollama** installed: https://ollama.com (Windows installer).
 - Python 3.10.x or 3.11.x verified via `python --version`.
 - ~10 GB free disk for models + vector store.
 
-### 5.2 Install Ollama Models
+### 6.2 Install Ollama Models
 
 ```powershell
 ollama pull gemma3:4b
@@ -139,7 +286,7 @@ Verify both are available:
 ollama list
 ```
 
-### 5.3 Create Environment and Install Dependencies
+### 6.3 Create Environment and Install Dependencies
 
 ```powershell
 python -m venv .venv
@@ -167,7 +314,7 @@ uncomment the `gradio` line at the bottom of `requirements.txt` or run:
 pip install -e .[gradio]
 ```
 
-### 5.4 Configure
+### 6.4 Configure
 
 Edit `config.yaml` to set model names, paths, and chunk parameters. Defaults target the 8 GB RAM profile.
 
@@ -179,7 +326,10 @@ The `ui.backend` key selects which desktop UI to launch via `iraqi-translate ui`
 The `llm_backend` key selects the inference backend:
 
 - **`ollama`** (default) — local daemon, no network. Requires `ollama serve`
-  and the models from §5.2.
+  and the models from [§6.2](#62-install-ollama-models).
+- **`llamacpp`** — local llama.cpp server (offline). Point `llamacpp_url`
+  (default `http://localhost:8080`) at your server. Reuses the same Ollama-style
+  adapter and `doctor` checks as the `ollama` backend.
 - **`gemini`** — opt-in Google Gemini API cloud backend. Requires the
   `GEMINI_API_KEY` environment variable (never written to `config.yaml`).
   The `google-genai` SDK is lazily imported; offline users on the Ollama
@@ -194,7 +344,7 @@ $env:GEMINI_API_KEY = "your-api-key-here"
 python -m src.app doctor   # verifies the key + API reachability
 ```
 
-### 5.5 Ingest the Corpus
+### 6.5 Ingest the Corpus
 
 ```powershell
 python -m src.app ingest
@@ -202,7 +352,7 @@ python -m src.app ingest
 
 This parses `data/corpus/*`, chunks the text, embeds via Ollama, and writes to `db/chroma/`. It also loads `data/glossary/*.json` into `db/glossary.sqlite`.
 
-### 5.6 Run the Agent
+### 6.6 Run the Agent
 
 **Quick start (Windows):** Double-click `run.bat` for an interactive menu.
 
@@ -216,11 +366,16 @@ python -m src.app doctor
 python -m src.app translate --input "المادة ١" --direction ar-en
 python -m src.app translate --input "Article 1" --direction en-ar
 
-# Batch translate from JSONL
-python -m src.app batch --input data/batch.jsonl --output data/results.jsonl
+# Batch translate from JSONL (--out, not --output)
+python -m src.app batch --input data/batch.jsonl --out data/results.jsonl
+
+# Translate an Excel workbook (preserves formulas, charts, merged cells, etc.)
+python -m src.app excel --input data/source.xlsx --out data/translated.xlsx --direction ar-en
 
 # Build Translation Memory from corpus
 python -m src.app tm-build
+python -m src.app tm-build-parallel   # parallel TM build
+python -m src.app tm-add-parallel     # add parallel sentence pairs to TM
 
 # Launch desktop UI (pywebview)
 python -m src.app ui
@@ -234,7 +389,7 @@ python -m src.app ui
 > $env:PYTHONIOENCODING='utf-8'
 > ```
 
-### 5.7 Verify the Installation
+### 6.7 Verify the Installation
 
 ```powershell
 python -m src.app doctor
@@ -242,16 +397,16 @@ python -m src.app doctor
 
 The `doctor` command checks (backend-dependent):
 
-- **Ollama backend** (`llm_backend: ollama`, default): Ollama daemon
-  reachable, required local models present, ChromaDB directory initialized,
-  glossary SQLite populated, full RAM headroom estimate (LLM weight budget
-  included).
+- **Ollama / llama.cpp backend** (`llm_backend: ollama` (default) or
+  `llamacpp`): Ollama daemon reachable, required local models present,
+  ChromaDB directory initialized, glossary SQLite populated, full RAM headroom
+  estimate (LLM weight budget included).
 - **Gemini backend** (`llm_backend: gemini`): `GEMINI_API_KEY` present,
   Gemini API reachable (list-models ping), ChromaDB directory initialized,
   glossary SQLite populated, reduced RAM headroom estimate (cloud LLM — no
   local weights).
 
-### 5.8 Logging
+### 6.8 Logging
 
 All entry points (CLI, web UI, Tkinter UI) call `configure_logging()` from
 `src/utils/logging_setup.py` before any component runs. Logs are written to
@@ -263,7 +418,7 @@ add duplicate handlers.
 
 ---
 
-## 6. Architecture
+## 7. Architecture
 
 The system follows a **component-based architecture** with 4 bounded contexts:
 
@@ -280,7 +435,7 @@ See `openspec/` for detailed specs and change proposals.
 
 ---
 
-## 7. Development
+## 8. Development
 
 ```powershell
 # Run tests
@@ -301,16 +456,17 @@ openspec validate --all
 
 ---
 
-## 8. Non-Goals
+## 9. Non-Goals
 
-- No cloud LLM calls. No OpenAI, Anthropic, or any remote inference.
+- No cloud LLM calls except the opt-in Google Gemini API backend
+  (`llm_backend: gemini`). No OpenAI, Anthropic, or any other remote inference.
 - No multi-tenant serving. Single-user, single-session.
 - No fine-tuning pipeline in this repository. Glossary + RAG is the alignment strategy.
 - No translation of non-Iraqi legal systems (e.g., Egyptian, French law) unless explicitly added to the corpus.
 
 ---
 
-## 9. License & Data Handling
+## 10. License & Data Handling
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 

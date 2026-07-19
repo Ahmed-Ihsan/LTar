@@ -10,8 +10,12 @@ via a deterministic glossary, retrieves context from a ChromaDB corpus of Iraqi
 laws, and orchestrates a **Translator → Auditor → Revise** loop through
 LangGraph with bounded retries and dual-agent quality assurance.
 
-The system is engineered for an **8 GB RAM** hard ceiling, **no cloud calls**,
-**no telemetry**, and **single-user, single-session** operation.
+The system is engineered for an **8 GB RAM** hard ceiling, **no telemetry**,
+**single-user, single-session** operation, and **no cloud calls by default**.
+The default LLM backend is Ollama (local, offline); an **opt-in** Google Gemini
+API cloud backend (`llm_backend: gemini`) is the only sanctioned cloud path.
+See `README.md` [§2 Quick Start (How to Run)](README.md#2-quick-start-how-to-run)
+for the fast path from a clean clone to a working translation.
 
 ---
 
@@ -53,12 +57,15 @@ jurisprudential text between Arabic and English. It combines:
 - Optional **web search** over Iraqi legal sources (Ministry of Justice,
   National Library, Dijlex, UR Portal).
 
-All inference is served by a local **Ollama** daemon running a quantized model
-that fits the 8 GB RAM envelope. No component transmits data off the host.
+All inference is served by a local **Ollama** daemon (default) running a
+quantized model that fits the 8 GB RAM envelope. An opt-in Google Gemini API
+cloud backend (`llm_backend: gemini`) is the only sanctioned cloud path; when
+it is disabled (the default), no component transmits data off the host.
 
 ### Non-Goals
 
-- No cloud LLM calls (no OpenAI, Anthropic, or any remote inference).
+- No cloud LLM calls except the opt-in Google Gemini API backend
+  (`llm_backend: gemini`). No OpenAI, Anthropic, or any other remote inference.
 - No multi-tenant serving. Single-user, single-session.
 - No fine-tuning pipeline in this repository — glossary + RAG is the alignment
   strategy.
@@ -295,15 +302,17 @@ openspec/
 
 | Change | Status |
 |---|---|
-| `refactor-to-component-architecture` | **Complete: 80/80 tasks done** (`openspec status` reports 4/4 artifacts complete; all 80 tasks in `tasks.md` are checked). Component directories exist in `src/components/`. Ready to archive via `openspec archive refactor-to-component-architecture`. |
-| `fix-mypy-strict-errors` | In progress |
-| `solid-clean-code-refactor` | In progress |
+| `refactor-to-component-architecture` | **Archived** (`openspec/changes/archive/2026-07-18-refactor-to-component-architecture/`). Component directories exist in `src/components/`; delta specs folded into the source-of-truth specs. |
+| `fix-mypy-strict-errors` | **Archived** (`openspec/changes/archive/2026-07-18-fix-mypy-strict-errors/`). |
+| `solid-clean-code-refactor` | **Archived** (`openspec/changes/archive/2026-07-18-solid-clean-code-refactor/`). |
+| `add-gemini-api-backend` | **Archived** (`openspec/changes/archive/2026-07-19-add-gemini-api-backend/`). |
+| `fix-build-and-spec-hygiene` | In progress (`openspec/changes/fix-build-and-spec-hygiene/`). |
 
-> The component refactor is fully implemented in the codebase (`src/components/`
-> exists with all four bounded contexts) and all 80 tasks in
-> `openspec/changes/refactor-to-component-architecture/tasks.md` are checked.
-> Archive it via `openspec archive refactor-to-component-architecture` to fold
-> the delta specs into the source-of-truth specs.
+> The `openspec/` directory is **gitignored** (local spec-driven development,
+> not part of the tracked codebase — see `.gitignore`). It exists only on
+> contributors' machines after they run `openspec init` / `openspec new change`.
+> The archived change folders above are therefore local-only; the table
+> reflects the local state, not anything checked into git.
 
 ### Phase 1 — Research
 
@@ -615,17 +624,22 @@ Types: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
 
 - **No secrets or keys in the repository.** Never commit credentials, API keys,
   or connection strings.
-- **No cloud calls.** No remote LLM, embedding, or telemetry endpoints. All
-  inference is local via Ollama.
+- **No cloud calls by default.** The default LLM/embedding backend is Ollama
+  (local, offline). The only sanctioned cloud path is the opt-in Google Gemini
+  API backend (`llm_backend: gemini`), which requires `GEMINI_API_KEY` and
+  lazily imports `google-genai`. No other remote LLM, embedding, or telemetry
+  endpoints are permitted.
 - **No third-party network calls** except the optional, opt-in Iraqi legal web
-  search (`web_search_enabled: false` by default).
+  search (`web_search_enabled: false` by default) and the opt-in Gemini backend.
 - **Never log or expose secrets.** Run logs (`logs/run_<id>.jsonl`) must not
   contain credentials.
 - **Never modify security policies or compliance controls** (e.g. branch
   protection, `.npmrc`/pip security settings) to work around CI failures —
   escalate to the user.
-- Corpus data must come from **public official gazette publications**. No
-  component transmits data off the host.
+- Corpus data must come from **public official gazette publications**. With the
+  default Ollama backend, no component transmits data off the host; with the
+  opt-in Gemini backend, only the translation text is sent to Google's API
+  (never the corpus or glossary wholesale).
 - Validate all external input (corpus files, glossary JSON, CLI args, MCP
   requests); raise domain exceptions on invalid input.
 - Adapters are the trust boundary: catch engine-specific errors and re-raise
@@ -730,7 +744,8 @@ evidence:
 - [ ] **Complexity:** `radon cc src/ -a` acceptable (no new hotspots).
 - [ ] **Specs valid:** `openspec validate --all` passes (0 failures).
 - [ ] **No regressions:** edge cases validated; existing behavior preserved.
-- [ ] **Constraints respected:** 8 GB RAM, no cloud calls, PersistentClient
+- [ ] **Constraints respected:** 8 GB RAM, no cloud calls by default (opt-in
+      Gemini is the only sanctioned cloud path), PersistentClient
       only, single in-flight request, no new unmaintained dependencies.
 - [ ] **Docs updated:** README / AGENTS.md / specs reflect the new behavior.
 - [ ] **Verification summary** produced with actual command output.

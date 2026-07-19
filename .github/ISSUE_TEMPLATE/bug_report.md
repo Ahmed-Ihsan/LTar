@@ -29,7 +29,8 @@ What actually happened (include error message / stack trace).
 - OS: [e.g. Windows 11]
 - Python version: [e.g. 3.11.7]
 - Ollama version: [e.g. 0.3.0]
-- Model: [e.g. qwen2.5:7b-instruct-q5_K_M]
+- Model: [e.g. gemma3:4b]
+- LLM backend: [e.g. ollama (default) | llamacpp | gemini]
 - Branch / commit: [e.g. main @ abc123]
 
 ## Additional Context
