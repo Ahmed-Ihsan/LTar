@@ -13,8 +13,11 @@ class BatchRecord(BaseModel):
     """A single line in a JSONL batch translation file."""
 
     input: str = Field(..., max_length=10000, description="Source text to translate")
-    direction: Literal["ar-en", "en-ar"] = Field(
-        ..., description="Translation direction"
+    direction: Literal["ar-en", "en-ar", "auto"] = Field(
+        ...,
+        description="Translation direction; 'auto' detects per-record "
+                    "by script dominance (Arabic chars → ar-en, "
+                    "Latin chars → en-ar)",
     )
 
 

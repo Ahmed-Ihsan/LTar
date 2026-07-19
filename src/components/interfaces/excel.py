@@ -416,7 +416,7 @@ def translate_excel(
     segment; already-translated segments are patched, remaining segments keep
     their original text, and the report records ``cancelled=True``.
     """
-    from src.components.interfaces.orchestration import run_translation
+    from src.components.interfaces.orchestration import detect_direction, run_translation
 
     input_p = Path(input_path)
     max_xlsx_bytes: int = cfg.excel.max_xlsx_bytes
@@ -468,8 +468,15 @@ def translate_excel(
         if progress is not None:
             progress(i, total, source)
 
+        # Resolve `auto` direction per-segment by script dominance.
+        # For explicit directions (`ar-en` / `en-ar`), `detect_direction`
+        # is never called — the user's choice is used as-is.
+        effective_direction: str = (
+            detect_direction(source) if direction == "auto" else direction
+        )
+
         result: str | None = _translate_segment(
-            source, seg, direction, cfg,
+            source, seg, effective_direction, cfg,
             run_translation_fn=cast(Callable[..., Any], run_translation),
             llm=llm, embedder=embedder,
             glossary_index=glossary_index, persist_dir=persist_dir,

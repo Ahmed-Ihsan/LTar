@@ -29,7 +29,11 @@ def translate(
     ],
     direction: Annotated[
         Direction,
-        typer.Option("--direction", help="Translation direction."),
+        typer.Option(
+            "--direction",
+            help="Translation direction: ar-en, en-ar, or auto "
+                 "(auto-detect by script dominance).",
+        ),
     ],
     out: Annotated[
         str,
@@ -52,12 +56,19 @@ def translate(
         typer.secho("input text is empty.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
+    # Resolve `auto` direction by script dominance (once, for the whole input).
+    from src.components.interfaces.orchestration import detect_direction
+    effective_direction: str = (
+        detect_direction(input_text) if direction is Direction.auto
+        else direction.value
+    )
+
     adapters: Adapters = _cli._construct_adapters(cfg)
 
     try:
         with _cli._new_run_logger(cfg) as run_logger:
             state = _cli.run_translation(
-                input_text, direction.value, cfg,
+                input_text, effective_direction, cfg,
                 llm=adapters.llm, embedder=adapters.embedder,
                 glossary_index=adapters.glossary_index,
                 persist_dir=adapters.persist_dir,

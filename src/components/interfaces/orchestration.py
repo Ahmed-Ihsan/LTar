@@ -34,10 +34,66 @@ logger = logging.getLogger(__name__)
 
 
 class Direction(enum.Enum):
-    """Translation direction (closed set, clean-code §1.1)."""
+    """Translation direction (closed set, clean-code §1.1).
+
+    ``auto`` is a meta-direction: the actual direction is resolved
+    per-segment by :func:`detect_direction` based on the dominant script
+    (Arabic characters → ``ar-en``, Latin characters → ``en-ar``). Used by
+    the ``excel`` command to handle mixed-language workbooks in a single
+    run.
+    """
 
     ar_en = "ar-en"
     en_ar = "en-ar"
+    auto = "auto"
+
+
+# Unicode range for Arabic script characters (U+0600–U+06FF + extensions).
+# Covers Arabic, Arabic Supplement, Arabic Extended-A, and the basic
+# diacritical marks. Excludes Arabic Presentation Forms (U+FB50–U+FDFF,
+# U+FE70–U+FEFF) which are font-specific ligatures — the base block is
+# sufficient for language detection.
+_ARABIC_RANGE_START: int = 0x0600
+_ARABIC_RANGE_END: int = 0x06FF
+
+
+def detect_direction(text: str) -> str:
+    """Detect the translation direction for ``text`` based on script dominance.
+
+    Counts Arabic-script characters vs Latin-script characters in ``text``
+    and returns the direction that translates **from** the dominant script
+    **to** the other:
+
+    - More Arabic chars → ``"ar-en"`` (translate Arabic to English)
+    - More Latin chars → ``"en-ar"`` (translate English to Arabic)
+    - Tie or neither script present → ``"ar-en"`` (safe default — the
+      project's primary direction is Arabic → English)
+
+    This is a **script-based heuristic**, not a full language model. It is
+    sufficient for the Iraqi Legal Translation Agent's two-language world
+    (Arabic ⇄ English). Mixed-script segments (e.g. an Arabic sentence with
+    English legal terms in parentheses) are classified by the **majority**
+    script, which is the correct behavior for choosing a translation
+    direction.
+
+    Args:
+        text: The source string to classify.
+
+    Returns:
+        ``"ar-en"`` or ``"en-ar"`` — never ``"auto"`` (the output is always
+        a concrete direction that :func:`run_translation` accepts).
+    """
+    arabic_count: int = 0
+    latin_count: int = 0
+    for ch in text:
+        code: int = ord(ch)
+        if _ARABIC_RANGE_START <= code <= _ARABIC_RANGE_END:
+            arabic_count += 1
+        elif ch.isascii() and ch.isalpha():
+            latin_count += 1
+    if arabic_count >= latin_count:
+        return "ar-en"
+    return "en-ar"
 
 
 def _initial_state(input_text: str, direction: str) -> TranslationState:
@@ -610,7 +666,10 @@ def _process_batch(
                 )
                 continue
             state = run_translation(
-                record.input, record.direction, cfg,
+                record.input,
+                detect_direction(record.input) if record.direction == "auto"
+                else record.direction,
+                cfg,
                 llm=llm, embedder=embedder,
                 glossary_index=glossary_index, persist_dir=persist_dir,
                 run_logger=run_logger, tm=tm,

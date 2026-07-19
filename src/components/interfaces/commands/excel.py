@@ -30,7 +30,11 @@ def excel(
     ],
     direction: Annotated[
         Direction,
-        typer.Option("--direction", help="Translation direction."),
+        typer.Option(
+            "--direction",
+            help="Translation direction: ar-en, en-ar, or auto "
+                 "(auto-detect per cell by script dominance).",
+        ),
     ],
     config_path: Annotated[
         Path,
