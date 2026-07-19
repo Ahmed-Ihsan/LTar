@@ -21,6 +21,7 @@ _LAZY: dict[str, str] = {
     "EmbeddingAdapter": f"{__name__}.embeddings",
     "embed_batch": f"{__name__}.embeddings",
     "embed_text": f"{__name__}.embeddings",
+    "GeminiEngineAdapter": f"{__name__}.gemini",
     "LLMEngineAdapter": f"{__name__}.llm",
     "OllamaEngineAdapter": f"{__name__}.llm",
     "RAM_GUARD_MIN_GB": f"{__name__}.memory",

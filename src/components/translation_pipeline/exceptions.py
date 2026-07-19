@@ -89,6 +89,33 @@ class LlamaCppTimeoutError(LlamaCppConnectionError):
     """A llama.cpp request exceeded the configured timeout."""
 
 
+# --- Backend-agnostic LLM connection / timeout (additive; no reparenting) ---
+
+class LLMConnectionError(LLMRuntimeError):
+    """Backend-agnostic: cannot reach an LLM backend (Ollama, llama.cpp, Gemini, ...).
+
+    Additive sibling of :class:`OllamaConnectionError` /
+    :class:`LlamaCppConnectionError` — those are NOT reparented under this
+    class (additive-only change per the `add-gemini-api-backend` design D3).
+    A future change may unify them if shared ``isinstance`` handling is wanted.
+    """
+
+
+class LLMTimeoutError(LLMConnectionError):
+    """Backend-agnostic: an LLM request exceeded the configured timeout."""
+
+
+# --- Gemini-specific LLM failures (cloud backend) ---
+
+class GeminiAuthError(LLMRuntimeError):
+    """The Gemini API key is missing or invalid (HTTP 401/403 / PermissionDenied)."""
+
+
+class GeminiQuotaError(LLMRuntimeError):
+    """The Gemini RPM/quota budget is exhausted (HTTP 429 / ResourceExhausted
+    or the local rate limiter refusing the call before contacting the API)."""
+
+
 # --- Embedding --------------------------------------------------------------
 
 class EmbeddingError(LegalTranslationError):

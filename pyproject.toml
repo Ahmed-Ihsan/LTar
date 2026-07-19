@@ -23,6 +23,7 @@ dependencies = [
     "langchain-community>=0.3,<0.4",
     "chromadb>=0.5,<0.6",
     "ollama>=0.3,<0.5",
+    "google-genai>=1.0,<2",
     "typer>=0.12,<0.14",
     "click>=8.0,<8.2",
     "rich>=13.7,<14",
@@ -90,6 +91,9 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # (system, user, model, temperature, max_tokens, timeout) — 6 args is the
 # mandated adapter contract, not an over-engineered function.
 "src/components/infrastructure/llm.py" = ["PLR0913"]
+# GeminiEngineAdapter.generate mirrors the mandated LLMEngineAdapter
+# protocol signature (6 args, AGENTS.md §5.3) — same precedent as llm.py.
+"src/components/infrastructure/gemini.py" = ["PLR0913"]
 # Test helpers and the mock LLM adapter mirror the mandated protocol signature;
 # the _state builder takes one arg per state field for readability.
 "tests/conftest.py" = ["PLR0913"]
@@ -154,6 +158,12 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "ahocorasick.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The `google-genai` SDK ships without complete type stubs; suppress
+# missing-import errors for it (the adapter uses `Any` for SDK objects).
+module = "google.genai.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

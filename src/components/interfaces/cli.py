@@ -116,18 +116,59 @@ def _new_tm(cfg: AppConfig) -> TranslationMemory | None:
 
 
 def _construct_adapters(cfg: AppConfig) -> Adapters:
-    """Construct the concrete Ollama/ChromaDB/Glossary/TM adapters (DI seam).
+    """Construct the concrete LLM/embedding/ChromaDB/Glossary/TM adapters (DI seam).
 
     The single place concrete adapters are built (engineering-principles
-    §3.6). Raises :class:`typer.Exit` (code 1) on a glossary load failure.
+    §3.6). Branches on ``cfg.llm_backend``:
+
+    - ``"ollama"`` (default) and ``"llamacpp"``: construct
+      :class:`OllamaEngineAdapter` + :class:`Embedder` exactly as before
+      this change (no behavioral regression).
+    - ``"gemini"``: construct a single :class:`GeminiEngineAdapter` and use
+      it for **both** the ``llm`` and ``embedder`` fields of
+      :class:`Adapters` (the Gemini backend serves LLM and embeddings from
+      the same provider under one API key — design D1). The
+      ``google-genai`` SDK is lazily imported inside ``gemini.py``, so the
+      Ollama path never imports it.
+
+    Raises :class:`typer.Exit` (code 1) on a glossary load failure or when
+    ``llm_backend == "gemini"`` and ``cfg.gemini_api_key`` is ``None``
+    (defensive — ``load_config`` already rejects this case).
     """
-    from src.components.infrastructure.embeddings import Embedder
-    from src.components.infrastructure.llm import OllamaEngineAdapter
     from src.components.knowledge_sources.glossary import load_glossary_index
 
     persist_dir: str = str(_resolve_path(cfg, cfg.paths.chroma_dir))
-    llm = OllamaEngineAdapter(model=cfg.llm_model, host=cfg.ollama_host)
-    embedder = Embedder(model=cfg.embed_model, host=cfg.ollama_host)
+
+    llm: object
+    embedder: object
+    if cfg.llm_backend == "gemini":
+        # Lazy import so the Ollama path never imports google-genai.
+        from src.components.infrastructure.gemini import GeminiEngineAdapter
+
+        api_key: str | None = cfg.gemini_api_key
+        if not api_key:
+            typer.secho(
+                "GEMINI_API_KEY environment variable not set "
+                "(required when llm_backend='gemini').",
+                fg=typer.colors.RED, err=True,
+            )
+            raise typer.Exit(code=1)
+        gemini = GeminiEngineAdapter(
+            model=cfg.gemini_model,
+            embed_model=cfg.gemini_embed_model,
+            api_key=api_key,
+            timeout=cfg.gemini_timeout,
+            rpm=cfg.gemini_rpm,
+        )
+        llm = gemini
+        embedder = gemini
+    else:
+        from src.components.infrastructure.embeddings import Embedder
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+
+        llm = OllamaEngineAdapter(model=cfg.llm_model, host=cfg.ollama_host)
+        embedder = Embedder(model=cfg.embed_model, host=cfg.ollama_host)
+
     try:
         glossary_index = load_glossary_index(
             _resolve_path(cfg, cfg.paths.glossary_db)

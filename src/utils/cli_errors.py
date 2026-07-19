@@ -3,7 +3,7 @@
 Exit-code table (AGENTS.md §11):
     0 = success
     1 = generic / unhandled
-    2 = Ollama / embedding connection
+    2 = LLM / embedding connection / auth (Ollama, Gemini, embedding)
     3 = RAM guard
     4 = path containment
     5 = JSONL / input validation
@@ -20,7 +20,11 @@ import typer
 
 from src.components.translation_pipeline.exceptions import (
     EmbeddingConnectionError,
+    GeminiAuthError,
+    GeminiQuotaError,
     InputValidationError,
+    LLMConnectionError,
+    LLMTimeoutError,
     OllamaConnectionError,
     PathContainmentError,
     RAMGuardError,
@@ -44,6 +48,10 @@ def handle_pipeline_errors(func: Callable[..., T]) -> Callable[..., T]:
 
     Catches:
         OllamaConnectionError / EmbeddingConnectionError → exit 2
+        GeminiAuthError / GeminiQuotaError / LLMConnectionError /
+        LLMTimeoutError → exit 2 (connection / auth family — same code as
+        the Ollama connection family; no new exit code is introduced per
+        the `add-gemini-api-backend` interfaces spec delta)
         RAMGuardError → exit 3
         PathContainmentError → exit 4
         InputValidationError → exit 5
@@ -54,9 +62,16 @@ def handle_pipeline_errors(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(*args: object, **kwargs: object) -> T:
         try:
             return func(*args, **kwargs)
-        except (OllamaConnectionError, EmbeddingConnectionError) as e:
-            logger.error("Engine connection error: %s", e)
-            typer.echo(f"Error: cannot reach Ollama/embedding engine: {e}", err=True)
+        except (
+            OllamaConnectionError,
+            EmbeddingConnectionError,
+            GeminiAuthError,
+            GeminiQuotaError,
+            LLMConnectionError,
+            LLMTimeoutError,
+        ) as e:
+            logger.error("Engine connection/auth error: %s", e)
+            typer.echo(f"Error: cannot reach LLM/embedding backend: {e}", err=True)
             raise typer.Exit(code=_EXIT_OLLAMA) from e
         except RAMGuardError as e:
             logger.error("RAM guard exceeded: %s", e)

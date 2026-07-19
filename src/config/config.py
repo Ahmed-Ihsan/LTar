@@ -10,10 +10,12 @@ parsed configuration.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.config.models import ChromaConfig, ExcelConfig, PathsConfig, UiConfig
 
@@ -22,11 +24,27 @@ from src.config.models import ChromaConfig, ExcelConfig, PathsConfig, UiConfig
 # parents up (src/config/config.py -> src/config -> src -> <root>).
 DEFAULT_CONFIG_PATH: Path = Path(__file__).resolve().parent.parent.parent / "config.yaml"
 
+# Valid LLM backend identifiers (kept here as the single source of truth for
+# the `Literal` below and for the ConfigError message listing valid values).
+_VALID_BACKENDS: tuple[str, ...] = ("ollama", "llamacpp", "gemini")
+
+# Sentinel masked value used in `AppConfig.__repr__` for `gemini_api_key`.
+_KEY_MASK: str = "***"
+
+# Environment variable name from which the Gemini API key is read.
+_GEMINI_KEY_ENV: str = "GEMINI_API_KEY"
+
 
 class AppConfig(BaseModel):
     """Top-level application configuration parsed from ``config.yaml``."""
 
-    llm_backend: str = "ollama"
+    # Pydantic v2 model config: extra keys are forbidden (a `gemini_api_key`
+    # key placed in config.yaml is rejected by `load_config` before Pydantic
+    # sees it, but `extra="forbid"` is the defensive backstop for any other
+    # secret-bearing key a user might try to inline).
+    model_config = ConfigDict(extra="forbid")
+
+    llm_backend: Literal["ollama", "llamacpp", "gemini"] = "ollama"
     ollama_host: str = "http://localhost:11434"
     llamacpp_url: str = "http://localhost:8080"
 
@@ -70,10 +88,22 @@ class AppConfig(BaseModel):
     # --- UI backend selection (web vs Tkinter) ---
     ui: UiConfig = Field(default_factory=UiConfig)
 
+    # --- Gemini API (cloud, opt-in) ---
+    # `gemini_api_key` is populated from the `GEMINI_API_KEY` environment
+    # variable by `load_config` — it MUST NOT appear in `config.yaml`
+    # (security: AGENTS.md §12 — never log secrets). Defaults to `None` so
+    # the offline-first `ollama` path loads cleanly with no env var set.
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_embed_model: str = "text-embedding-004"
+    gemini_timeout: float = 120.0
+    gemini_rpm: int = 15
+    gemini_api_key: str | None = None
+
     @field_validator("chunk_size", "chunk_overlap", "top_k",
                      "embedding_batch_size", "chroma_add_batch",
                      "max_revisions", "context_window",
-                     "translator_max_tokens", "auditor_max_tokens")
+                     "translator_max_tokens", "auditor_max_tokens",
+                     "gemini_rpm")
     @classmethod
     def _positive_int(cls, v: int) -> int:
         if v <= 0:
@@ -81,7 +111,7 @@ class AppConfig(BaseModel):
         return v
 
     @field_validator("llm_timeout", "translator_temperature", "auditor_temperature",
-                     "tm_similarity_threshold")
+                     "tm_similarity_threshold", "gemini_timeout")
     @classmethod
     def _non_negative_float(cls, v: float) -> float:
         if v < 0:
@@ -95,6 +125,25 @@ class AppConfig(BaseModel):
             raise ValueError(f"tm_similarity_threshold must be <= 1.0, got {v}")
         return v
 
+    def __repr__(self) -> str:
+        """Mask `gemini_api_key` so the `config load` command never prints it.
+
+        Pydantic v2's generated `__repr__` would include the cleartext key.
+        This override substitutes a sentinel mask for the key field only;
+        every other field uses Pydantic's default field-by-field rendering.
+        """
+        key: str | None = self.gemini_api_key
+        masked: str = _KEY_MASK if key else "None"
+        fields: list[str] = []
+        for name, value in self.__dict__.items():
+            if name == "gemini_api_key":
+                fields.append(f"{name}={masked}")
+            else:
+                fields.append(f"{name}={value!r}")
+        return f"{type(self).__name__}({', '.join(fields)})"
+
+    __str__ = __repr__
+
 
 class ConfigError(Exception):
     """Raised when ``config.yaml`` is missing, unreadable, or invalid."""
@@ -107,8 +156,10 @@ def load_config(path: Path | None = None) -> AppConfig:
     """Load and validate ``config.yaml`` into an :class:`AppConfig`.
 
     Raises:
-        ConfigError: if the file is missing, not a mapping, or fails
-            Pydantic validation.
+        ConfigError: if the file is missing, not a mapping, fails Pydantic
+            validation, contains a `gemini_api_key` key (must come from the
+            `GEMINI_API_KEY` env var), or selects `llm_backend: gemini`
+            without a `GEMINI_API_KEY` env var set.
     """
     config_path: Path = path if path is not None else DEFAULT_CONFIG_PATH
     if not config_path.is_file():
@@ -125,9 +176,34 @@ def load_config(path: Path | None = None) -> AppConfig:
         raise ConfigError(
             f"config root must be a mapping, got {type(raw).__name__}"
         )
+    # Security: the Gemini API key MUST come from the environment, never from
+    # config.yaml. Reject a `gemini_api_key` key before Pydantic validation so
+    # the error message is actionable and the key never reaches the model.
+    if "gemini_api_key" in raw:
+        raise ConfigError(
+            "gemini_api_key must be set via the GEMINI_API_KEY environment "
+            "variable, not config.yaml (security: never commit API keys)."
+        )
     try:
         cfg: AppConfig = AppConfig.model_validate(raw)
     except Exception as e:
-        raise ConfigError(f"config validation failed: {e}") from e
+        # Pydantic's Literal validation rejects an unknown `llm_backend` with
+        # a literal_type error; surface a clearer message listing valid values.
+        msg: str = str(e)
+        if "llm_backend" in msg and "literal" in msg.lower():
+            msg = (
+                f"invalid llm_backend; valid values are "
+                f"{', '.join(_VALID_BACKENDS)}: {msg}"
+            )
+        raise ConfigError(f"config validation failed: {msg}") from e
+    # Populate `gemini_api_key` from the environment (single source of truth).
+    api_key: str | None = os.environ.get(_GEMINI_KEY_ENV) or None
+    if cfg.llm_backend == "gemini" and not api_key:
+        raise ConfigError(
+            "llm_backend='gemini' requires the GEMINI_API_KEY environment "
+            "variable to be set. Export it (e.g. `$env:GEMINI_API_KEY='...'"
+            " on PowerShell or `set GEMINI_API_KEY=...` on cmd) and rerun."
+        )
+    cfg = cfg.model_copy(update={"gemini_api_key": api_key})
     _config_cache[config_path] = (mtime, cfg)
     return cfg

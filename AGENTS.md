@@ -142,7 +142,12 @@ table to avoid drift (DRY).
 - Never load a model > 8B params; runtime default is `gemma3:4b` (`config.yaml`).
 - ChromaDB: **PersistentClient only** (never client/server mode).
 - Concurrency: 1 in-flight request max; embedding batch ≤ 32; context ≤ 8192 tokens.
-- Strictly **NO** cloud LLM calls, **NO** telemetry, **NO** third-party network calls.
+- **No telemetry, no third-party network calls.** The default LLM backend is
+  Ollama (local, offline). An **opt-in** Google Gemini API cloud backend
+  (`llm_backend: gemini`) is the only sanctioned cloud path; it requires the
+  `GEMINI_API_KEY` environment variable, lazily imports `google-genai`, and
+  enforces a process-local RPM cap. All other cloud LLM providers are
+  out-of-scope.
 - Single-user, single-session.
 - **Note:** `openspec/config.yaml` references `qwen2.5:7b-instruct-q5_K_M`, but
   `config.yaml` is the runtime source of truth (`gemma3:4b`). Both fit the RAM

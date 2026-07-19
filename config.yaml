@@ -3,13 +3,29 @@
 # All paths are relative to the project root.
 
 # --- LLM / embedding runtime ---
-llm_backend: ollama          # ollama | llamacpp
+# Backend selection:
+#   ollama  — local daemon (default, offline). Requires `ollama serve`.
+#   llamacpp — local llama.cpp server (offline).
+#   gemini  — opt-in Google Gemini API cloud backend. Requires the
+#             GEMINI_API_KEY environment variable (NEVER write the key
+#             here). Lazily imports google-genai; enforces a process-local
+#             RPM cap. See README.md §5.4.
+llm_backend: ollama          # ollama | llamacpp | gemini
 ollama_host: http://localhost:11434
 llamacpp_url: http://localhost:8080
 
 # Model names (must be pulled via `ollama pull` before running).
+# Used by the ollama / llamacpp backends; ignored when llm_backend: gemini.
 llm_model: gemma3:4b
 embed_model: nomic-embed-text
+
+# --- Gemini API backend (used only when llm_backend: gemini) ---
+# The API key is read from the GEMINI_API_KEY environment variable, NOT
+# from this file (security — never commit a key to config.yaml).
+gemini_model: gemini-2.0-flash         # chat model
+gemini_embed_model: text-embedding-004 # 768-dim embed model (matches EMBED_DIM)
+gemini_timeout: 120.0                  # seconds per generation / embed batch
+gemini_rpm: 15                         # Gemini free-tier requests-per-minute cap
 
 # --- Paths (relative to project root) ---
 paths:

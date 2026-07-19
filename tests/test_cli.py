@@ -721,7 +721,10 @@ class TestOllamaDownHandling:
         assert result.exit_code == 2
         combined = (result.stdout or "") + (result.output or "")
         assert "Traceback" not in combined
-        assert "ollama" in combined.lower()
+        # The unified connection/auth error message covers both the Ollama
+        # and Gemini backend families (add-gemini-api-backend); assert on
+        # the stable wording rather than a backend-specific token.
+        assert "backend" in combined.lower()
 
     def test_translate_generic_error_still_exits_1(self) -> None:
         """Non-connection errors keep the existing exit-code-1 behaviour."""
@@ -827,3 +830,86 @@ class TestTmBuildCommand:
         result = runner.invoke(app, ["tm-build", "--help"])
         assert result.exit_code == 0
         assert "--corpus-dir" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Gemini backend construction (add-gemini-api-backend)
+# ---------------------------------------------------------------------------
+
+
+class TestConstructAdaptersGemini:
+    """`_construct_adapters` branches on `cfg.llm_backend` (interfaces spec)."""
+
+    def test_gemini_backend_constructs_one_adapter_for_both_roles(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When `llm_backend == "gemini"`, `Adapters.llm` and
+        `Adapters.embedder` are the same `GeminiEngineAdapter` instance.
+        """
+        from src.components.infrastructure.gemini import GeminiEngineAdapter
+        from src.components.interfaces.cli import _construct_adapters
+        from src.config import AppConfig
+
+        monkeypatch.setenv("GEMINI_API_KEY", "AIzaTestKeyForCliTest123")
+        cfg = AppConfig(llm_backend="gemini", gemini_api_key="AIzaTestKeyForCliTest123")
+        # Stub out the glossary loader so no real SQLite DB is needed.
+        with patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
+            adapters = _construct_adapters(cfg)
+        assert isinstance(adapters.llm, GeminiEngineAdapter)
+        assert adapters.llm is adapters.embedder
+        adapters.llm.close()
+
+    def test_gemini_backend_without_key_exits_1(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import typer
+
+        from src.components.interfaces.cli import _construct_adapters
+        from src.config import AppConfig
+
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        cfg = AppConfig(llm_backend="ollama")
+        # Force the gemini branch with a None key (bypass load_config's
+        # rejection by setting the field directly).
+        cfg = cfg.model_copy(update={"llm_backend": "gemini", "gemini_api_key": None})
+        with pytest.raises(typer.Exit) as ei:
+            _construct_adapters(cfg)
+        assert ei.value.exit_code == 1
+
+    def test_ollama_backend_path_unchanged(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import sys
+
+        from src.components.infrastructure.embeddings import Embedder
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+        from src.components.interfaces.cli import _construct_adapters
+        from src.config import AppConfig
+
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        cfg = AppConfig(llm_backend="ollama")
+        # Snapshot the modules present before construction; the ollama path
+        # must not newly import `google.genai` (it may already be in
+        # sys.modules from a prior test in the same session — that's fine;
+        # we only assert no NEW import happens here).
+        before: set[str] = set(sys.modules)
+        with patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
+            adapters = _construct_adapters(cfg)
+        after: set[str] = set(sys.modules)
+        new_mods: set[str] = after - before
+        assert "google.genai" not in new_mods
+        assert "google" not in new_mods
+        assert isinstance(adapters.llm, OllamaEngineAdapter)
+        assert isinstance(adapters.embedder, Embedder)

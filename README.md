@@ -29,9 +29,9 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 |---|---|---|
 | Language | Python | 3.10.x or 3.11.x |
 | Agent Orchestration | LangGraph | `langgraph >= 0.2, < 0.3` |
-| LLM Runtime | Ollama | Local daemon, `ollama serve` |
-| LLM Model | `gemma3:4b` | Quantized, ≤ 2 GB footprint |
-| Embeddings | `nomic-embed-text` via Ollama | 768-dim, CPU-friendly |
+| LLM Runtime | Ollama (default) or Google Gemini API (opt-in) | Local daemon `ollama serve`, or cloud `google-genai >= 1.0, < 2` |
+| LLM Model | `gemma3:4b` (Ollama) / `gemini-2.0-flash` (Gemini) | Quantized, ≤ 2 GB footprint (Ollama); cloud-hosted (Gemini) |
+| Embeddings | `nomic-embed-text` via Ollama / `text-embedding-004` via Gemini | 768-dim, CPU-friendly (Ollama); 768-dim cloud (Gemini) |
 | Vector Store | ChromaDB | `chromadb >= 0.5`, persistent local directory |
 | Relational Store | SQLite3 (stdlib) | Glossary + Translation Memory |
 | Glossary Source | JSON files | Human-editable, version-controlled |
@@ -44,6 +44,7 @@ The system is engineered to run on commodity consumer hardware with **8 GB RAM**
 ### Why these choices
 
 - **Ollama + quantized 4B model**: fits the 8 GB RAM envelope alongside the embedding model and ChromaDB process. Larger models (14B+) are explicitly out of scope.
+- **Optional Google Gemini API backend**: an opt-in cloud path (`llm_backend: gemini` in `config.yaml`) for users who prefer hosted inference. The `google-genai` SDK is lazily imported — offline users on the Ollama path never import it. The Gemini free-tier RPM cap (default 15) is enforced by a process-local sliding-window rate limiter.
 - **ChromaDB**: embedded, file-backed, no server process — minimizes resident memory.
 - **SQLite + JSON glossary**: deterministic override layer that does not depend on the LLM, guaranteeing term consistency even when the model drifts.
 - **LangGraph**: explicit state machine for the Translate → Audit → Revise loop, with conditional edges and bounded retry.
@@ -173,6 +174,26 @@ Edit `config.yaml` to set model names, paths, and chunk parameters. Defaults tar
 The `ui.backend` key selects which desktop UI to launch via `iraqi-translate ui`:
 `web` (pywebview, default) or `tk` (Tkinter, no browser dependency).
 
+#### LLM backend selection
+
+The `llm_backend` key selects the inference backend:
+
+- **`ollama`** (default) — local daemon, no network. Requires `ollama serve`
+  and the models from §5.2.
+- **`gemini`** — opt-in Google Gemini API cloud backend. Requires the
+  `GEMINI_API_KEY` environment variable (never written to `config.yaml`).
+  The `google-genai` SDK is lazily imported; offline users on the Ollama
+  path never import it. Gemini-specific keys (`gemini_model`,
+  `gemini_embed_model`, `gemini_timeout`, `gemini_rpm`) tune the cloud
+  backend; the default RPM cap is 15 (Gemini free-tier).
+
+```powershell
+# Switch to the Gemini backend (PowerShell)
+$env:GEMINI_API_KEY = "your-api-key-here"
+# In config.yaml:  llm_backend: gemini
+python -m src.app doctor   # verifies the key + API reachability
+```
+
 ### 5.5 Ingest the Corpus
 
 ```powershell
@@ -219,7 +240,16 @@ python -m src.app ui
 python -m src.app doctor
 ```
 
-The `doctor` command checks: Ollama daemon reachable, required models present, ChromaDB directory initialized, glossary SQLite populated, RAM headroom estimate.
+The `doctor` command checks (backend-dependent):
+
+- **Ollama backend** (`llm_backend: ollama`, default): Ollama daemon
+  reachable, required local models present, ChromaDB directory initialized,
+  glossary SQLite populated, full RAM headroom estimate (LLM weight budget
+  included).
+- **Gemini backend** (`llm_backend: gemini`): `GEMINI_API_KEY` present,
+  Gemini API reachable (list-models ping), ChromaDB directory initialized,
+  glossary SQLite populated, reduced RAM headroom estimate (cloud LLM — no
+  local weights).
 
 ### 5.8 Logging
 
