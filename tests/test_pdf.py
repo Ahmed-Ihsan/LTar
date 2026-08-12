@@ -138,6 +138,19 @@ class TestSegmentPage:
         paras = _segment_page(text, cfg=config)
         assert paras == ["Article 1."]
 
+    def test_preserves_arabic_indic_digit_blocks(self, config: AppConfig) -> None:
+        # Arabic-Indic digits (U+0660..U+0669) must NOT be classified as
+        # pure-number page-number noise — they are legitimate content.
+        text = "١٢٣٤\n\nالمادة الأولى."
+        paras = _segment_page(text, cfg=config)
+        assert paras == ["١٢٣٤", "المادة الأولى."]
+
+    def test_preserves_arabic_letter_block_with_period(self, config: AppConfig) -> None:
+        # An Arabic block with no ASCII digits must not be dropped.
+        text = "المادة.\n\nArticle 1."
+        paras = _segment_page(text, cfg=config)
+        assert paras == ["المادة.", "Article 1."]
+
     def test_collapses_internal_newlines_to_spaces(self, config: AppConfig) -> None:
         text = "Line one\nLine two\n\nSecond paragraph"
         paras = _segment_page(text, cfg=config)

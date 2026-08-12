@@ -62,8 +62,10 @@ _NS_W: str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 # Split on blank lines (one or more newlines surrounded by whitespace).
 _PARAGRAPH_SPLIT_RE: re.Pattern[str] = re.compile(r"\n\s*\n")
-# A block that is only digits, commas, periods, or whitespace (page numbers).
-_PURE_NUMBER_RE: re.Pattern[str] = re.compile(r"^[\d\s,.\u0600-\u06FF]+$")
+# A block that is only ASCII digits, commas, periods, hyphens, or whitespace
+# (page numbers). Arabic-Indic digits and Arabic letters are intentionally
+# excluded so legitimate Arabic numeric/letter content is not dropped.
+_PURE_NUMBER_RE: re.Pattern[str] = re.compile(r"^[0-9\s,.\-]+$")
 # A short header/footer block: < 60 chars and only "word-like" tokens.
 _SHORT_BLOCK_MAX: int = 60
 
@@ -72,7 +74,8 @@ def _segment_page(text: str, *, cfg: AppConfig) -> list[str]:
     """Segment a page's extracted text into paragraphs.
 
     Splits on ``\\n\\s*\\n`` (blank lines); collapses internal newlines to
-    spaces; skips empty blocks and pure-number blocks (page numbers). When
+    spaces; skips empty blocks and ASCII pure-number blocks (page numbers);
+    Arabic-Indic digits and Arabic letters are preserved. When
     ``cfg.pdf.skip_header_footer`` is True, drops the first and last block
     when they are short (``< 60`` chars) and look like headers/footers
     (digits, roman numerals, or single words).
