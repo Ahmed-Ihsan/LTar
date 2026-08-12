@@ -160,67 +160,47 @@ class TestParagraphText:
 
 
 class TestSplitTranslation:
-    def test_proportional_split(self) -> None:
-        # translation length 10, run_lengths [4, 6] -> [4 chars, 6 chars]
-        chunks = split_translation("0123456789", [4, 6])
-        assert chunks == ["0123", "456789"]
-        assert "".join(chunks) == "0123456789"
-
-    def test_zero_run_lengths_distribute_evenly(self) -> None:
-        chunks = split_translation("abc", [0, 0, 0])
-        assert "".join(chunks) == "abc"
-        # Remainder goes to the last run.
-        assert chunks[-1] != ""
+    def test_whole_translation_in_first_run(self) -> None:
+        # The entire translation goes in the first run; remaining runs are
+        # emptied. No word is ever broken across runs.
+        chunks = split_translation("the quick brown fox", [3, 5, 5, 3])
+        assert chunks == ["the quick brown fox", "", "", ""]
+        assert "".join(chunks) == "the quick brown fox"
 
     def test_single_run(self) -> None:
-        chunks = split_translation("hello", [5])
-        assert chunks == ["hello"]
+        chunks = split_translation("contract of sale", [16])
+        assert chunks == ["contract of sale"]
 
     def test_empty_translation(self) -> None:
-        chunks = split_translation("", [3, 3])
+        chunks = split_translation("", [3, 5])
         assert chunks == ["", ""]
 
+    def test_zero_run_lengths(self) -> None:
+        # Even with zero-length runs, the whole translation still goes in
+        # the first slot.
+        chunks = split_translation("hello", [0, 0, 0])
+        assert chunks == ["hello", "", ""]
+
     def test_remainder_goes_to_last_run(self) -> None:
-        # 7 chars across [3, 3] -> [3, 4]
+        # Compatibility: the last run still receives any "remainder" in the
+        # sense that it is the last non-empty slot when there is one run.
         chunks = split_translation("abcdefg", [3, 3])
-        assert chunks == ["abc", "defg"]
+        assert chunks == ["abcdefg", ""]
 
     def test_split_does_not_break_protected_sentinel(self) -> None:
-        # A protected-token sentinel (`\x00T0\x00`, 4 chars) must never be
-        # split across two runs: otherwise restore_protected (applied per
-        # run when the document is read back) cannot recover the original
-        # token and control-character fragments leak into the output.
+        # A protected-token sentinel (`\x00T0\x00`, 4 chars) is never split
+        # across two runs because the whole translation lives in the first
+        # run. restore_protected applied per-run recovers the original token.
         from src.components.interfaces._doc_common import restore_protected
 
         sentinel = "\x00T0\x00"
         token_map = {sentinel: "https://example.com"}
-        # "See " (4) + sentinel (4) + " for details" (12) = 20 chars.
-        translation = f"See {sentinel} for details"
-        # run_lengths [6, 14] -> naive proportional split point at index 6,
-        # which lands inside the sentinel (indices 4..7).
-        chunks = split_translation(translation, [6, 14])
-        # Concatenation is always preserved.
-        assert "".join(chunks) == translation
-        # Each chunk is independently restorable: the URL is recovered and
-        # no partial-sentinel control characters remain.
+        protected = "See " + sentinel + " for details"
+        chunks = split_translation(protected, [4, 4, 9])
+        # Whole translation in the first run; other runs empty.
+        assert chunks[0] == protected
         restored = "".join(restore_protected(c, token_map) for c in chunks)
         assert restored == "See https://example.com for details"
-        assert "\x00" not in restored
-
-    def test_split_does_not_break_sentinel_even_distribution(self) -> None:
-        # Same hazard in the even-distribution (zero run_lengths) branch.
-        from src.components.interfaces._doc_common import restore_protected
-
-        sentinel = "\x00T1\x00"
-        token_map = {sentinel: "1234567890"}
-        # "ab" (2) + sentinel (4) + "cdef" (4) = 10 chars; three zero-length
-        # runs -> even split points at 3 and 6 (base=3). Index 3 lands inside
-        # the sentinel (indices 2..5).
-        translation = f"ab{sentinel}cdef"
-        chunks = split_translation(translation, [0, 0, 0])
-        assert "".join(chunks) == translation
-        restored = "".join(restore_protected(c, token_map) for c in chunks)
-        assert restored == "ab1234567890cdef"
         assert "\x00" not in restored
 
 
@@ -299,19 +279,27 @@ class TestExtractPatch:
         assert "w:ins" in body
         assert "Article 148" in body
 
-    def test_patch_multi_run_proportional_split(self, config: AppConfig) -> None:
+    def test_patch_multi_run_whole_translation_in_first_run(self, config: AppConfig) -> None:
         docx = _build_docx()
         out = patch_word_strings(
             docx, {"Very Important Article": "مهم جدا"}, cfg=config)
         body = _read_part(out, "word/document.xml").decode("utf-8")
-        # The translation "مهم جدا" is split across the two original w:t
-        # runs. Both runs carry part of the Arabic translation; the bold
-        # w:rPr on the first run is preserved.
-        assert "مهم" in body or "هم جدا" in body  # at least one chunk present
-        assert "جدا" in body  # the second chunk
-        assert "w:b" in body  # bold formatting preserved
+        # The ENTIRE translation "مهم جدا" is in the first w:t run (which
+        # carries the bold w:rPr); the second w:t run is empty.
+        assert "مهم جدا" in body
+        assert "w:b" in body  # bold formatting preserved on the first run
         # The original English text is gone from the second paragraph.
         assert "Important Article" not in body
+        # Verify structurally: the second w:t in the multi-run paragraph is empty.
+        from defusedxml.ElementTree import fromstring as ET_fromstring
+        from src.components.interfaces.word import _W_MAIN
+        doc = ET_fromstring(_read_part(out, "word/document.xml"))
+        paras = doc.findall(f".//{{{_W_MAIN}}}p")
+        multi_run_p = paras[1]  # "Very Important Article" paragraph
+        runs = multi_run_p.findall(f".//{{{_W_MAIN}}}r")
+        t_els = [r.find(f"{{{_W_MAIN}}}t") for r in runs if r.find(f"{{{_W_MAIN}}}t") is not None]
+        assert t_els[0].text == "مهم جدا"
+        assert (t_els[1].text or "") == ""
 
     def test_patch_preserves_part_set(self, config: AppConfig) -> None:
         docx = _build_docx()

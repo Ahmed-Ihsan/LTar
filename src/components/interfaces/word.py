@@ -84,13 +84,6 @@ _R: str = f"{{{NS_W}}}r"
 _P: str = f"{{{NS_W}}}p"
 _RPR: str = f"{{{NS_W}}}rPr"
 
-# Sentinel pattern mirroring ``_doc_common._SENTINEL_RE`` so that
-# :func:`split_translation` never cuts a protected-token sentinel
-# (``\x00TN\x00``) across two runs. A sentinel straddling a run boundary
-# would defeat :func:`_doc_common.restore_protected` (applied per run when
-# the document is read back) and leak control-character fragments.
-_SENTINEL_RE: re.Pattern[str] = re.compile(r"\x00T\d+\x00")
-
 
 # ---------------------------------------------------------------------------
 # Allowlisted text-bearing parts
@@ -213,70 +206,29 @@ def extract_word_strings(
 
 
 # ---------------------------------------------------------------------------
-# Pure XML helpers — proportional split
+# Pure XML helpers — whole-translation-in-first-run split
 # ---------------------------------------------------------------------------
 
 
-def _sentinel_spans(text: str) -> list[tuple[int, int]]:
-    """Return ``(start, end)`` spans of every protected-token sentinel."""
-    return [(m.start(), m.end()) for m in _SENTINEL_RE.finditer(text)]
-
-
-def _snap_out_of_sentinel(point: int, spans: list[tuple[int, int]]) -> int:
-    """Move ``point`` to the nearer sentinel boundary if it falls inside one.
-
-    A split point that lands strictly inside a ``\\x00TN\\x00`` sentinel
-    (``start < point < end``) is snapped to whichever sentinel edge is
-    closer so the sentinel is always wholly contained in a single run.
-    """
-    for s, e in spans:
-        if s < point < e:
-            return s if (point - s) <= (e - point) else e
-    return point
-
-
 def split_translation(translation: str, run_lengths: list[int]) -> list[str]:
-    """Proportionally split ``translation`` into ``len(run_lengths)`` chunks.
+    """Place the entire ``translation`` in the first run; empty the rest.
 
-    The i-th chunk is sized by ``run_lengths[i] / sum(run_lengths)``. If
-    ``sum(run_lengths) == 0``, the translation is distributed evenly. Any
-    remainder (from integer rounding) is appended to the last chunk so the
-    concatenation always equals ``translation`` and the last run is never
-    empty for non-empty input.
+    The whole-translation-in-first-run strategy preserves the first run's
+    formatting (the paragraph's dominant run) for the entire translation and
+    never breaks a word across runs. Source-language run boundaries do not
+    map to target-language word boundaries, so proportional splitting only
+    corrupted formatting by slicing words mid-character.
 
-    Split points are snapped away from protected-token sentinel spans
-    (``\\x00TN\\x00``) so a sentinel is never broken across two runs —
-    otherwise :func:`_doc_common.restore_protected` could not recover the
-    original token when applied per run.
+    Returns a list of ``len(run_lengths)`` strings: ``[translation] + [""] * (n - 1)``.
+    Kept as a compatibility wrapper so existing callers/tests of the public
+    helper still resolve; the proportional-split logic is removed.
     """
     n: int = len(run_lengths)
     if n == 0:
         return []
-    total_len: int = len(translation)
-    if total_len == 0:
-        return [""] * n
-    spans: list[tuple[int, int]] = _sentinel_spans(translation)
-    total_runs: int = sum(run_lengths)
-    # Compute the raw inter-run split points (boundaries), then snap each
-    # out of any sentinel it falls inside. The last run always receives the
-    # remainder, so it is never empty for non-empty input.
-    points: list[int] = []
-    if total_runs == 0:
-        base, _rem = divmod(total_len, n)
-        points = [i * base for i in range(1, n)]
-    else:
-        cum: int = 0
-        for rl in run_lengths[:-1]:
-            cum += (total_len * rl) // total_runs
-            points.append(cum)
-    points = [_snap_out_of_sentinel(p, spans) for p in points]
-    chunks: list[str] = []
-    start: int = 0
-    for p in points:
-        chunks.append(translation[start:p])
-        start = p
-    chunks.append(translation[start:])
-    return chunks
+    if n == 1:
+        return [translation]
+    return [translation] + [""] * (n - 1)
 
 
 # ---------------------------------------------------------------------------
