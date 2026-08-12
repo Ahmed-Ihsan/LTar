@@ -83,6 +83,31 @@ _T: str = f"{{{NS_W}}}t"
 _R: str = f"{{{NS_W}}}r"
 _P: str = f"{{{NS_W}}}p"
 _RPR: str = f"{{{NS_W}}}rPr"
+_PPR: str = f"{{{NS_W}}}pPr"
+_BIDI: str = f"{{{NS_W}}}bidiVisual"
+
+# Arabic script Unicode range (U+0600–U+06FF), matching orchestration.detect_direction.
+_ARABIC_RANGE_START: int = 0x0600
+_ARABIC_RANGE_END: int = 0x06FF
+
+
+def _is_arabic_dominant(text: str) -> bool:
+    """Return True if ``text`` has more Arabic-script chars than Latin chars.
+
+    Mirrors ``orchestration.detect_direction`` but is self-contained so the
+    pure helper ``patch_word_strings`` has no dependency on the pipeline or
+    orchestration module. Arabic >= Latin → True (matching detect_direction's
+    tie-breaks-to-ar-en default).
+    """
+    arabic_count: int = 0
+    latin_count: int = 0
+    for ch in text:
+        code: int = ord(ch)
+        if _ARABIC_RANGE_START <= code <= _ARABIC_RANGE_END:
+            arabic_count += 1
+        elif ch.isascii() and ch.isalpha():
+            latin_count += 1
+    return arabic_count >= latin_count
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +267,39 @@ def _serialize_part(root: ET.Element) -> bytes:
     return result
 
 
+def _adjust_bidi_direction(p_el: ET.Element, translation: str) -> None:
+    """Set or remove ``<w:bidiVisual/>`` in the paragraph's ``<w:pPr>`` to
+    match the dominant script of ``translation``.
+
+    Arabic-dominant translation -> ensure ``<w:bidiVisual/>`` exists.
+    Latin-dominant translation  -> remove ``<w:bidiVisual/>`` (and remove
+    ``<w:pPr>`` if it becomes empty).
+
+    Uses the same script heuristic the orchestrator uses for ``auto`` direction
+    resolution, applied to the *translation* (the paragraph direction should
+    match the output language, not the input).
+    """
+    is_rtl: bool = _is_arabic_dominant(translation)
+    ppr: ET.Element | None = p_el.find(_PPR)
+    if is_rtl:
+        if ppr is None:
+            ppr = ET.Element(_PPR)
+            # pPr MUST be the first child of w:p per the OOXML schema.
+            p_el.insert(0, ppr)
+        if ppr.find(_BIDI) is None:
+            bidi = ET.Element(_BIDI)
+            ppr.insert(0, bidi)
+    else:
+        if ppr is not None:
+            bidi_el: ET.Element | None = ppr.find(_BIDI)
+            if bidi_el is not None:
+                ppr.remove(bidi_el)
+            # Remove pPr if it became empty to avoid leaving an empty
+            # paragraph-properties element.
+            if len(list(ppr)) == 0:
+                p_el.remove(ppr)
+
+
 def _patch_part(
     data: bytes,
     name: str,
@@ -255,6 +313,7 @@ def _patch_part(
         # Cannot parse (incl. XXE-rejected DOCTYPE) -> return original bytes
         # unchanged (fail safe).
         return data
+    set_bidi: bool = cfg.word.set_bidi_direction
     for p_el in root.iter(_P):
         text, run_lengths = _paragraph_text(p_el)
         if not text.strip():
@@ -263,7 +322,7 @@ def _patch_part(
         if new is None or new == text:
             continue
         # Collect the w:t elements in document order (same walk as
-        # _paragraph_text) and re-split the translation across them.
+        # _paragraph_text) and place the whole translation in the first run.
         t_els: list[ET.Element] = []
         for r_el in p_el.iter(_R):
             t_el = r_el.find(_T)
@@ -277,6 +336,9 @@ def _patch_part(
             # Preserve leading/trailing whitespace in the run.
             if chunk and (chunk[0].isspace() or chunk[-1].isspace()):
                 t_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+        # Adjust paragraph RTL/bidi direction to match the translation script.
+        if set_bidi:
+            _adjust_bidi_direction(p_el, new)
     return _serialize_part(root)
 
 

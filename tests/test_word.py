@@ -585,3 +585,79 @@ class TestWordCli:
         assert result.exit_code == 1
         combined = (result.stdout or "") + (result.output or "")
         assert ".docx" in combined
+
+
+# ---------------------------------------------------------------------------
+# RTL/bidi paragraph direction (set_bidi_direction)
+# ---------------------------------------------------------------------------
+
+
+class TestBidiDirection:
+    """Word RTL/bidi paragraph direction is set to match the translation script."""
+
+    def _build_single_para_docx(self, paragraph_xml: str) -> bytes:
+        """Build a one-paragraph .docx for bidi tests."""
+        document = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            f'<w:body>{paragraph_xml}</w:body></w:document>'
+        )
+        buf = BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("[Content_Types].xml", _CONTENT_TYPES)
+            z.writestr("_rels/.rels", _ROOT_RELS)
+            z.writestr("word/document.xml", document)
+            z.writestr("word/_rels/document.xml.rels", _DOC_RELS)
+        return buf.getvalue()
+
+    def test_arabic_translation_gets_bidi_visual(self, config: AppConfig) -> None:
+        # Source English paragraph with NO w:pPr; translation is Arabic.
+        para = '<w:p><w:r><w:t>Hello</w:t></w:r></w:p>'
+        docx = self._build_single_para_docx(para)
+        out = patch_word_strings(docx, {"Hello": "مرحبا"}, cfg=config)
+        body = _read_part(out, "word/document.xml").decode("utf-8")
+        assert "<w:bidiVisual" in body
+        assert "مرحبا" in body
+
+    def test_latin_translation_removes_bidi_visual(self, config: AppConfig) -> None:
+        # Source Arabic paragraph WITH w:bidiVisual; translation is English.
+        para = '<w:p><w:pPr><w:bidiVisual/></w:pPr><w:r><w:t>مرحبا</w:t></w:r></w:p>'
+        docx = self._build_single_para_docx(para)
+        out = patch_word_strings(docx, {"مرحبا": "Hello"}, cfg=config)
+        body = _read_part(out, "word/document.xml").decode("utf-8")
+        assert "<w:bidiVisual/>" not in body
+        assert "Hello" in body
+
+    def test_set_bidi_direction_false_preserves_original(self, config: AppConfig) -> None:
+        # With set_bidi_direction=False, the pPr is NOT modified.
+        cfg = config.model_copy(update={"word": config.word.model_copy(
+            update={"set_bidi_direction": False})})
+        para = '<w:p><w:r><w:t>Hello</w:t></w:r></w:p>'
+        docx = self._build_single_para_docx(para)
+        out = patch_word_strings(docx, {"Hello": "مرحبا"}, cfg=cfg)
+        body = _read_part(out, "word/document.xml").decode("utf-8")
+        assert "<w:bidiVisual/>" not in body  # not added
+        assert "مرحبا" in body  # text still replaced
+
+    def test_empty_ppr_removed_when_bidi_was_only_child(self, config: AppConfig) -> None:
+        # Source Arabic paragraph where w:bidiVisual is the ONLY pPr child;
+        # Latin translation -> remove bidi -> pPr becomes empty -> remove pPr.
+        para = '<w:p><w:pPr><w:bidiVisual/></w:pPr><w:r><w:t>مرحبا</w:t></w:r></w:p>'
+        docx = self._build_single_para_docx(para)
+        out = patch_word_strings(docx, {"مرحبا": "Hello"}, cfg=config)
+        body = _read_part(out, "word/document.xml").decode("utf-8")
+        assert "<w:bidiVisual/>" not in body
+        assert "<w:pPr>" not in body  # empty pPr removed
+        assert "Hello" in body
+
+    def test_other_ppr_children_preserved_when_bidi_removed(self, config: AppConfig) -> None:
+        # pPr has spacing AND bidi; Latin translation -> remove bidi only,
+        # spacing stays.
+        para = ('<w:p><w:pPr><w:spacing w:after="120"/><w:bidiVisual/></w:pPr>'
+                '<w:r><w:t>مرحبا</w:t></w:r></w:p>')
+        docx = self._build_single_para_docx(para)
+        out = patch_word_strings(docx, {"مرحبا": "Hello"}, cfg=config)
+        body = _read_part(out, "word/document.xml").decode("utf-8")
+        assert "<w:bidiVisual/>" not in body
+        assert '<w:spacing w:after="120"' in body  # other pPr child kept
+        assert "Hello" in body

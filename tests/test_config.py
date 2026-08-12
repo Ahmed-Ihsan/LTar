@@ -182,6 +182,18 @@ def test_word_config_rejects_max_segments_below_100():
         AppConfig(word={"max_segments": 10})
 
 
+def test_word_config_set_bidi_direction_default_true() -> None:
+    from src.config.models import WordConfig
+    cfg = WordConfig()
+    assert cfg.set_bidi_direction is True
+
+
+def test_word_config_set_bidi_direction_override_false() -> None:
+    from src.config.models import WordConfig
+    cfg = WordConfig(set_bidi_direction=False)
+    assert cfg.set_bidi_direction is False
+
+
 def test_pdf_config_defaults_applied_when_absent():
     cfg = AppConfig()
     assert cfg.pdf.out_format == "docx"

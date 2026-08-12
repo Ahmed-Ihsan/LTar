@@ -116,6 +116,7 @@ class WordConfig(BaseModel):
     translate_footnotes: bool = True
     translate_endnotes: bool = True
     translate_glossary_doc: bool = False
+    set_bidi_direction: bool = True
     max_segment_chars: int = 8192
     max_docx_bytes: int = 50 * 1024 * 1024
     max_segments: int = 20000
