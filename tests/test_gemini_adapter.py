@@ -38,10 +38,12 @@ from src.components.infrastructure.gemini import (
 )
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.translation_pipeline.exceptions import (
+    AdapterError,
     EmbeddingConnectionError,
     EmbeddingError,
     GeminiAuthError,
     GeminiQuotaError,
+    LegalTranslationError,
     LLMConnectionError,
     LLMRuntimeError,
     LLMTimeoutError,
@@ -405,8 +407,8 @@ class TestExceptionMapping:
             a.embed_batch(["a"], batch_size=1)
         a.close()
 
-    def test_translate_gemini_error_unknown_kind_raises_value_error(self) -> None:
-        with pytest.raises(ValueError):
+    def test_translate_gemini_error_unknown_kind_raises_domain_error(self) -> None:
+        with pytest.raises(AdapterError):
             _translate_gemini_error(RuntimeError("x"), model="m", kind="bogus")
 
     def test_api_key_not_leaked_in_exception_message(self) -> None:
@@ -460,9 +462,9 @@ class TestRateLimiter:
         a.close()
 
     def test_rate_limiter_rejects_non_positive_rpm(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(GeminiQuotaError):
             _RateLimiter(0)
-        with pytest.raises(ValueError):
+        with pytest.raises(GeminiQuotaError):
             _RateLimiter(-1)
 
 
@@ -498,9 +500,9 @@ class TestCloseAndContextManager:
 
 class TestConstruction:
     def test_missing_api_key_raises_on_construct(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(GeminiAuthError):
             _build_adapter(_FakeModels(), api_key="")
-        with pytest.raises(ValueError):
+        with pytest.raises(GeminiAuthError):
             GeminiEngineAdapter(
                 model="m", embed_model="e", api_key=None,  # type: ignore[arg-type]
             )
@@ -540,3 +542,80 @@ class TestConstruction:
             gemini_mod.GeminiEngineAdapter(
                 model="m", embed_model="e", api_key="k"
             )
+
+
+# ---------------------------------------------------------------------------
+# Domain-exception wrapping — raw ValueError must not leak (TDD)
+# ---------------------------------------------------------------------------
+
+
+class TestDomainExceptionWrapping:
+    """Raw ``ValueError`` raises in the Gemini adapter must be wrapped in
+    domain exceptions so the CLI boundary never sees a bare built-in.
+
+    Each test triggers a known leak point and asserts the raised exception
+    is a :class:`LegalTranslationError` subclass — never a raw ``ValueError``.
+    """
+
+    def test_unknown_engine_kind_raises_domain_error(self) -> None:
+        """``_translate_gemini_error`` with an invalid ``kind`` must raise a
+        domain exception (``AdapterError``), not a raw ``ValueError``."""
+        with pytest.raises(AdapterError, match="unknown engine kind"):
+            _translate_gemini_error(RuntimeError("x"), model="m", kind="bogus")
+
+    def test_unknown_engine_kind_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        with pytest.raises(LegalTranslationError):
+            _translate_gemini_error(RuntimeError("x"), model="m", kind="bogus")
+        # Explicitly ensure it is not a bare ValueError.
+        try:
+            _translate_gemini_error(RuntimeError("x"), model="m", kind="bogus")
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
+
+    def test_rate_limiter_non_positive_rpm_raises_domain_error(self) -> None:
+        """``_RateLimiter`` with ``rpm <= 0`` must raise ``GeminiQuotaError``."""
+        with pytest.raises(GeminiQuotaError, match="rpm must be positive"):
+            _RateLimiter(0)
+        with pytest.raises(GeminiQuotaError, match="rpm must be positive"):
+            _RateLimiter(-1)
+
+    def test_rate_limiter_non_positive_rpm_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        try:
+            _RateLimiter(0)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
+
+    def test_empty_api_key_raises_domain_error(self) -> None:
+        """An empty ``api_key`` must raise ``GeminiAuthError``."""
+        with pytest.raises(GeminiAuthError, match="api_key"):
+            _build_adapter(_FakeModels(), api_key="")
+
+    def test_empty_api_key_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        try:
+            _build_adapter(_FakeModels(), api_key="")
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
+
+    def test_adapter_non_positive_rpm_raises_domain_error(self) -> None:
+        """``GeminiEngineAdapter`` with ``rpm <= 0`` must raise
+        ``GeminiQuotaError``."""
+        with pytest.raises(GeminiQuotaError, match="rpm must be positive"):
+            _build_adapter(_FakeModels(), rpm=0)
+
+    def test_adapter_non_positive_rpm_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        try:
+            _build_adapter(_FakeModels(), rpm=-1)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected

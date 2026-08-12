@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Replace bare except Exception blocks with specific exception types and add
+  structured application-level logging across all components.

@@ -137,7 +137,7 @@ class Embedder:
         if not texts:
             return []
         if batch_size <= 0:
-            raise ValueError(
+            raise EmbeddingError(
                 f"batch_size must be positive, got {batch_size}"
             )
         vectors: list[list[float]] = []
@@ -183,11 +183,11 @@ def embed_batch(
     Raises:
         EmbeddingConnectionError: cannot reach the Ollama daemon.
         EmbeddingTimeoutError: a batch request exceeded the timeout.
-        EmbeddingError: any other engine failure or dimension mismatch.
-        ValueError: ``batch_size`` is not positive.
+        EmbeddingError: any other engine failure, a dimension mismatch, or
+            ``batch_size`` is not positive.
     """
     if batch_size <= 0:
-        raise ValueError(f"batch_size must be positive, got {batch_size}")
+        raise EmbeddingError(f"batch_size must be positive, got {batch_size}")
     return embedder.embed_batch(texts, batch_size=batch_size)
 
 

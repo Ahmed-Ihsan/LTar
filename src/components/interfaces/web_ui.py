@@ -29,22 +29,26 @@ import secrets
 import subprocess
 import threading
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import webview
 
+from src.components.interfaces._doc_common import ProgressCallback
 from src.components.interfaces.cli import _new_run_logger, _resolve_path
 from src.components.interfaces.diagnostics import _list_ollama_models
 from src.components.interfaces.excel import translate_excel
-from src.components.interfaces.models import Adapters, ExcelTranslationReport, UiTranslationResult
+from src.components.interfaces.models import Adapters, UiTranslationResult
 from src.components.interfaces.orchestration import (
     _audit_trace_markdown,
     _provenance_markdown,
     _translate_for_ui,
 )
+from src.components.interfaces.pdf import translate_pdf
 from src.components.interfaces.web_frontend import _HTML
+from src.components.interfaces.word import translate_word
 from src.components.translation_pipeline.exceptions import (
     EmbeddingConnectionError,
     LegalTranslationError,
@@ -81,13 +85,15 @@ class _PendingResult:
 
 
 @dataclass(slots=True)
-class _ExcelJob:
-    """In-flight Excel translation job state (single-user, single-session).
+class _DocJob:
+    """In-flight document-translation job state (single-user, single-session).
 
-    ``state`` is one of ``"running"``, ``"done"``, ``"cancelled"``,
-    ``"error"``. ``report`` is the final :class:`ExcelTranslationReport` (or
-    ``None`` while running). ``cancel_event`` is wired to
-    :func:`translate_excel`'s ``cancel_event`` parameter.
+    Shared by the Excel, Word, and PDF facades — concurrency = 1 across all
+    document runs, so a single job slot suffices. ``state`` is one of
+    ``"running"``, ``"done"``, ``"cancelled"``, ``"error"``. ``report`` is the
+    final report dict (already serialized to the JS-facing shape) or ``None``
+    while running. ``cancel_event`` is wired to the adapter's
+    ``cancel_event`` parameter.
     """
 
     job_id: str
@@ -95,7 +101,7 @@ class _ExcelJob:
     completed: int = 0
     total: int = 0
     current: str = ""
-    report: ExcelTranslationReport | None = None
+    report: dict[str, Any] | None = None
     error: str = ""
     cancel_event: threading.Event = field(default_factory=threading.Event)
 
@@ -145,16 +151,17 @@ class _ApiContext:
     """Shared mutable state + dependencies for the API facades.
 
     The facades (:class:`TranslationApi`, :class:`ExcelApi`,
-    :class:`SystemApi`) are split out of the original ``Api`` class for
-    maintainability, but they share concurrency state (a single lock, the
-    in-flight translation result, the Excel job slot, the reviewer, and the
-    history log) because the JS-facing ``Api`` enforces concurrency = 1
-    across *both* single-sentence and Excel runs. This context object holds
-    that shared state so the facades stay focused without duplicating it.
+    :class:`WordApi`, :class:`PdfApi`, :class:`SystemApi`) are split out of
+    the original ``Api`` class for maintainability, but they share concurrency
+    state (a single lock, the in-flight translation result, the single
+    document-job slot, the reviewer, and the history log) because the
+    JS-facing ``Api`` enforces concurrency = 1 across *both* single-sentence
+    and document runs. This context object holds that shared state so the
+    facades stay focused without duplicating it.
     """
 
     __slots__ = ("cfg", "adapters", "models", "token", "lock", "result",
-                 "history", "reviewer", "excel_job")
+                 "history", "reviewer", "doc_job")
 
     def __init__(self, cfg: AppConfig, adapters: Adapters) -> None:
         self.cfg: AppConfig = cfg
@@ -165,7 +172,7 @@ class _ApiContext:
         self.result: _PendingResult = _PendingResult(status="idle")
         self.history: list[dict[str, str]] = []
         self.reviewer: _UiHumanReviewer | None = None
-        self.excel_job: _ExcelJob | None = None
+        self.doc_job: _DocJob | None = None
 
     def check_token(self, token: str) -> None:
         """Raise ``PermissionError`` if *token* does not match the session token."""
@@ -255,8 +262,8 @@ class TranslationApi:
         if not input_text.strip():
             return "empty"
         with self._ctx.lock:
-            # Concurrency = 1: refuse while an Excel run is in progress.
-            if self._ctx.excel_job is not None and self._ctx.excel_job.state == "running":
+            # Concurrency = 1: refuse while a document run is in progress.
+            if self._ctx.doc_job is not None and self._ctx.doc_job.state == "running":
                 return "busy"
             self._ctx.result = _PendingResult(status="translating")
 
@@ -372,102 +379,120 @@ class TranslationApi:
         return "approved"
 
 
-class ExcelApi:
-    """Excel translation workflow facade: run, pick paths, status, cancel."""
+class _DocApiBase:
+    """Shared base for the Excel/Word/PDF document-translation facades.
 
-    __slots__ = ("_ctx",)
+    Holds the common file-picker, status-poll, cancel, and open-in-explorer
+    logic plus the background-worker scaffolding. Each subclass declares its
+    kind (extension, native file-type label, whether ``auto`` direction is
+    allowed) and its ``translate_*`` worker; the rest is shared (DRY).
+    Concurrency = 1 across all document runs — they share the single
+    ``ctx.doc_job`` slot.
+    """
 
-    def __init__(self, ctx: _ApiContext) -> None:
+    __slots__ = ("_ctx", "_ext", "_file_type", "_allow_auto", "_err_label")
+
+    def __init__(
+        self,
+        ctx: _ApiContext,
+        *,
+        ext: str,
+        file_type: str,
+        allow_auto: bool,
+        err_label: str,
+    ) -> None:
         self._ctx: _ApiContext = ctx
+        self._ext: str = ext
+        self._file_type: str = file_type
+        self._allow_auto: bool = allow_auto
+        self._err_label: str = err_label
 
-    def pick_excel_input(self, token: str) -> str | None:
-        """Open a native file dialog for ``.xlsx`` input; return the path or None."""
+    # -- File pickers --------------------------------------------------
+
+    def _pick_input(self, token: str) -> str | None:
+        """Open a native open-file dialog filtered to this facade's type."""
         self._ctx.check_token(token)
         if not webview.windows:
             return None
         result = webview.windows[0].create_file_dialog(
-            webview.OPEN_DIALOG, file_types=("Excel Workbook (*.xlsx)",),
+            webview.OPEN_DIALOG, file_types=(self._file_type,),
         )
         if not result:
             return None
         return result[0]
 
-    def pick_excel_output(self, token: str, default_name: str) -> str | None:
-        """Open a native save dialog for ``.xlsx`` output; return the path or None."""
+    def _pick_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog filtered to this facade's type."""
         self._ctx.check_token(token)
         if not webview.windows:
             return None
         result = webview.windows[0].create_file_dialog(
             webview.SAVE_DIALOG, save_filename=default_name,
-            file_types=("Excel Workbook (*.xlsx)",),
+            file_types=(self._file_type,),
         )
         if not result:
             return None
         return result[0]
 
-    def translate_excel(
-        self,
-        token: str,
-        input_path: str,
-        output_path: str,
-        direction: str,
-        options: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Start an Excel run in a background thread. Returns a job descriptor.
+    # -- Job lifecycle (shared) ---------------------------------------
 
-        Returns immediately with ``{"job_id": ..., "state": "running"}`` (or
-        ``{"state": "error", "error": ...}`` if the run could not start). The
-        result is delivered via :meth:`get_excel_status` polling.
+    def _claim_job(
+        self, token: str, input_path: str, direction: str,
+    ) -> dict[str, Any] | _DocJob:
+        """Validate input + concurrency and claim the shared doc-job slot.
+
+        Returns a ``_DocJob`` on success (slot claimed, ready to run) or an
+        ``{"state": "error", "error": ...}`` dict on validation failure (no
+        job started).
         """
         self._ctx.check_token(token)
-        # Validate input up front (no run started on invalid input).
         in_path = Path(input_path)
         if not in_path.is_file():
             return {"state": "error", "error": f"input file not found: {input_path}"}
-        if in_path.suffix.lower() != ".xlsx":
-            return {"state": "error", "error": f"input must be an .xlsx file, got: {in_path.suffix}"}
-        if direction not in ("ar-en", "en-ar"):
+        if in_path.suffix.lower() != self._ext:
+            return {"state": "error", "error": f"input must be a {self._ext} file, got: {in_path.suffix}"}
+        allowed = ("ar-en", "en-ar", "auto") if self._allow_auto else ("ar-en", "en-ar")
+        if direction not in allowed:
             return {"state": "error", "error": f"invalid direction: {direction}"}
 
         with self._ctx.lock:
             # Concurrency = 1: refuse while a single-sentence run is in progress.
             if self._ctx.result.status == "translating":
                 return {"state": "error", "error": "A translation is already in progress"}
-            if self._ctx.excel_job is not None and self._ctx.excel_job.state == "running":
-                return {"state": "error", "error": "An Excel run is already in progress"}
-            job: _ExcelJob = _ExcelJob(job_id=uuid.uuid4().hex)
-            self._ctx.excel_job = job
+            if self._ctx.doc_job is not None and self._ctx.doc_job.state == "running":
+                return {"state": "error", "error": f"A {self._err_label} run is already in progress"}
+            job: _DocJob = _DocJob(job_id=uuid.uuid4().hex)
+            self._ctx.doc_job = job
+        return job
 
-        # Apply option overrides to a deep copy of cfg (never mutate global cfg).
-        base_cfg: AppConfig = self._ctx.cfg.model_copy(deep=True)
-        excel_update: dict[str, Any] = {
-            "translate_comments": bool(options.get("translate_comments", base_cfg.excel.translate_comments)),
-            "translate_headers_footers": bool(options.get("translate_headers_footers", base_cfg.excel.translate_headers_footers)),
-            "translate_chart_titles": bool(options.get("translate_chart_titles", base_cfg.excel.translate_chart_titles)),
-            "max_segment_chars": int(options.get("max_segment_chars", base_cfg.excel.max_segment_chars)),
-        }
-        effective_cfg: AppConfig = base_cfg.model_copy(
-            update={"excel": base_cfg.excel.model_copy(update=excel_update)}
-        )
+    def _start_worker(
+        self,
+        job: _DocJob,
+        runner: Callable[[ProgressCallback], dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Spawn the background worker thread for *job* and return its descriptor.
+
+        *runner* receives a shared ``progress(completed, total, current)``
+        callback (thread-safe), performs the adapter call, and returns the
+        **serialized** report dict (the JS-facing shape). Exception handling
+        is shared across all document kinds.
+        """
+
+        def _progress(completed: int, total: int, current: str) -> None:
+            with self._ctx.lock:
+                job.completed = completed
+                job.total = total
+                job.current = current
 
         def _worker() -> None:
             try:
-                report = translate_excel(
-                    input_path, output_path, direction, effective_cfg,
-                    llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
-                    glossary_index=self._ctx.adapters.glossary_index,
-                    persist_dir=self._ctx.adapters.persist_dir,
-                    run_logger=_new_run_logger(self._ctx.cfg),
-                    tm=self._ctx.adapters.tm,
-                    progress=_progress,
-                    cancel_event=job.cancel_event,
-                )
+                report_dict = runner(_progress)
                 with self._ctx.lock:
-                    job.report = report
-                    job.completed = report.total_segments
-                    job.total = report.total_segments
+                    job.report = report_dict
+                    job.completed = report_dict.get("total_segments", job.completed)
+                    job.total = report_dict.get("total_segments", job.total)
                     job.current = ""
-                    job.state = "cancelled" if report.cancelled else "done"
+                    job.state = "cancelled" if report_dict.get("cancelled") else "done"
             except (OllamaConnectionError, EmbeddingConnectionError) as e:
                 with self._ctx.lock:
                     job.state = "error"
@@ -479,7 +504,7 @@ class ExcelApi:
                 with self._ctx.lock:
                     job.state = "error"
                     job.error = (
-                        f"RAM guard aborted the Excel run: {e}\n"
+                        f"RAM guard aborted the {self._err_label} run: {e}\n"
                         "Free up memory (close other applications) and retry."
                     )
             except LegalTranslationError as e:
@@ -487,50 +512,33 @@ class ExcelApi:
                     job.state = "error"
                     job.error = str(e)
             except Exception as e:  # noqa: BLE001 -- UI boundary: log + surface to user
-                logger.exception("Api.translate_excel failed")
+                logger.exception("Api.%s failed", self._err_label)
                 with self._ctx.lock:
                     job.state = "error"
-                    job.error = f"excel error: {e}"
-
-        def _progress(completed: int, total: int, current: str) -> None:
-            with self._ctx.lock:
-                job.completed = completed
-                job.total = total
-                job.current = current
+                    job.error = f"{self._err_label} error: {e}"
 
         threading.Thread(target=_worker, daemon=True).start()
         return {"job_id": job.job_id, "state": "running"}
 
-    def get_excel_status(self, job_id: str) -> dict[str, Any]:
-        """Poll for the Excel job status. Called by JS every 300ms."""
+    def get_doc_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the document job status. Called by JS every 300ms."""
         with self._ctx.lock:
-            job: _ExcelJob | None = self._ctx.excel_job
+            job: _DocJob | None = self._ctx.doc_job
             if job is None or job.job_id != job_id:
                 return {"state": "error", "error": "unknown job"}
-            report_dict: dict[str, Any] | None = None
-            if job.report is not None:
-                r = job.report
-                report_dict = {
-                    "total_segments": r.total_segments,
-                    "translated": r.translated,
-                    "skipped": r.skipped,
-                    "failed": r.failed,
-                    "cancelled": r.cancelled,
-                    "warnings": list(r.warnings),
-                }
             return {
                 "state": job.state,
                 "completed": job.completed,
                 "total": job.total,
                 "current": job.current,
-                "report": report_dict,
+                "report": job.report,
                 "error": job.error,
             }
 
-    def cancel_excel(self, job_id: str) -> str:
-        """Set the cancel event for the given Excel job."""
+    def cancel_doc(self, job_id: str) -> str:
+        """Set the cancel event for the given document job."""
         with self._ctx.lock:
-            job: _ExcelJob | None = self._ctx.excel_job
+            job: _DocJob | None = self._ctx.doc_job
             if job is not None and job.job_id == job_id:
                 job.cancel_event.set()
         return "cancelled"
@@ -556,6 +564,251 @@ class ExcelApi:
         return "ok"
 
 
+class ExcelApi(_DocApiBase):
+    """Excel translation workflow facade: run, pick paths, status, cancel."""
+
+    def __init__(self, ctx: _ApiContext) -> None:
+        super().__init__(
+            ctx, ext=".xlsx", file_type="Excel Workbook (*.xlsx)",
+            allow_auto=False, err_label="excel",
+        )
+
+    def pick_excel_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.xlsx`` input; return the path or None."""
+        return self._pick_input(token)
+
+    def pick_excel_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for ``.xlsx`` output; return the path or None."""
+        return self._pick_output(token, default_name)
+
+    def translate_excel(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start an Excel run in a background thread. Returns a job descriptor.
+
+        Returns immediately with ``{"job_id": ..., "state": "running"}`` (or
+        ``{"state": "error", "error": ...}`` if the run could not start). The
+        result is delivered via :meth:`get_excel_status` polling.
+        """
+        claimed: dict[str, Any] | _DocJob = self._claim_job(token, input_path, direction)
+        if isinstance(claimed, dict):
+            return claimed
+        job: _DocJob = claimed
+
+        # Apply option overrides to a deep copy of cfg (never mutate global cfg).
+        base_cfg: AppConfig = self._ctx.cfg.model_copy(deep=True)
+        excel_update: dict[str, Any] = {
+            "translate_comments": bool(options.get("translate_comments", base_cfg.excel.translate_comments)),
+            "translate_headers_footers": bool(options.get("translate_headers_footers", base_cfg.excel.translate_headers_footers)),
+            "translate_chart_titles": bool(options.get("translate_chart_titles", base_cfg.excel.translate_chart_titles)),
+            "max_segment_chars": int(options.get("max_segment_chars", base_cfg.excel.max_segment_chars)),
+        }
+        effective_cfg: AppConfig = base_cfg.model_copy(
+            update={"excel": base_cfg.excel.model_copy(update=excel_update)}
+        )
+
+        def _runner(progress: ProgressCallback) -> dict[str, Any]:
+            report = translate_excel(
+                input_path, output_path, direction, effective_cfg,
+                llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                glossary_index=self._ctx.adapters.glossary_index,
+                persist_dir=self._ctx.adapters.persist_dir,
+                run_logger=_new_run_logger(self._ctx.cfg),
+                tm=self._ctx.adapters.tm,
+                progress=progress,
+                cancel_event=job.cancel_event,
+            )
+            return {
+                "total_segments": report.total_segments,
+                "translated": report.translated,
+                "skipped": report.skipped,
+                "failed": report.failed,
+                "cancelled": report.cancelled,
+                "warnings": list(report.warnings),
+            }
+
+        return self._start_worker(job, _runner)
+
+    def get_excel_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the Excel job status. Called by JS every 300ms."""
+        return self.get_doc_status(job_id)
+
+    def cancel_excel(self, job_id: str) -> str:
+        """Set the cancel event for the given Excel job."""
+        return self.cancel_doc(job_id)
+
+
+class WordApi(_DocApiBase):
+    """Word (.docx) translation workflow facade: run, pick paths, status, cancel."""
+
+    def __init__(self, ctx: _ApiContext) -> None:
+        super().__init__(
+            ctx, ext=".docx", file_type="Word Document (*.docx)",
+            allow_auto=True, err_label="word",
+        )
+
+    def pick_word_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.docx`` input; return the path or None."""
+        return self._pick_input(token)
+
+    def pick_word_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for ``.docx`` output; return the path or None."""
+        return self._pick_output(token, default_name)
+
+    def translate_word(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start a Word run in a background thread. Returns a job descriptor."""
+        claimed: dict[str, Any] | _DocJob = self._claim_job(token, input_path, direction)
+        if isinstance(claimed, dict):
+            return claimed
+        job: _DocJob = claimed
+
+        base_cfg: AppConfig = self._ctx.cfg.model_copy(deep=True)
+        word_update: dict[str, Any] = {
+            "translate_comments": bool(options.get("translate_comments", base_cfg.word.translate_comments)),
+            "translate_headers_footers": bool(options.get("translate_headers_footers", base_cfg.word.translate_headers_footers)),
+            "translate_footnotes": bool(options.get("translate_footnotes", base_cfg.word.translate_footnotes)),
+            "translate_endnotes": bool(options.get("translate_endnotes", base_cfg.word.translate_endnotes)),
+            "translate_glossary_doc": bool(options.get("translate_glossary_doc", base_cfg.word.translate_glossary_doc)),
+            "max_segment_chars": int(options.get("max_segment_chars", base_cfg.word.max_segment_chars)),
+        }
+        effective_cfg: AppConfig = base_cfg.model_copy(
+            update={"word": base_cfg.word.model_copy(update=word_update)}
+        )
+
+        def _runner(progress: ProgressCallback) -> dict[str, Any]:
+            report = translate_word(
+                input_path, output_path, direction, effective_cfg,
+                llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                glossary_index=self._ctx.adapters.glossary_index,
+                persist_dir=self._ctx.adapters.persist_dir,
+                run_logger=_new_run_logger(self._ctx.cfg),
+                tm=self._ctx.adapters.tm,
+                progress=progress,
+                cancel_event=job.cancel_event,
+            )
+            return {
+                "total_segments": report.total_segments,
+                "translated": report.translated,
+                "skipped": report.skipped,
+                "failed": report.failed,
+                "cancelled": report.cancelled,
+                "warnings": list(report.warnings),
+            }
+
+        return self._start_worker(job, _runner)
+
+    def get_word_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the Word job status. Called by JS every 300ms."""
+        return self.get_doc_status(job_id)
+
+    def cancel_word(self, job_id: str) -> str:
+        """Set the cancel event for the given Word job."""
+        return self.cancel_doc(job_id)
+
+
+class PdfApi(_DocApiBase):
+    """PDF (.pdf) translation workflow facade: run, pick paths, status, cancel.
+
+    The PDF adapter writes a translated sidecar file (``.docx`` by default, or
+    ``.txt`` per ``cfg.pdf.out_format``); the original PDF is never rewritten.
+    The output file-type filter follows the chosen ``out_format`` so the save
+    dialog suggests the right extension.
+    """
+
+    def __init__(self, ctx: _ApiContext) -> None:
+        super().__init__(
+            ctx, ext=".pdf", file_type="PDF Document (*.pdf)",
+            allow_auto=True, err_label="pdf",
+        )
+
+    def pick_pdf_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.pdf`` input; return the path or None."""
+        return self._pick_input(token)
+
+    def pick_pdf_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for the sidecar output; return the path or None."""
+        self._ctx.check_token(token)
+        if not webview.windows:
+            return None
+        # The sidecar format is config-driven; pick the filter from cfg.pdf.out_format.
+        out_fmt: str = self._ctx.cfg.pdf.out_format
+        file_type = "Word Document (*.docx)" if out_fmt == "docx" else "Text Document (*.txt)"
+        result = webview.windows[0].create_file_dialog(
+            webview.SAVE_DIALOG, save_filename=default_name,
+            file_types=(file_type,),
+        )
+        if not result:
+            return None
+        return result[0]
+
+    def translate_pdf(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start a PDF run in a background thread. Returns a job descriptor."""
+        claimed: dict[str, Any] | _DocJob = self._claim_job(token, input_path, direction)
+        if isinstance(claimed, dict):
+            return claimed
+        job: _DocJob = claimed
+
+        base_cfg: AppConfig = self._ctx.cfg.model_copy(deep=True)
+        pdf_update: dict[str, Any] = {
+            "skip_header_footer": bool(options.get("skip_header_footer", base_cfg.pdf.skip_header_footer)),
+            "max_segment_chars": int(options.get("max_segment_chars", base_cfg.pdf.max_segment_chars)),
+            "out_format": str(options.get("out_format", base_cfg.pdf.out_format)),
+        }
+        effective_cfg: AppConfig = base_cfg.model_copy(
+            update={"pdf": base_cfg.pdf.model_copy(update=pdf_update)}
+        )
+
+        def _runner(progress: ProgressCallback) -> dict[str, Any]:
+            report = translate_pdf(
+                input_path, output_path, direction, effective_cfg,
+                llm=self._ctx.adapters.llm, embedder=self._ctx.adapters.embedder,
+                glossary_index=self._ctx.adapters.glossary_index,
+                persist_dir=self._ctx.adapters.persist_dir,
+                run_logger=_new_run_logger(self._ctx.cfg),
+                tm=self._ctx.adapters.tm,
+                progress=progress,
+                cancel_event=job.cancel_event,
+            )
+            return {
+                "total_pages": report.total_pages,
+                "total_segments": report.total_segments,
+                "translated": report.translated,
+                "skipped": report.skipped,
+                "failed": report.failed,
+                "cancelled": report.cancelled,
+                "warnings": list(report.warnings),
+            }
+
+        return self._start_worker(job, _runner)
+
+    def get_pdf_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the PDF job status. Called by JS every 300ms."""
+        return self.get_doc_status(job_id)
+
+    def cancel_pdf(self, job_id: str) -> str:
+        """Set the cancel event for the given PDF job."""
+        return self.cancel_doc(job_id)
+
+
 class Api:
     """Python API exposed to the JS frontend via ``pywebview.api.*``.
 
@@ -571,12 +824,14 @@ class Api:
     (generated at construction, injected into the page at load time).
     """
 
-    __slots__ = ("_ctx", "_translation", "_excel", "_system")
+    __slots__ = ("_ctx", "_translation", "_excel", "_word", "_pdf", "_system")
 
     def __init__(self, cfg: AppConfig, adapters: Adapters) -> None:
         self._ctx: _ApiContext = _ApiContext(cfg, adapters)
         self._translation: TranslationApi = TranslationApi(self._ctx)
         self._excel: ExcelApi = ExcelApi(self._ctx)
+        self._word: WordApi = WordApi(self._ctx)
+        self._pdf: PdfApi = PdfApi(self._ctx)
         self._system: SystemApi = SystemApi(self._ctx)
 
     @property
@@ -688,14 +943,93 @@ class Api:
             "max_segment_chars": ex.max_segment_chars,
         }
 
+    # -- Word facade ---------------------------------------------------
+
+    def translate_word(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start a Word run in a background thread. Returns a job descriptor."""
+        return self._word.translate_word(token, input_path, output_path, direction, options)
+
+    def pick_word_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.docx`` input; return the path or None."""
+        return self._word.pick_word_input(token)
+
+    def pick_word_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for ``.docx`` output; return the path or None."""
+        return self._word.pick_word_output(token, default_name)
+
+    def get_word_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the Word job status. Called by JS every 300ms."""
+        return self._word.get_word_status(job_id)
+
+    def cancel_word(self, job_id: str) -> str:
+        """Set the cancel event for the given Word job."""
+        return self._word.cancel_word(job_id)
+
+    def get_word_options(self) -> dict[str, Any]:
+        """Return the current ``cfg.word`` values for the UI toggles."""
+        wd = self._ctx.cfg.word
+        return {
+            "translate_comments": wd.translate_comments,
+            "translate_headers_footers": wd.translate_headers_footers,
+            "translate_footnotes": wd.translate_footnotes,
+            "translate_endnotes": wd.translate_endnotes,
+            "translate_glossary_doc": wd.translate_glossary_doc,
+            "max_segment_chars": wd.max_segment_chars,
+        }
+
+    # -- PDF facade ----------------------------------------------------
+
+    def translate_pdf(
+        self,
+        token: str,
+        input_path: str,
+        output_path: str,
+        direction: str,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Start a PDF run in a background thread. Returns a job descriptor."""
+        return self._pdf.translate_pdf(token, input_path, output_path, direction, options)
+
+    def pick_pdf_input(self, token: str) -> str | None:
+        """Open a native file dialog for ``.pdf`` input; return the path or None."""
+        return self._pdf.pick_pdf_input(token)
+
+    def pick_pdf_output(self, token: str, default_name: str) -> str | None:
+        """Open a native save dialog for the sidecar output; return the path or None."""
+        return self._pdf.pick_pdf_output(token, default_name)
+
+    def get_pdf_status(self, job_id: str) -> dict[str, Any]:
+        """Poll for the PDF job status. Called by JS every 300ms."""
+        return self._pdf.get_pdf_status(job_id)
+
+    def cancel_pdf(self, job_id: str) -> str:
+        """Set the cancel event for the given PDF job."""
+        return self._pdf.cancel_pdf(job_id)
+
+    def get_pdf_options(self) -> dict[str, Any]:
+        """Return the current ``cfg.pdf`` values for the UI toggles."""
+        pdf = self._ctx.cfg.pdf
+        return {
+            "out_format": pdf.out_format,
+            "skip_header_footer": pdf.skip_header_footer,
+            "max_segment_chars": pdf.max_segment_chars,
+        }
+
     # -- Cross-cutting helpers -----------------------------------------
 
     def is_busy(self) -> bool:
-        """Return True if a single-sentence or Excel run is in progress."""
+        """Return True if a single-sentence or document run is in progress."""
         with self._ctx.lock:
             if self._ctx.result.status == "translating":
                 return True
-            return self._ctx.excel_job is not None and self._ctx.excel_job.state == "running"
+            return self._ctx.doc_job is not None and self._ctx.doc_job.state == "running"
 
     def path_exists(self, path: str) -> bool:
         """Return True if ``path`` exists on disk (for overwrite confirmation)."""

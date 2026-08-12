@@ -14,6 +14,7 @@ from src.components.knowledge_sources.ingestion import (
     approx_token_count,
     chunk_article,
 )
+from src.components.translation_pipeline.exceptions import CorpusError
 
 pytestmark = pytest.mark.unit
 
@@ -131,10 +132,10 @@ class TestArticleAsChunk:
 class TestChunkerValidation:
     def test_zero_target_raises(self) -> None:
         article: Article = _synthetic_article_1200_tokens()
-        with pytest.raises(ValueError, match="target_tokens"):
+        with pytest.raises(CorpusError, match="target_tokens"):
             chunk_article(article, 0, _OVERLAP)
 
     def test_negative_overlap_raises(self) -> None:
         article: Article = _synthetic_article_1200_tokens()
-        with pytest.raises(ValueError, match="overlap"):
+        with pytest.raises(CorpusError, match="overlap"):
             chunk_article(article, _TARGET, -1)

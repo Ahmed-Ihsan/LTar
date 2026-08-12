@@ -34,6 +34,7 @@ dependencies = [
     "httpx>=0.27,<1",
     "defusedxml>=0.7,<1",
     "pyahocorasick>=2.0,<3",
+    "pypdf>=4.0,<5",
 ]
 
 [project.optional-dependencies]
@@ -113,6 +114,18 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # translate_excel takes one arg per injected dependency (DIP, engineering-
 # principles §1.5) — mirrors orchestration.py's run_translation seam.
 "src/components/interfaces/excel.py" = ["PLR0913"]
+# translate_segment takes one arg per injected dependency (DIP, engineering-
+# principles §1.5) — shared by excel/word/pdf orchestrators. Extracted from
+# excel.py by the add-pdf-word-translation change.
+"src/components/interfaces/_doc_common.py" = ["PLR0913"]
+# translate_word takes one arg per injected dependency (DIP, engineering-
+# principles §1.5) — mirrors translate_excel.
+"src/components/interfaces/word.py" = ["PLR0913"]
+# translate_pdf takes one arg per injected dependency (DIP, engineering-
+# principles §1.5) — mirrors translate_excel/translate_word. PLR0915 for the
+# multi-step orchestrator body (same pattern as translate_excel). E501 for
+# the single-line OOXML constant strings (Content_Types, root rels).
+"src/components/interfaces/pdf.py" = ["PLR0913", "PLR0915", "E501"]
 # TM commands require Path(__file__) defaults (standard Typer pattern, B008)
 # — moved from cli.py.
 "src/components/interfaces/tm_commands.py" = ["B008"]
@@ -147,6 +160,20 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # test_security_hardening.py reuses the same OOXML fixture literals for the
 # XXE / zip-slip / injection tests — same E501 precedent.
 "tests/test_security_hardening.py" = ["E501"]
+# test_word.py holds single-line OOXML string literals (document, styles,
+# header, footer, footnotes, endnotes, comments XML) that are unreadable if
+# wrapped — same E501 precedent as test_excel.py. PLR0913 for the _run helper
+# that takes one arg per fixture. I001 for mid-function imports of _W_MAIN in
+# the paragraph-text unit tests.
+"tests/test_word.py" = ["E501", "PLR0913", "I001"]
+# test_pdf.py holds single-line raw PDF fixture builder code and OOXML
+# constant strings. PLR0913 for the _run helper. I001 for mid-function
+# imports in the lazy-import test.
+"tests/test_pdf.py" = ["E501", "PLR0913", "I001"]
+# scripts/make_test_fixtures.py holds single-line OOXML and raw-PDF fixture
+# string literals (Arabic/English legal articles) that are unreadable if
+# wrapped — same E501 precedent as the test_* files above.
+"scripts/make_test_fixtures.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -168,7 +195,49 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "src.components.interfaces.mcp_server"
-disable_error_code = ["untyped-decorator"]
+disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+# `typer`, `ollama`, `webview`, and `defusedxml` ship without complete type
+# stubs; suppress missing-import errors (adapters use `Any` for SDK objects).
+module = ["typer", "typer.*", "ollama", "ollama.*", "webview", "webview.*", "defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Additional runtime deps without complete type stubs: httpx (HTTP client),
+# bs4 (BeautifulSoup), chromadb (vector store), langgraph (state machine),
+# pypdf (PDF extraction), google (Gemini SDK root), yaml (PyYAML — types-PyYAML
+# is a dev dep but may not be installed in every typecheck environment).
+module = [
+    "httpx",
+    "httpx.*",
+    "bs4",
+    "bs4.*",
+    "chromadb",
+    "chromadb.*",
+    "langgraph",
+    "langgraph.*",
+    "pypdf",
+    "pypdf.*",
+    "google",
+    "google.*",
+    "yaml",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Typer's `@app.command()` decorator is untyped without stubs; mirror the
+# mcp_server override for the CLI + command modules. The downstream "Untyped
+# decorator makes function untyped" reports under code `misc` (not
+# `untyped-decorator`) when the module is missing, so disable `misc` for these
+# thin CLI entry-point modules whose only mypy issue is the Typer decorator.
+module = [
+    "src.components.interfaces.cli",
+    "src.components.interfaces.commands.*",
+    "src.components.knowledge_sources.ingestion_runner",
+    "src.config.cli",
+]
+disable_error_code = ["misc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

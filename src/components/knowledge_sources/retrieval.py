@@ -324,7 +324,7 @@ class ChromaStore:
     def count(self) -> int:
         """Return the number of items in the collection (0 if unopenable)."""
         try:
-            return self._open().count()
+            return int(self._open().count())
         except RetrievalError:
             return 0
 

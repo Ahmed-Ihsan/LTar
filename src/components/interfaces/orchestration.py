@@ -11,6 +11,7 @@ from __future__ import annotations
 import enum
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
@@ -646,35 +647,47 @@ def _process_batch(
     """
     count: int = 0
     line_no: int = 0
-    with open(input_path, encoding="utf-8") as fin, \
-            open(output_path, "w", encoding="utf-8") as fout:
-        for line in fin:
-            line_no += 1
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                record = BatchRecord.model_validate_json(line)
-            except ValidationError:
-                # Skip malformed records (harden-untrusted-input-surfaces §6.1).
-                fout.write(
-                    json.dumps(
-                        {"error": f"malformed record at line {line_no}"},
-                        ensure_ascii=False,
-                    )
-                    + "\n"
+    # Atomic write: stage to a .tmp sibling on the same filesystem, then
+    # ``os.replace`` only after the whole batch completes (harden-untrusted-
+    # input-surfaces §atomic-output). On interruption the temp file is
+    # discarded so no partial/corrupt output is left at ``output_path``.
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    try:
+        with open(input_path, encoding="utf-8") as fin, \
+                open(tmp_path, "w", encoding="utf-8") as fout:
+            for line in fin:
+                line_no += 1
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = BatchRecord.model_validate_json(line)
+                except ValidationError:
+                    # Log a warning naming the line number and skip the record
+                    # (harden-untrusted-input-surfaces §6.1, interfaces/spec.md
+                    # §JSONL batch record schema validation). No error record is
+                    # written to the output file — the batch continues.
+                    logger.warning("malformed record at line %d, skipping", line_no)
+                    continue
+                state = run_translation(
+                    record.input,
+                    detect_direction(record.input) if record.direction == "auto"
+                    else record.direction,
+                    cfg,
+                    llm=llm, embedder=embedder,
+                    glossary_index=glossary_index, persist_dir=persist_dir,
+                    run_logger=run_logger, tm=tm,
                 )
-                continue
-            state = run_translation(
-                record.input,
-                detect_direction(record.input) if record.direction == "auto"
-                else record.direction,
-                cfg,
-                llm=llm, embedder=embedder,
-                glossary_index=glossary_index, persist_dir=persist_dir,
-                run_logger=run_logger, tm=tm,
-            )
-            output_record: dict[str, object] = _state_to_batch_record(state)
-            fout.write(json.dumps(output_record, ensure_ascii=False) + "\n")
-            count += 1
+                output_record: dict[str, object] = _state_to_batch_record(state)
+                fout.write(json.dumps(output_record, ensure_ascii=False) + "\n")
+                count += 1
+        os.replace(tmp_path, output_path)
+    except BaseException:
+        # Discard the partial temp file on any interruption (crash, cancel,
+        # KeyboardInterrupt). Never rename a partial batch to the final path.
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("could not remove temp file %s", tmp_path)
+        raise
     return count

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Enforce context-managed lifetimes for SQLite connections, HTTP clients,
+  and file handles; remove unsafe check_same_thread=False from
+  TranslationMemory.

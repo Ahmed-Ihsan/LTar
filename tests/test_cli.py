@@ -332,6 +332,104 @@ class TestProcessBatch:
             rec = json.loads(line)
             assert rec["final_output"] is not None
 
+    def test_success_leaves_no_tmp_file(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_notmp_in.jsonl"
+        records = [
+            {"input": "المادة 148: عقد البيع", "direction": "ar-en"}
+            for _ in range(3)
+        ]
+        input_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
+            encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_notmp_out.jsonl"
+
+        count = _process_batch(
+            input_path, output_path, config,
+            llm=mock_llm, embedder=mock_embedder,
+            glossary_index=glossary_index, persist_dir=persist_dir,
+        )
+        assert count == 3
+        # Final output exists with the correct number of lines.
+        assert output_path.exists()
+        lines = output_path.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 3
+        # No leftover .tmp file in the output directory.
+        assert not output_path.with_suffix(output_path.suffix + ".tmp").exists()
+
+    def test_interrupted_batch_is_atomic(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        """A crash mid-batch must not leave a partial/corrupt output file.
+
+        ``run_translation`` is patched to raise after the first record so the
+        ``with`` block exits via exception. The temp file must never be renamed
+        to the final path, so ``output_path`` must not exist.
+        """
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_atomic_in.jsonl"
+        records = [
+            {"input": "المادة 148: عقد البيع", "direction": "ar-en"}
+            for _ in range(5)
+        ]
+        input_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
+            encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_atomic_out.jsonl"
+
+        call_count = {"n": 0}
+
+        def _boom(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] >= 2:
+                raise RuntimeError("simulated crash mid-batch")
+            return _real_run_translation(*args, **kwargs)
+
+        import src.components.interfaces.orchestration as orch
+        _real_run_translation = orch.run_translation
+
+        with patch(
+            "src.components.interfaces.orchestration.run_translation",
+            side_effect=_boom,
+        ):
+            with pytest.raises(RuntimeError, match="simulated crash mid-batch"):
+                _process_batch(
+                    input_path, output_path, config,
+                    llm=mock_llm, embedder=mock_embedder,
+                    glossary_index=glossary_index, persist_dir=persist_dir,
+                )
+
+        # The final output must NOT exist (temp file was never renamed).
+        assert not output_path.exists()
+        # No leftover .tmp file either (cleanup on exception).
+        assert not output_path.with_suffix(output_path.suffix + ".tmp").exists()
+
 
 # ---------------------------------------------------------------------------
 # 4.1.2 batch — CLI error paths (CliRunner)
@@ -913,3 +1011,236 @@ class TestConstructAdaptersGemini:
         assert "google" not in new_mods
         assert isinstance(adapters.llm, OllamaEngineAdapter)
         assert isinstance(adapters.embedder, Embedder)
+
+    def test_ollama_num_ctx_wired_from_config(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """_construct_adapters passes cfg.ollama_num_ctx to the adapter."""
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+        from src.components.interfaces.cli import _construct_adapters
+        from src.config import AppConfig
+
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        cfg = AppConfig(llm_backend="ollama", ollama_num_ctx=2048)
+        with patch(
+            "src.components.knowledge_sources.glossary.load_glossary_index",
+            return_value=None,
+        ):
+            adapters = _construct_adapters(cfg)
+        assert isinstance(adapters.llm, OllamaEngineAdapter)
+        assert adapters.llm._num_ctx == 2048
+
+
+# ---------------------------------------------------------------------------
+# 4.1.2 batch — malformed-record handling (spec: skip + warn, no error record)
+# ---------------------------------------------------------------------------
+
+
+class TestProcessBatchMalformedRecords:
+    """Spec: interfaces/spec.md §JSONL batch record schema validation.
+
+    On ``pydantic.ValidationError`` the orchestrator SHALL log the line number
+    and skip the record (continuing the batch) rather than writing an error
+    record to the output file.
+    """
+
+    def test_malformed_direction_record_is_skipped_with_warning(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        """A record with invalid direction 'fr-en' is skipped and a warning is
+        logged naming the line number. No error record is written to output."""
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_malformed_dir_in.jsonl"
+        # Line 1: valid, line 2: invalid direction, line 3: valid
+        records = [
+            {"input": "المادة 148: عقد البيع", "direction": "ar-en"},
+            {"input": "some text", "direction": "fr-en"},
+            {"input": "contract of sale", "direction": "en-ar"},
+        ]
+        input_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
+            encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_malformed_dir_out.jsonl"
+
+        with patch(
+            "src.components.interfaces.orchestration.logger"
+        ) as mock_logger:
+            count = _process_batch(
+                input_path, output_path, config,
+                llm=mock_llm, embedder=mock_embedder,
+                glossary_index=glossary_index, persist_dir=persist_dir,
+            )
+
+        # Only 2 valid records processed (line 2 skipped).
+        assert count == 2
+        # A warning was logged naming line 2.
+        mock_logger.warning.assert_called()
+        warning_msg = mock_logger.warning.call_args[0][0]
+        assert "2" in str(mock_logger.warning.call_args[0]) or "2" in warning_msg
+
+    def test_malformed_record_no_error_record_in_output(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        """The output JSONL must NOT contain any {'error': ...} records."""
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_no_error_in.jsonl"
+        records = [
+            {"input": "المادة 148: عقد البيع", "direction": "ar-en"},
+            {"input": "bad direction", "direction": "fr-en"},
+            {"input": "contract of sale", "direction": "en-ar"},
+        ]
+        input_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
+            encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_no_error_out.jsonl"
+
+        _process_batch(
+            input_path, output_path, config,
+            llm=mock_llm, embedder=mock_embedder,
+            glossary_index=glossary_index, persist_dir=persist_dir,
+        )
+
+        lines = output_path.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 2  # only the 2 valid records
+        for line in lines:
+            rec = json.loads(line)
+            assert "error" not in rec
+            assert rec["final_output"] is not None
+
+    def test_oversized_input_is_skipped_with_warning(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        """A record whose input exceeds max_length=10000 is skipped with a
+        warning and the batch continues."""
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_oversized_in.jsonl"
+        oversized: str = "x" * 10001  # exceeds max_length=10000
+        records = [
+            {"input": "المادة 148: عقد البيع", "direction": "ar-en"},
+            {"input": oversized, "direction": "ar-en"},
+            {"input": "contract of sale", "direction": "en-ar"},
+        ]
+        input_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
+            encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_oversized_out.jsonl"
+
+        with patch(
+            "src.components.interfaces.orchestration.logger"
+        ) as mock_logger:
+            count = _process_batch(
+                input_path, output_path, config,
+                llm=mock_llm, embedder=mock_embedder,
+                glossary_index=glossary_index, persist_dir=persist_dir,
+            )
+
+        # Only 2 valid records processed (line 2 oversized, skipped).
+        assert count == 2
+        # A warning was logged naming line 2.
+        mock_logger.warning.assert_called()
+        assert "2" in str(mock_logger.warning.call_args[0])
+
+        lines = output_path.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 2
+        for line in lines:
+            rec = json.loads(line)
+            assert "error" not in rec
+            assert rec["final_output"] is not None
+
+    def test_valid_records_before_and_after_malformed_are_processed(
+        self, mock_llm, mock_embedder, glossary_index, tmp_path, config
+    ) -> None:
+        """Valid records before and after a malformed record are still
+        processed correctly — the malformed record does not abort the batch."""
+        from src.components.interfaces.cli import _process_batch
+
+        mock_llm.set_response("translator", "contract of sale")
+        mock_llm.set_response(
+            "auditor",
+            json.dumps({
+                "verdict": "APPROVE", "critique": "", "violations": [],
+                "confidence": 0.95,
+            }),
+        )
+        persist_dir = _build_chroma(tmp_path, mock_embedder, config)
+
+        input_path: Path = tmp_path / "batch_surround_in.jsonl"
+        # Line 1 valid, line 2 malformed (invalid JSON), line 3 valid,
+        # line 4 malformed (invalid direction), line 5 valid.
+        lines_raw = [
+            json.dumps(
+                {"input": "المادة 148: عقد البيع", "direction": "ar-en"},
+                ensure_ascii=False,
+            ),
+            "{not valid json}",
+            json.dumps(
+                {"input": "contract of sale", "direction": "en-ar"},
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {"input": "bad dir", "direction": "fr-en"},
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {"input": "المادة 149", "direction": "ar-en"},
+                ensure_ascii=False,
+            ),
+        ]
+        input_path.write_text(
+            "\n".join(lines_raw) + "\n", encoding="utf-8",
+        )
+        output_path: Path = tmp_path / "batch_surround_out.jsonl"
+
+        count = _process_batch(
+            input_path, output_path, config,
+            llm=mock_llm, embedder=mock_embedder,
+            glossary_index=glossary_index, persist_dir=persist_dir,
+        )
+
+        # 3 valid records (lines 1, 3, 5); lines 2 and 4 malformed/skipped.
+        assert count == 3
+        out_lines = output_path.read_text(encoding="utf-8").strip().split("\n")
+        assert len(out_lines) == 3
+        for line in out_lines:
+            rec = json.loads(line)
+            assert "error" not in rec
+            assert rec["final_output"] is not None
+

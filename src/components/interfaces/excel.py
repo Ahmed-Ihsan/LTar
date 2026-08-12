@@ -31,28 +31,32 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import threading
 import zipfile
 from collections.abc import Callable
-from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, cast
 from xml.etree import ElementTree as ET
 
+from defusedxml.common import DefusedXmlException
 from defusedxml.ElementTree import fromstring as ET_fromstring
 
 from src.components.infrastructure.embeddings import EmbeddingAdapter
 from src.components.infrastructure.llm import LLMEngineAdapter
 from src.components.infrastructure.run_logging import RunLogger
+from src.components.interfaces._doc_common import (
+    ProgressCallback,
+    StringSegment,
+    protect_non_translatable,
+    restore_protected,
+    translate_segment,
+)
 from src.components.interfaces.models import ExcelTranslationReport
 from src.components.knowledge_sources.glossary import GlossaryIndex
 from src.components.knowledge_sources.tm import TranslationMemory
 from src.components.translation_pipeline.exceptions import (
-    EmbeddingError,
     InputValidationError,
-    LLMRuntimeError,
 )
 from src.config import AppConfig
 from src.utils.xml_escape import escape_xml_text
@@ -92,89 +96,6 @@ _HEADERFOOTER_CHILDREN: tuple[str, ...] = (
 
 # ZIP parts we may re-serialize. Anything else is copied byte-for-byte.
 _SHARED_STRINGS_PART: str = "xl/sharedStrings.xml"
-
-
-# ---------------------------------------------------------------------------
-# Data model
-# ---------------------------------------------------------------------------
-
-
-@dataclass(slots=True, frozen=True)
-class StringSegment:
-    """One translatable text occurrence in a workbook part.
-
-    ``part`` is the ZIP entry path (e.g. ``xl/sharedStrings.xml``). ``text`` is
-    the source text. Segments are deduplicated by ``text`` so each unique
-    source string is translated exactly once; ``part`` is retained for
-    reporting and debugging.
-    """
-
-    part: str
-    text: str
-
-
-# ---------------------------------------------------------------------------
-# Non-translatable token protection
-# ---------------------------------------------------------------------------
-
-# Sentinel format: control-character-delimited so it never collides with real
-# legal text and is passed through verbatim by local LLM tokenizers.
-_SENTINEL_OPEN: str = "\x00T"
-_SENTINEL_CLOSE: str = "\x00"
-_SENTINEL_RE: re.Pattern[str] = re.compile(r"\x00T(\d+)\x00")
-
-# Protection patterns, applied in order. URLs first (so embedded numbers/emails
-# are not separately protected), then emails, template placeholders, Excel
-# header/footer ``&``-codes, and finally standalone numbers.
-_PROTECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"https?://[^\s<>\"']+"),
-    re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
-    re.compile(r"\$\{[^}]+\}"),
-    re.compile(r"\{[^}]+\}"),
-    re.compile(r"<[A-Za-z_][\w.-]*>"),
-    re.compile(r"%[A-Za-z_][\w]*%"),
-    re.compile(r"&[A-Za-z0-9\"&]"),
-    re.compile(r"(?<![\w/])-?\d+(?:,\d{3})*(?:\.\d+)?(?![\w/])"),
-)
-
-
-def protect_non_translatable(
-    text: str,
-) -> tuple[str, dict[str, str]]:
-    """Replace non-translatable tokens with stable sentinels.
-
-    Returns ``(protected_text, token_map)`` where ``token_map`` maps each
-    sentinel to its original token. Identical originals reuse the same sentinel
-    so the protected text stays short.
-    """
-    token_map: dict[str, str] = {}
-    original_to_sentinel: dict[str, str] = {}
-
-    def _replace(match: re.Match[str]) -> str:
-        original: str = match.group(0)
-        sentinel = original_to_sentinel.get(original)
-        if sentinel is None:
-            sentinel = f"{_SENTINEL_OPEN}{len(token_map)}{_SENTINEL_CLOSE}"
-            original_to_sentinel[original] = sentinel
-            token_map[sentinel] = original
-        return sentinel
-
-    protected: str = text
-    for pattern in _PROTECTION_PATTERNS:
-        protected = pattern.sub(_replace, protected)
-    return protected, token_map
-
-
-def restore_protected(text: str, token_map: dict[str, str]) -> str:
-    """Restore sentinels to their original tokens.
-
-    Any leftover sentinel not in ``token_map`` is removed (defensive: a model
-    that drops a sentinel should not corrupt the output).
-    """
-    def _restore(match: re.Match[str]) -> str:
-        return token_map.get(match.group(0), "")
-
-    return _SENTINEL_RE.sub(_restore, text)
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +176,13 @@ def extract_translatable_strings(
     that policy so it can record warnings).
     """
     seen: dict[str, StringSegment] = {}
-    with zipfile.ZipFile(BytesIO(xlsx_bytes)) as zin:
+    try:
+        zin = zipfile.ZipFile(BytesIO(xlsx_bytes))
+    except zipfile.BadZipFile as e:
+        raise InputValidationError(
+            f"Input .xlsx is not a valid zip/OOXML document: {e}"
+        ) from e
+    with zin:
         for info in zin.infolist():
             name = validate_zip_path(info.filename)
             if not _is_allowlisted_part(name, cfg):
@@ -265,8 +192,9 @@ def extract_translatable_strings(
                 continue
             try:
                 root = ET_fromstring(data)
-            except ET.ParseError:
-                # Skip a part we cannot parse rather than failing the workbook.
+            except (ET.ParseError, DefusedXmlException):
+                # Skip a part we cannot parse (incl. XXE-rejected DOCTYPE)
+                # rather than failing the whole workbook.
                 continue
             for el in _iter_translatable_elements(root, name, cfg):
                 text = el.text
@@ -304,8 +232,13 @@ def patch_strings(
     is copied byte-for-byte.
     """
     out = BytesIO()
-    with zipfile.ZipFile(BytesIO(xlsx_bytes), mode="r") as zin, \
-            zipfile.ZipFile(out, mode="w", compression=zipfile.ZIP_DEFLATED) as zout:
+    try:
+        zin = zipfile.ZipFile(BytesIO(xlsx_bytes), mode="r")
+    except zipfile.BadZipFile as e:
+        raise InputValidationError(
+            f"Input .xlsx is not a valid zip/OOXML document: {e}"
+        ) from e
+    with zin, zipfile.ZipFile(out, mode="w", compression=zipfile.ZIP_DEFLATED) as zout:
         for info in zin.infolist():
             name = validate_zip_path(info.filename)
             data = zin.read(name)
@@ -324,8 +257,9 @@ def _patch_part(
     """Re-serialize one allowlisted part with translated text nodes."""
     try:
         root = ET_fromstring(data)
-    except ET.ParseError:
-        # Cannot parse -> return original bytes unchanged (fail safe).
+    except (ET.ParseError, DefusedXmlException):
+        # Cannot parse (incl. XXE-rejected DOCTYPE) -> return original bytes
+        # unchanged (fail safe).
         return data
     for el in _iter_translatable_elements(root, name, cfg):
         text = el.text
@@ -340,50 +274,6 @@ def _patch_part(
 # ---------------------------------------------------------------------------
 # Orchestration — reuses run_translation
 # ---------------------------------------------------------------------------
-
-
-class ProgressCallback(Protocol):
-    """Progress callback signature: ``(completed, total, current_source)``."""
-
-    def __call__(self, completed: int, total: int, current: str) -> None: ...
-
-
-def _translate_segment(
-    source: str,
-    seg: StringSegment,
-    direction: str,
-    cfg: AppConfig,
-    *,
-    run_translation_fn: Callable[..., Any],
-    llm: LLMEngineAdapter,
-    embedder: EmbeddingAdapter,
-    glossary_index: GlossaryIndex | None,
-    persist_dir: str | None,
-    run_logger: RunLogger | None,
-    tm: TranslationMemory | None,
-) -> str | None:
-    """Translate one segment; return the translated text or ``None`` on failure.
-
-    Protects non-translatable tokens, calls ``run_translation_fn``, restores
-    the tokens, and returns the result. Returns ``None`` if the translation
-    failed (``LLMRuntimeError`` / ``EmbeddingError``) or produced empty output;
-    the caller records the warning and preserves the original text.
-    """
-    protected, token_map = protect_non_translatable(source)
-    try:
-        state = run_translation_fn(
-            protected, direction, cfg,
-            llm=llm, embedder=embedder,
-            glossary_index=glossary_index, persist_dir=persist_dir,
-            run_logger=run_logger, tm=tm,
-        )
-    except (LLMRuntimeError, EmbeddingError):
-        return None
-    raw: str = state.get("final_output") or ""
-    restored: str = restore_protected(raw, token_map) if raw else source
-    if not restored.strip():
-        return None
-    return restored
 
 
 def translate_excel(
@@ -475,7 +365,7 @@ def translate_excel(
             detect_direction(source) if direction == "auto" else direction
         )
 
-        result: str | None = _translate_segment(
+        result: str | None = translate_segment(
             source, seg, effective_direction, cfg,
             run_translation_fn=cast(Callable[..., Any], run_translation),
             llm=llm, embedder=embedder,

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Stream embeddings in batches, deduplicate shared helpers, extract a
+  src/utils package, and standardize CLI exit codes.

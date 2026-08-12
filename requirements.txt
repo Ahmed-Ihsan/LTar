@@ -35,6 +35,9 @@ defusedxml>=0.7,<1
 pydantic>=2.6,<3
 pyyaml>=6.0,<7
 
+# --- PDF text extraction (lazy-imported inside pdf.py only) ---
+pypdf>=4.0,<5
+
 # --- Glossary exact-match scanning (Aho-Corasick automaton) ---
 pyahocorasick>=2.0,<3
 

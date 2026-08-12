@@ -346,6 +346,63 @@ class TestExtractPatch:
         # Another segment's text still present verbatim.
         assert "Total for {year}: مبلغ" in shared
 
+    def test_extract_rejects_bad_zip(self, config: AppConfig) -> None:
+        from src.components.translation_pipeline.exceptions import InputValidationError
+        with pytest.raises(InputValidationError, match="valid zip"):
+            extract_translatable_strings(b"not a real xlsx", cfg=config)
+
+    def test_patch_rejects_bad_zip(self, config: AppConfig) -> None:
+        from src.components.translation_pipeline.exceptions import InputValidationError
+        with pytest.raises(InputValidationError, match="valid zip"):
+            patch_strings(b"not a real xlsx", {}, cfg=config)
+
+
+# ---------------------------------------------------------------------------
+# Security: defusedxml defends against XXE
+# ---------------------------------------------------------------------------
+
+
+class TestSecurity:
+    def test_xxe_entity_not_expanded_in_extract(self, config: AppConfig) -> None:
+        # A sharedStrings.xml with an XXE entity reference. defusedxml refuses
+        # to resolve external entities; the part is skipped safely -> no crash,
+        # no segments from that part (other valid parts are still processed).
+        xxe_shared = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<!DOCTYPE sst ['
+            '<!ENTITY xxe SYSTEM "file:///etc/passwd">'
+            ']>'
+            '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<si><t>&xxe;</t></si></sst>'
+        )
+        data = _build_with_shared(xxe_shared)
+        # Must not raise DefusedXmlException; the XXE part is skipped.
+        segs = extract_translatable_strings(data, cfg=config)
+        texts = {s.text for s in segs}
+        # The XXE entity text is NOT extracted (part was skipped).
+        assert "&xxe;" not in texts
+        # Other valid parts (sheet1 inline string) are still processed.
+        assert "تقرير" in texts
+
+    def test_xxe_entity_returns_original_bytes_in_patch(self, config: AppConfig) -> None:
+        # A sharedStrings.xml with an XXE entity reference. defusedxml refuses
+        # to resolve external entities; _patch_part returns the original bytes
+        # unchanged (fail safe) instead of crashing.
+        xxe_shared = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<!DOCTYPE sst ['
+            '<!ENTITY xxe SYSTEM "file:///etc/passwd">'
+            ']>'
+            '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<si><t>&xxe;</t></si></sst>'
+        )
+        data = _build_with_shared(xxe_shared)
+        original_shared = _read_part(data, "xl/sharedStrings.xml")
+        out = patch_strings(data, {"&xxe;": "[T:INJECTED]"}, cfg=config)
+        patched_shared = _read_part(out, "xl/sharedStrings.xml")
+        # The XXE part is returned byte-for-byte unchanged (no translation applied).
+        assert patched_shared == original_shared
+
 
 def _build_with_shared(shared_xml: str) -> bytes:
     """Build a workbook overriding only the sharedStrings part."""

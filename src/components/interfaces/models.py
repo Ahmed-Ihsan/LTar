@@ -100,3 +100,48 @@ class ExcelTranslationReport:
     failed: int
     cancelled: bool
     warnings: list[str]
+
+
+@dataclass(slots=True, frozen=True)
+class WordTranslationReport:
+    """Outcome of a ``word`` document translation run.
+
+    Counts are over the deduplicated set of unique source segments extracted
+    from the .docx (body paragraphs, comments, headers/footers, footnotes,
+    endnotes — per :class:`src.config.models.WordConfig`). ``skipped`` covers
+    segments left untranslated due to cancellation or the
+    ``max_segment_chars`` cap; ``failed`` covers segments whose translation
+    raised a domain error or returned empty output (the original text is
+    preserved in both cases). ``cancelled`` is True when the run was
+    interrupted via ``cancel_event``.
+    """
+
+    total_segments: int
+    translated: int
+    skipped: int
+    failed: int
+    cancelled: bool
+    warnings: list[str]
+
+
+@dataclass(slots=True, frozen=True)
+class PdfTranslationReport:
+    """Outcome of a ``pdf`` document translation run.
+
+    The PDF adapter extracts text per page and writes a translated sidecar
+    file (``.docx`` or ``.txt``). ``total_pages`` is the number of pages
+    processed; ``total_segments`` is the deduplicated segment count. ``skipped``
+    covers segments left untranslated due to cancellation or the
+    ``max_segment_chars`` cap; ``failed`` covers segments whose translation
+    raised a domain error or returned empty output (the original text is
+    preserved in both cases). ``cancelled`` is True when the run was
+    interrupted via ``cancel_event``.
+    """
+
+    total_pages: int
+    total_segments: int
+    translated: int
+    skipped: int
+    failed: int
+    cancelled: bool
+    warnings: list[str]

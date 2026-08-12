@@ -123,3 +123,38 @@ class TestAdapterRamGuard:
             )
         assert out == "translation output"
         fake_client.chat.assert_called_once()
+
+    def test_num_ctx_forwarded_to_options_when_set(self) -> None:
+        """When num_ctx is set on the adapter, it appears in the options dict."""
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+
+        fake_client: MagicMock = MagicMock()
+        fake_response: MagicMock = MagicMock()
+        fake_response.message.content = "ok"
+        fake_client.chat.return_value = fake_response
+        adapter: OllamaEngineAdapter = OllamaEngineAdapter(
+            client=fake_client, model="gemma3:4b",
+            host="http://localhost:11434", num_ctx=2048,
+        )
+        with patch("src.components.infrastructure.llm.check_ram_guard", return_value=None):
+            adapter.generate("system", "user", model="gemma3:4b")
+        call_kwargs: dict = fake_client.chat.call_args.kwargs
+        assert call_kwargs["options"]["num_ctx"] == 2048
+
+    def test_num_ctx_omitted_when_none(self) -> None:
+        """When num_ctx is None (default), it is absent from the options dict."""
+        from src.components.infrastructure.llm import OllamaEngineAdapter
+
+        fake_client: MagicMock = MagicMock()
+        fake_response: MagicMock = MagicMock()
+        fake_response.message.content = "ok"
+        fake_client.chat.return_value = fake_response
+        adapter: OllamaEngineAdapter = OllamaEngineAdapter(
+            client=fake_client, model="gemma3:4b",
+            host="http://localhost:11434",
+        )
+        with patch("src.components.infrastructure.llm.check_ram_guard", return_value=None):
+            adapter.generate("system", "user", model="gemma3:4b")
+        call_kwargs: dict = fake_client.chat.call_args.kwargs
+        assert "num_ctx" not in call_kwargs["options"]
+

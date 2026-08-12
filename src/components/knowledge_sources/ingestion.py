@@ -41,6 +41,7 @@ from src.components.knowledge_sources.manifest import (  # noqa: F401
 from src.components.knowledge_sources.models import Article, Chunk, Lang
 from src.components.translation_pipeline.exceptions import (
     CorpusEncodingError,
+    CorpusError,
     CorpusParseError,
 )
 
@@ -364,9 +365,9 @@ def chunk_article(
     Chunk ids are deterministic (DATA_SPEC §3.5).
     """
     if target_tokens <= 0:
-        raise ValueError(f"target_tokens must be positive, got {target_tokens}")
+        raise CorpusError(f"target_tokens must be positive, got {target_tokens}")
     if overlap < 0:
-        raise ValueError(f"overlap must be non-negative, got {overlap}")
+        raise CorpusError(f"overlap must be non-negative, got {overlap}")
 
     body: str = article.text
     if approx_token_count(body) <= target_tokens:

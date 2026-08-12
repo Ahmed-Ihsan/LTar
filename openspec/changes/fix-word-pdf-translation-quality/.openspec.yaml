@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-12
+goal: Fix Word run-split format corruption, add Word RTL/bidi for Arabic output,
+  and tighten PDF pure-number filter to stop dropping Arabic-numeric text

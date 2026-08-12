@@ -9,8 +9,10 @@ from src.components.interfaces.commands import (  # noqa: F401
     doctor,
     excel,
     ingest,
+    pdf,
     tm_add,
     tm_build,
     translate,
     ui,
+    word,
 )

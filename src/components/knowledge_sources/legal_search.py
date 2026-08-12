@@ -34,16 +34,21 @@ from src.components.translation_pipeline.exceptions import LegalSearchBlockedErr
 logger = logging.getLogger(__name__)
 
 _SEARCH_CACHE_TTL: float = 300.0  # 5 minutes
-_search_cache: dict[tuple[str, int], tuple[float, list[SearchHit]]] = {}
+_search_cache: dict[tuple[str, str, int], tuple[float, list[SearchHit]]] = {}
 
 
 def _cached_search(
     fn: Callable[[str, int], list[SearchHit]],
 ) -> Callable[[str, int], list[SearchHit]]:
-    """Decorator: cache search results for 5 minutes (PERF-11)."""
+    """Decorator: cache search results for 5 minutes (PERF-11).
+
+    The cache key includes ``fn.__name__`` so that different search sources
+    (Dijlex, MoJ, UR Portal, NLA) don't collide when called with the same
+    query and max_results — each source gets its own cache entry.
+    """
 
     def wrapper(query: str, max_results: int = 10) -> list[SearchHit]:
-        key: tuple[str, int] = (query, max_results)
+        key: tuple[str, str, int] = (fn.__name__, query, max_results)
         now: float = time.monotonic()
         cached: tuple[float, list[SearchHit]] | None = _search_cache.get(key)
         if cached is not None and (now - cached[0]) < _SEARCH_CACHE_TTL:
@@ -142,7 +147,7 @@ def _fetch_html(url: str) -> str:
                 else:
                     break
             resp.raise_for_status()
-            return resp.text
+            return str(resp.text)
     except (httpx.HTTPError, ValueError, LegalSearchBlockedError) as e:
         logger.warning("legal_search fetch failed: %s", e)
         return ""
@@ -174,7 +179,7 @@ def _post_html(url: str, data: dict[str, str]) -> str:
                 else:
                     break
             resp.raise_for_status()
-            return resp.text
+            return str(resp.text)
     except (httpx.HTTPError, ValueError, LegalSearchBlockedError) as e:
         logger.warning("legal_search POST failed: %s", e)
         return ""

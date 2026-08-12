@@ -1,0 +1,127 @@
+schema: spec-driven
+
+# Project context — shown to AI when creating artifacts.
+context: |
+  Project: Iraqi Legal Translation Agent
+  Domain: Local, offline-first Agentic RAG system for translating Iraqi legal
+          texts (Arabic ⇄ English) with strict terminology adherence,
+          deterministic glossary enforcement, and dual-agent quality assurance.
+
+  Tech stack:
+    - Language: Python 3.10.x or 3.11.x (config.yaml is the runtime source of truth)
+    - Agent orchestration: LangGraph >= 0.2, < 0.3
+    - LLM runtime: Ollama (local daemon), gemma3:4b
+      (alternative: qwen2.5:7b-instruct-q5_K_M also fits the 8 GB RAM ceiling)
+    - Embeddings: nomic-embed-text via Ollama (768-dim, CPU-friendly)
+    - Vector store: ChromaDB >= 0.5 (embedded PersistentClient only)
+    - Relational store: SQLite3 (stdlib) — glossary + translation memory
+    - CLI: Typer >= 0.12 + Rich >= 13.7
+    - Desktop UI: pywebview >= 5.0 (web_ui) and Tkinter (tk_ui)
+    - MCP server: FastMCP (mcp_server.py)
+    - Config: Pydantic >= 2.6 + PyYAML (config.yaml)
+    - Packaging: setuptools, pyproject.toml, single `src` package
+    - Dev tooling: pytest, ruff, mypy (strict), radon
+
+  Hard constraints (README §3, AGENTS.md):
+    - 8 GB RAM hard ceiling; never load models > 8B params
+    - ChromaDB PersistentClient only — never client/server mode
+    - Concurrent in-flight requests = 1 (no parallel translation jobs)
+    - Embedding batch size capped at 32; LLM context window capped at 8192 tokens
+    - No cloud LLM calls, no telemetry, no third-party network calls
+    - Single-user, single-session
+
+  Conventions:
+    - Conventional commits (feat:, fix:, chore:, docs:, refactor:, test:)
+    - Dependency Injection via keyword-only args (DIP, engineering-principles §1.5)
+    - Protocols (PEP 544) for adapter seams: LLMEngineAdapter, EmbeddingAdapter, HumanReviewer
+    - TypedDicts (PEP 692) for LangGraph state — not Pydantic — for LangGraph compatibility
+    - Pydantic models for configuration only (AppConfig, PathsConfig, ChromaConfig)
+    - Prompts are versioned constants (V1–V4); V4 is current default
+    - Exception hierarchy rooted at LegalTranslationError
+    - Bilingual scenarios (Arabic + English) in specs where applicable
+    - ruff line-length = 100; mypy strict = true
+
+  Current architecture (flat src/ layout, 21 modules):
+    Foundation:    state.py, exceptions.py, config.py, prompts.py, decision.py
+    Adapters:      llm.py, embeddings.py, memory.py
+    Data stores:   glossary.py, retrieval.py, tm.py, ingestion.py, legal_search.py
+    Logging:       run_logging.py
+    Orchestration: nodes.py, graph.py, hitl.py
+    Interfaces:    cli.py, web_ui.py, tk_ui.py, mcp_server.py
+    No circular dependencies; strictly acyclic import graph.
+
+  Target architecture (this change):
+    src/
+      app.py                      # DI entry point, wires all components
+      config/
+        __init__.py               # re-exports public API
+        config.py                 # AppConfig, load_config, ConfigError, Typer `app`
+        models.py                 # PathsConfig, ChromaConfig
+      components/
+        __init__.py
+        translation_pipeline/
+          __init__.py             # re-exports public API
+          models.py               # TranslationState + all TypedDicts + Direction/Verdict
+          graph.py                # build_graph, route_audit, route_after_tm, node constants
+          nodes.py                # all node functions + helpers
+          decision.py             # route_tm
+          prompts.py              # V1–V4 prompt constants, ALL_PROMPT_CONSTANTS
+          exceptions.py           # full exception hierarchy
+        knowledge_sources/
+          __init__.py
+          models.py               # GlossaryEntry, CorpusChunk, TmPair (domain models)
+          glossary.py             # GlossaryIndex, load_glossary_index, scan_glossary_hits
+          retrieval.py            # retrieve_context_chunks, ChromaStore
+          tm.py                   # TranslationMemory
+          legal_search.py         # Iraqi legal-source web search
+          ingestion.py            # corpus parsing + chunking
+        infrastructure/
+          __init__.py
+          models.py               # LLMRequest, LLMResponse, MemoryInfo, RunLogEntry
+          llm.py                  # LLMEngineAdapter, OllamaEngineAdapter
+          embeddings.py           # Embedder, EmbeddingAdapter
+          memory.py               # read_memory_info, check_ram_guard, RAM_GUARD_MIN_GB
+          run_logging.py          # RunLogger
+        interfaces/
+          __init__.py
+          models.py               # CheckResult, Adapters, UiTranslationResult
+          cli.py                  # Typer app + all commands
+          web_ui.py               # pywebview desktop UI
+          tk_ui.py                # Tkinter desktop UI
+          mcp_server.py           # FastMCP server
+          hitl.py                 # HumanReviewer, human_review
+
+# Per-artifact rules — enforce professional, migration-aware specs.
+rules:
+  proposal:
+    - Must include a "Why" section explaining the motivation (not just the what)
+    - Must include a "Scope" section with explicit "In scope" and "Out of scope" lists
+    - Must include a "Migration path" section describing the file-by-file move strategy
+    - Must include a "Rollback plan" section describing how to revert
+    - Must list every affected file (old path → new path) in an "Affected files" table
+    - Must reference the Event Storming and bounded-context analysis as the basis
+    - Keep proposals focused; no implementation code, only intent and approach
+  specs:
+    - Use Given/When/Then scenarios for every behavior
+    - Include bilingual scenarios (Arabic input + English output, and vice versa) where the behavior is language-dependent
+    - Each requirement must be testable and traceable to an existing test or a test to be added
+    - Delta specs must use ADDED / MODIFIED / REMOVED markers for every requirement
+    - Delta specs must specify the new module path for every moved symbol
+    - Preserve all existing behaviors — this is a pure structural refactor, not a behavior change
+  design:
+    - Must include a target directory tree (full file listing)
+    - Must include a component dependency diagram (ASCII or mermaid) showing inter-component imports
+    - Must document each component's models.py contents (every class/TypedDict/protocol)
+    - Must document the inter-component communication protocol (imports, DI seams)
+    - Must document the migration strategy (file-by-file, one move per task)
+    - Must document the app.py entry point design (DI wiring)
+    - Must document pyproject.toml package and entry-point changes
+    - Must document ruff per-file-ignores path migrations
+    - No implementation code beyond illustrative signatures; design is about structure
+  tasks:
+    - Group tasks by component (config, translation_pipeline, knowledge_sources, infrastructure, interfaces)
+    - One file move per task (atomic, verifiable)
+    - Each task must be independently verifiable (import check, test run, or lint)
+    - Order tasks so the dependency graph stays satisfiable (foundation first, interfaces last)
+    - Include a verification task after each component migration
+    - Include a final full-suite verification task (pytest + ruff + mypy)

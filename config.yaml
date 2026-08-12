@@ -19,6 +19,13 @@ llamacpp_url: http://localhost:8080
 llm_model: gemma3:4b
 embed_model: nomic-embed-text
 
+# Ollama KV-cache context size (num_ctx in the Ollama options dict). Caps the
+# VRAM footprint of the LLM's KV cache so the embed model and gemma3:4b coexist
+# within an 8 GB GPU. Independent of `context_window` (the pipeline-level
+# prompt-truncation budget). Default 2048 is the safe value for the 8 GB target
+# profile; raise it on GPUs with more VRAM.
+ollama_num_ctx: 2048
+
 # --- Gemini API backend (used only when llm_backend: gemini) ---
 # The API key is read from the GEMINI_API_KEY environment variable, NOT
 # from this file (security — never commit a key to config.yaml).
@@ -94,6 +101,35 @@ excel:
   max_segment_chars: 4096    # segments longer than this are skipped (original kept)
   max_xlsx_bytes: 104857600  # 100 MiB — workbooks larger than this are rejected
   max_segments: 10000        # workbooks with more translatable segments are rejected
+
+# --- Word (.docx) document translation ---
+# `word` command translates a .docx in place. Toggles select which text
+# locations are routed through the pipeline; all non-text artifacts (styles,
+# tables, images, tracked changes, hyperlinks) are preserved byte-for-byte.
+# `translate_glossary_doc` is false by default — the glossaryDocument part is
+# a term-definition reference, not translatable content.
+word:
+  translate_comments: true
+  translate_headers_footers: true
+  translate_footnotes: true
+  translate_endnotes: true
+  translate_glossary_doc: false
+  max_segment_chars: 8192    # segments longer than this are skipped (original kept)
+  max_docx_bytes: 52428800   # 50 MiB — documents larger than this are rejected
+  max_segments: 20000        # documents with more translatable segments are rejected
+
+# --- PDF (.pdf) document translation (sidecar output) ---
+# `pdf` command extracts text per page, translates it, and writes a sidecar
+# file (.docx by default, or .txt). The original PDF is never rewritten.
+# `skip_header_footer` drops short page-header/footer lines that pypdf emits
+# inline with the body text on each page.
+pdf:
+  out_format: docx           # "docx" (default) or "txt"
+  max_pdf_bytes: 104857600   # 100 MiB — PDFs larger than this are rejected
+  max_pages: 500             # PDFs with more pages are rejected
+  max_segment_chars: 8192    # segments longer than this are skipped (original kept)
+  max_segments: 20000        # PDFs with more translatable segments are rejected
+  skip_header_footer: true
 
 # --- UI backend selection ---
 # `ui` command launches a desktop UI. `web` uses pywebview (HTML/CSS/JS),

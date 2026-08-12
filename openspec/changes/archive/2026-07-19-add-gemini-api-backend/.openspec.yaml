@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Add Google Gemini API as an opt-in, cloud-based LLM backend (LLM +
+  embeddings) alongside the default Ollama backend, selectable via config.yaml

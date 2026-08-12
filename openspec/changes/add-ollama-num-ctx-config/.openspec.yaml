@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-09
+goal: Add a configurable Ollama KV-cache context size to prevent VRAM exhaustion
+  when the embed model and LLM share an 8 GB GPU.

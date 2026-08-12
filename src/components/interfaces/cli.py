@@ -166,7 +166,9 @@ def _construct_adapters(cfg: AppConfig) -> Adapters:
         from src.components.infrastructure.embeddings import Embedder
         from src.components.infrastructure.llm import OllamaEngineAdapter
 
-        llm = OllamaEngineAdapter(model=cfg.llm_model, host=cfg.ollama_host)
+        llm = OllamaEngineAdapter(
+            model=cfg.llm_model, host=cfg.ollama_host, num_ctx=cfg.ollama_num_ctx,
+        )
         embedder = Embedder(model=cfg.embed_model, host=cfg.ollama_host)
 
     try:

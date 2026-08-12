@@ -98,3 +98,90 @@ class UiConfig(BaseModel):
     """
 
     backend: Literal["web", "tk"] = "web"
+
+
+class WordConfig(BaseModel):
+    """Word (.docx) translation feature toggles and limits.
+
+    Controls which human-readable text locations the Word adapter translates,
+    and the per-segment / per-document size caps. Defaults translate every
+    supported location so a plain ``word`` run translates the whole document
+    body, comments, headers/footers, footnotes, and endnotes. The
+    ``glossaryDocument`` part is OFF by default (it is a term-definition
+    reference, not translatable content).
+    """
+
+    translate_comments: bool = True
+    translate_headers_footers: bool = True
+    translate_footnotes: bool = True
+    translate_endnotes: bool = True
+    translate_glossary_doc: bool = False
+    max_segment_chars: int = 8192
+    max_docx_bytes: int = 50 * 1024 * 1024
+    max_segments: int = 20000
+
+    @field_validator("max_segment_chars")
+    @classmethod
+    def _max_segment_chars_min(cls, v: int) -> int:
+        if v < 16:
+            raise ValueError(f"max_segment_chars must be >= 16, got {v}")
+        return v
+
+    @field_validator("max_docx_bytes")
+    @classmethod
+    def _max_docx_bytes_min(cls, v: int) -> int:
+        if v < 1_048_576:
+            raise ValueError(f"max_docx_bytes must be >= 1 MiB, got {v}")
+        return v
+
+    @field_validator("max_segments")
+    @classmethod
+    def _max_segments_min(cls, v: int) -> int:
+        if v < 100:
+            raise ValueError(f"max_segments must be >= 100, got {v}")
+        return v
+
+
+class PdfConfig(BaseModel):
+    """PDF (.pdf) translation feature toggles and limits.
+
+    The PDF adapter extracts text per page and writes a translated sidecar
+    file (``.docx`` by default, or ``.txt``). ``skip_header_footer`` drops
+    page-header / page-footer lines that ``pypdf`` emits inline with the body
+    text on each page (a common artifact of PDF text extraction).
+    """
+
+    out_format: Literal["docx", "txt"] = "docx"
+    max_pdf_bytes: int = 100 * 1024 * 1024
+    max_pages: int = 500
+    max_segment_chars: int = 8192
+    max_segments: int = 20000
+    skip_header_footer: bool = True
+
+    @field_validator("max_pdf_bytes")
+    @classmethod
+    def _max_pdf_bytes_min(cls, v: int) -> int:
+        if v < 1_048_576:
+            raise ValueError(f"max_pdf_bytes must be >= 1 MiB, got {v}")
+        return v
+
+    @field_validator("max_pages")
+    @classmethod
+    def _max_pages_min(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"max_pages must be >= 1, got {v}")
+        return v
+
+    @field_validator("max_segment_chars")
+    @classmethod
+    def _max_segment_chars_min(cls, v: int) -> int:
+        if v < 16:
+            raise ValueError(f"max_segment_chars must be >= 16, got {v}")
+        return v
+
+    @field_validator("max_segments")
+    @classmethod
+    def _max_segments_min(cls, v: int) -> int:
+        if v < 100:
+            raise ValueError(f"max_segments must be >= 100, got {v}")
+        return v

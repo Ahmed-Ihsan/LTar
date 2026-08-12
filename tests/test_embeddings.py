@@ -9,7 +9,11 @@ from __future__ import annotations
 import pytest
 
 from src.components.infrastructure.embeddings import EMBED_DIM, Embedder, embed_batch, embed_text
-from src.components.translation_pipeline.exceptions import EmbeddingConnectionError
+from src.components.translation_pipeline.exceptions import (
+    EmbeddingConnectionError,
+    EmbeddingError,
+    LegalTranslationError,
+)
 
 pytestmark = pytest.mark.adapter
 
@@ -61,7 +65,7 @@ class TestEmbedderErrorTranslation:
             embedder.embed("test")
 
     def test_embed_batch_invalid_batch_size_raises(self, mock_embedder) -> None:
-        with pytest.raises(ValueError, match="batch_size"):
+        with pytest.raises(EmbeddingError, match="batch_size"):
             embed_batch(["a"], batch_size=0, embedder=mock_embedder)
 
 
@@ -148,3 +152,61 @@ class TestLLMAdapterContextManager:
         with adapter:
             pass
         assert close_calls == [1]
+
+
+# ---------------------------------------------------------------------------
+# Domain-exception wrapping — raw ValueError must not leak (TDD)
+# ---------------------------------------------------------------------------
+
+
+class TestDomainExceptionWrapping:
+    """Raw ``ValueError`` raises in the embeddings module must be wrapped in
+    domain exceptions so the CLI boundary never sees a bare built-in.
+
+    Each test triggers a known leak point and asserts the raised exception
+    is a :class:`LegalTranslationError` subclass — never a raw ``ValueError``.
+    """
+
+    def test_embedder_embed_batch_invalid_batch_size_raises_domain_error(self) -> None:
+        """``Embedder.embed_batch`` with ``batch_size <= 0`` must raise
+        ``EmbeddingError``, not a raw ``ValueError``."""
+        embedder = Embedder(
+            model="nomic-embed-text", host="http://localhost:11434"
+        )
+        with pytest.raises(EmbeddingError, match="batch_size must be positive"):
+            embedder.embed_batch(["a"], batch_size=0)
+        with pytest.raises(EmbeddingError, match="batch_size must be positive"):
+            embedder.embed_batch(["a"], batch_size=-1)
+
+    def test_embedder_embed_batch_invalid_batch_size_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        embedder = Embedder(
+            model="nomic-embed-text", host="http://localhost:11434"
+        )
+        try:
+            embedder.embed_batch(["a"], batch_size=0)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
+
+    def test_module_embed_batch_invalid_batch_size_raises_domain_error(
+        self, mock_embedder
+    ) -> None:
+        """Module-level ``embed_batch`` with ``batch_size <= 0`` must raise
+        ``EmbeddingError``, not a raw ``ValueError``."""
+        with pytest.raises(EmbeddingError, match="batch_size must be positive"):
+            embed_batch(["a"], batch_size=0, embedder=mock_embedder)
+        with pytest.raises(EmbeddingError, match="batch_size must be positive"):
+            embed_batch(["a"], batch_size=-1, embedder=mock_embedder)
+
+    def test_module_embed_batch_invalid_batch_size_not_raw_value_error(
+        self, mock_embedder
+    ) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        try:
+            embed_batch(["a"], batch_size=0, embedder=mock_embedder)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected

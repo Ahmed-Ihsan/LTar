@@ -47,6 +47,7 @@ from src.components.infrastructure.embeddings import (
     EMBED_DIM,
 )
 from src.components.translation_pipeline.exceptions import (
+    AdapterError,
     EmbeddingConnectionError,
     EmbeddingError,
     GeminiAuthError,
@@ -182,7 +183,7 @@ def _translate_gemini_error(
         return EmbeddingError(
             f"unexpected Gemini embedding error (model={model}): {safe_msg}"
         )
-    raise ValueError(
+    raise AdapterError(
         f"unknown engine kind {kind!r}; expected 'llm' or 'embedding'"
     )
 
@@ -239,7 +240,7 @@ class _RateLimiter:
 
     def __init__(self, rpm: int, *, window: float = 60.0) -> None:
         if rpm <= 0:
-            raise ValueError(f"rpm must be positive, got {rpm}")
+            raise GeminiQuotaError(f"rpm must be positive, got {rpm}")
         self._rpm: int = rpm
         self._window: float = window
         self._timestamps: deque[float] = deque()
@@ -336,16 +337,17 @@ class GeminiEngineAdapter:
         to :class:`LLMRuntimeError` so the CLI sees a domain exception.
 
         Raises:
-            ValueError: if ``api_key`` is empty/None, or ``rpm <= 0``.
+            GeminiAuthError: if ``api_key`` is empty/None.
+            GeminiQuotaError: if ``rpm <= 0``.
             LLMRuntimeError: if the ``google-genai`` SDK is not installed.
         """
         if not api_key:
-            raise ValueError(
+            raise GeminiAuthError(
                 "GeminiEngineAdapter requires a non-empty api_key (read it "
                 "from the GEMINI_API_KEY environment variable)."
             )
         if rpm <= 0:
-            raise ValueError(f"rpm must be positive, got {rpm}")
+            raise GeminiQuotaError(f"rpm must be positive, got {rpm}")
         self._model: str = model
         self._embed_model: str = embed_model
         self._api_key: str = api_key
@@ -548,8 +550,10 @@ class GeminiEngineAdapter:
         (design D7).
 
         Raises:
-            ValueError: ``batch_size`` is not positive (delegated to
-                :func:`src.utils.batch_size.validate_batch_size`).
+            EmbeddingError: ``batch_size`` is not positive (delegated to
+                :func:`src.utils.batch_size.validate_batch_size` which raises
+                ``ValueError``; callers should catch ``EmbeddingError`` or
+                ``ValueError`` at the boundary).
             GeminiQuotaError: the local RPM budget is exhausted.
             EmbeddingConnectionError: cannot reach the Gemini embedding API.
             EmbeddingError: any other failure or a dimension mismatch.

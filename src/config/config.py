@@ -17,7 +17,14 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.config.models import ChromaConfig, ExcelConfig, PathsConfig, UiConfig
+from src.config.models import (
+    ChromaConfig,
+    ExcelConfig,
+    PathsConfig,
+    PdfConfig,
+    UiConfig,
+    WordConfig,
+)
 
 # Default config location: config.yaml next to the project root.
 # This module lives at src/config/config.py, so project root is three
@@ -50,6 +57,13 @@ class AppConfig(BaseModel):
 
     llm_model: str = "gemma3:4b"
     embed_model: str = "nomic-embed-text"
+
+    # Ollama KV-cache context size (num_ctx in the Ollama options dict). Caps
+    # the VRAM footprint of the LLM's KV cache so the embed model and gemma3:4b
+    # coexist within an 8 GB GPU. Independent of `context_window` (the
+    # pipeline-level prompt-truncation budget). Default 2048 is the safe value
+    # for the 8 GB target profile; raise it on GPUs with more VRAM.
+    ollama_num_ctx: int = 2048
 
     paths: PathsConfig = Field(default_factory=PathsConfig)
 
@@ -85,6 +99,12 @@ class AppConfig(BaseModel):
     # --- Excel (.xlsx) workbook translation ---
     excel: ExcelConfig = Field(default_factory=ExcelConfig)
 
+    # --- Word (.docx) document translation ---
+    word: WordConfig = Field(default_factory=WordConfig)
+
+    # --- PDF (.pdf) document translation (sidecar .docx/.txt output) ---
+    pdf: PdfConfig = Field(default_factory=PdfConfig)
+
     # --- UI backend selection (web vs Tkinter) ---
     ui: UiConfig = Field(default_factory=UiConfig)
 
@@ -103,7 +123,7 @@ class AppConfig(BaseModel):
                      "embedding_batch_size", "chroma_add_batch",
                      "max_revisions", "context_window",
                      "translator_max_tokens", "auditor_max_tokens",
-                     "gemini_rpm")
+                     "gemini_rpm", "ollama_num_ctx")
     @classmethod
     def _positive_int(cls, v: int) -> int:
         if v <= 0:

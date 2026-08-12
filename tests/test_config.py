@@ -140,3 +140,134 @@ class TestLoadConfigGeminiKey:
         r: str = repr(cfg)
         assert "AIzaSuperSecretKeyDoNotLeak" not in r
         assert "***" in r
+
+
+# ---------------------------------------------------------------------------
+# WordConfig / PdfConfig (add-pdf-word-translation)
+# ---------------------------------------------------------------------------
+
+
+def test_word_config_defaults_applied_when_absent():
+    cfg = AppConfig()
+    assert cfg.word.translate_comments is True
+    assert cfg.word.translate_headers_footers is True
+    assert cfg.word.translate_footnotes is True
+    assert cfg.word.translate_endnotes is True
+    assert cfg.word.translate_glossary_doc is False
+    assert cfg.word.max_segment_chars == 8192
+    assert cfg.word.max_docx_bytes == 50 * 1024 * 1024
+    assert cfg.word.max_segments == 20000
+
+
+def test_word_config_honors_explicit_overrides():
+    cfg = AppConfig(word={"translate_comments": False, "max_segment_chars": 1024})
+    assert cfg.word.translate_comments is False
+    assert cfg.word.max_segment_chars == 1024
+    # Untouched fields retain defaults.
+    assert cfg.word.translate_headers_footers is True
+
+
+def test_word_config_rejects_max_segment_chars_below_16():
+    with pytest.raises(ValidationError):
+        AppConfig(word={"max_segment_chars": 8})
+
+
+def test_word_config_rejects_max_docx_bytes_below_1_mib():
+    with pytest.raises(ValidationError):
+        AppConfig(word={"max_docx_bytes": 1024})
+
+
+def test_word_config_rejects_max_segments_below_100():
+    with pytest.raises(ValidationError):
+        AppConfig(word={"max_segments": 10})
+
+
+def test_pdf_config_defaults_applied_when_absent():
+    cfg = AppConfig()
+    assert cfg.pdf.out_format == "docx"
+    assert cfg.pdf.max_pdf_bytes == 100 * 1024 * 1024
+    assert cfg.pdf.max_pages == 500
+    assert cfg.pdf.max_segment_chars == 8192
+    assert cfg.pdf.max_segments == 20000
+    assert cfg.pdf.skip_header_footer is True
+
+
+def test_pdf_config_honors_explicit_overrides():
+    cfg = AppConfig(pdf={"out_format": "txt", "max_pages": 50})
+    assert cfg.pdf.out_format == "txt"
+    assert cfg.pdf.max_pages == 50
+    assert cfg.pdf.skip_header_footer is True  # untouched
+
+
+def test_pdf_config_rejects_invalid_out_format():
+    with pytest.raises(ValidationError):
+        AppConfig(pdf={"out_format": "rtf"})  # type: ignore[arg-type]
+
+
+def test_pdf_config_rejects_max_pdf_bytes_below_1_mib():
+    with pytest.raises(ValidationError):
+        AppConfig(pdf={"max_pdf_bytes": 1024})
+
+
+def test_pdf_config_rejects_non_positive_max_pages():
+    with pytest.raises(ValidationError):
+        AppConfig(pdf={"max_pages": 0})
+
+
+def test_load_config_applies_word_pdf_defaults_when_sections_absent(tmp_path: Path):
+    p = _write_config(tmp_path, "llm_backend: ollama\n")
+    cfg = load_config(p)
+    assert cfg.word.translate_comments is True
+    assert cfg.pdf.out_format == "docx"
+
+
+def test_load_config_honors_explicit_word_pdf_sections(tmp_path: Path):
+    p = _write_config(
+        tmp_path,
+        "llm_backend: ollama\n"
+        "word:\n  translate_comments: false\n  max_segment_chars: 2048\n"
+        "pdf:\n  out_format: txt\n  max_pages: 25\n",
+    )
+    cfg = load_config(p)
+    assert cfg.word.translate_comments is False
+    assert cfg.word.max_segment_chars == 2048
+    assert cfg.pdf.out_format == "txt"
+    assert cfg.pdf.max_pages == 25
+
+
+# ---------------------------------------------------------------------------
+# ollama_num_ctx (add-ollama-num-ctx-config)
+# ---------------------------------------------------------------------------
+
+
+def test_ollama_num_ctx_default_is_2048():
+    cfg = AppConfig()
+    assert cfg.ollama_num_ctx == 2048
+
+
+def test_ollama_num_ctx_accepts_custom_value():
+    cfg = AppConfig(ollama_num_ctx=4096)
+    assert cfg.ollama_num_ctx == 4096
+
+
+def test_ollama_num_ctx_rejects_zero():
+    with pytest.raises(ValidationError):
+        AppConfig(ollama_num_ctx=0)
+
+
+def test_ollama_num_ctx_rejects_negative():
+    with pytest.raises(ValidationError):
+        AppConfig(ollama_num_ctx=-1024)
+
+
+def test_load_config_ollama_num_ctx_override(tmp_path: Path):
+    p = _write_config(tmp_path, "ollama_num_ctx: 8192\n")
+    cfg = load_config(p)
+    assert cfg.ollama_num_ctx == 8192
+
+
+def test_load_config_ollama_num_ctx_default_when_absent(tmp_path: Path):
+    p = _write_config(tmp_path, "llm_backend: ollama\n")
+    cfg = load_config(p)
+    assert cfg.ollama_num_ctx == 2048
+

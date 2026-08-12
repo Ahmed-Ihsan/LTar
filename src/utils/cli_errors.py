@@ -19,15 +19,25 @@ from typing import TypeVar
 import typer
 
 from src.components.translation_pipeline.exceptions import (
+    AdapterError,
+    AuditParseError,
+    CorpusError,
     EmbeddingConnectionError,
+    EmbeddingError,
     GeminiAuthError,
     GeminiQuotaError,
+    GlossaryError,
     InputValidationError,
+    LegalSearchBlockedError,
+    LlamaCppConnectionError,
     LLMConnectionError,
+    LLMRuntimeError,
     LLMTimeoutError,
     OllamaConnectionError,
+    OllamaModelNotLoadedError,
     PathContainmentError,
     RAMGuardError,
+    RetrievalError,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,10 +62,19 @@ def handle_pipeline_errors(func: Callable[..., T]) -> Callable[..., T]:
         LLMTimeoutError → exit 2 (connection / auth family — same code as
         the Ollama connection family; no new exit code is introduced per
         the `add-gemini-api-backend` interfaces spec delta)
+        AdapterError / OllamaModelNotLoadedError / LlamaCppConnectionError /
+        LLMRuntimeError / EmbeddingError → exit 2 (engine / LLM / embedding
+        family — adapter failures, model-not-loaded, llama.cpp connection,
+        and catch-all bases for any unmapped LLM/embedding subclass)
         RAMGuardError → exit 3
         PathContainmentError → exit 4
-        InputValidationError → exit 5
-        OSError → exit 6
+        InputValidationError / GlossaryError / LegalSearchBlockedError →
+        exit 5 (input validation family — glossary schema/validation failures
+        and legal-search URL allowlist violations are input-validation issues)
+        OSError / CorpusError / RetrievalError → exit 6 (I/O family — corpus
+        file ingestion and vector-store retrieval failures are I/O-related)
+        AuditParseError → exit 1 (generic — auditor output parse failure has
+        no more specific exit code; mapped explicitly for a clear message)
     All other exceptions propagate (exit 1 via Typer).
     """
     @functools.wraps(func)
@@ -69,6 +88,11 @@ def handle_pipeline_errors(func: Callable[..., T]) -> Callable[..., T]:
             GeminiQuotaError,
             LLMConnectionError,
             LLMTimeoutError,
+            OllamaModelNotLoadedError,
+            LlamaCppConnectionError,
+            LLMRuntimeError,
+            EmbeddingError,
+            AdapterError,
         ) as e:
             logger.error("Engine connection/auth error: %s", e)
             typer.echo(f"Error: cannot reach LLM/embedding backend: {e}", err=True)
@@ -81,14 +105,26 @@ def handle_pipeline_errors(func: Callable[..., T]) -> Callable[..., T]:
             logger.error("Path containment violation: %s", e)
             typer.echo(f"Error: path outside allowed root: {e}", err=True)
             raise typer.Exit(code=_EXIT_PATH) from e
-        except InputValidationError as e:
+        except (
+            InputValidationError,
+            GlossaryError,
+            LegalSearchBlockedError,
+        ) as e:
             logger.error("Input validation error: %s", e)
             typer.echo(f"Error: invalid input: {e}", err=True)
             raise typer.Exit(code=_EXIT_VALIDATION) from e
-        except OSError as e:
+        except (
+            OSError,
+            CorpusError,
+            RetrievalError,
+        ) as e:
             logger.error("I/O error: %s", e)
             typer.echo(f"Error: I/O failure: {e}", err=True)
             raise typer.Exit(code=_EXIT_IO) from e
+        except AuditParseError as e:
+            logger.error("Audit parse error: %s", e)
+            typer.echo(f"Error: auditor output could not be parsed: {e}", err=True)
+            raise typer.Exit(code=_EXIT_GENERIC) from e
 
     return wrapper
 

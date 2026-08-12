@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Fix dependency drift (pywebview missing, gradio optional), resolve Python
+  version pin mismatch, replace broken ARCHITECTURE.md and PROMPTS.md
+  references, and archive three completed OpenSpec changes.

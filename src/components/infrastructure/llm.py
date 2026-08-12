@@ -74,7 +74,7 @@ class OllamaEngineAdapter:
     a second timeout becomes :class:`OllamaTimeoutError`.
     """
 
-    __slots__ = ("_client", "_model", "_host", "_closed")
+    __slots__ = ("_client", "_model", "_host", "_num_ctx", "_closed")
 
     def __init__(
         self,
@@ -82,6 +82,7 @@ class OllamaEngineAdapter:
         *,
         model: str,
         host: str,
+        num_ctx: int | None = None,
     ) -> None:
         """Build an LLM engine adapter.
 
@@ -89,9 +90,16 @@ class OllamaEngineAdapter:
         fallback). If ``client`` is omitted, a new :class:`ollama.Client` is
         created from ``host``. Callers (e.g. ``_construct_adapters`` in
         ``cli.py``) resolve config values and pass them explicitly.
+
+        ``num_ctx`` sets the Ollama KV-cache context size (the ``num_ctx``
+        option). When None (the default), Ollama auto-selects the context
+        size — preserving backward compatibility for direct construction.
+        When set (e.g. 2048 from ``config.yaml``), it caps the VRAM footprint
+        so the embed model and LLM coexist within an 8 GB GPU.
         """
         self._model: str = model
         self._host: str = host
+        self._num_ctx: int | None = num_ctx
         self._client: ollama.Client = (
             client if client is not None else ollama.Client(host=self._host)
         )
@@ -157,6 +165,8 @@ class OllamaEngineAdapter:
             "temperature": temperature,
             "num_predict": max_tokens,
         }
+        if self._num_ctx is not None:
+            options["num_ctx"] = self._num_ctx
         return self._chat_with_retry(
             messages=messages, model=model, options=options, timeout=timeout
         )

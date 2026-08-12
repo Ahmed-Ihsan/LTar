@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Add a production-grade Excel (.xlsx) translation feature that preserves
+  workbook structure and routes human-readable text through the existing
+  translation pipeline.

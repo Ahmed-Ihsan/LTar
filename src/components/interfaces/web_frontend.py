@@ -512,6 +512,8 @@ textarea:disabled { opacity: 0.55; }
   <div class="tab" onclick="switchTab(event,'trace')">Audit Trace</div>
   <div class="tab" onclick="switchTab(event,'history')">History</div>
   <div class="tab" onclick="switchTab(event,'excel')">Excel</div>
+  <div class="tab" onclick="switchTab(event,'word')">Word</div>
+  <div class="tab" onclick="switchTab(event,'pdf')">PDF</div>
 </div>
 
 <div class="content">
@@ -658,6 +660,132 @@ textarea:disabled { opacity: 0.55; }
     </div>
   </div>
 
+  <!-- Word Tab -->
+  <div id="tab-word" class="tab-content">
+    <div class="excel-form">
+      <div class="excel-col">
+        <div class="field-label">Input Document (.docx)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickWordInput()">Browse…</button>
+          <span id="wd-input-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="field-label" style="margin-top:var(--sp-4);">Output Document (.docx)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickWordOutput()">Save As…</button>
+          <span id="wd-output-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="control-group" style="margin-top:var(--sp-4);">
+          <label>Direction</label>
+          <select id="wd-direction">
+            <option value="ar-en">AR &rarr; EN</option>
+            <option value="en-ar">EN &rarr; AR</option>
+            <option value="auto">Auto-detect</option>
+          </select>
+        </div>
+      </div>
+      <div class="excel-col">
+        <div class="field-label">Word Options</div>
+        <label class="xl-opt"><input type="checkbox" id="wd-opt-comments" checked> Translate comments</label>
+        <label class="xl-opt"><input type="checkbox" id="wd-opt-headers" checked> Translate headers &amp; footers</label>
+        <label class="xl-opt"><input type="checkbox" id="wd-opt-footnotes" checked> Translate footnotes</label>
+        <label class="xl-opt"><input type="checkbox" id="wd-opt-endnotes" checked> Translate endnotes</label>
+        <label class="xl-opt"><input type="checkbox" id="wd-opt-glossary"> Translate glossaryDocument</label>
+        <div class="field-label" style="margin-top:var(--sp-3);">Max segment chars</div>
+        <input type="number" id="wd-opt-maxchars" min="16" value="8192" class="xl-num">
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-wd-translate" onclick="doTranslateWord()" disabled>Translate Word</button>
+      <button class="btn btn-secondary" id="btn-wd-cancel" onclick="cancelWord()" style="display:none;">Cancel</button>
+      <button class="btn btn-secondary btn-small" id="btn-wd-open" onclick="openWordOutput()" style="display:none;margin-left:auto;">Open output</button>
+    </div>
+
+    <div id="wd-error" class="xl-error" style="display:none;"></div>
+
+    <div id="wd-progress" class="xl-progress" style="display:none;">
+      <div class="field-label">
+        <span>Progress</span>
+        <span class="count" id="wd-counter">0 / 0</span>
+      </div>
+      <div class="xl-bar-track"><div id="wd-bar-fill" class="xl-bar-fill"></div></div>
+      <div id="wd-current" class="xl-current"></div>
+    </div>
+
+    <div id="wd-report" class="xl-report" style="display:none;">
+      <div class="field-label">Report</div>
+      <div class="xl-report-grid" id="wd-report-grid"></div>
+      <div class="field-label" style="margin-top:var(--sp-3);">Warnings</div>
+      <div id="wd-warnings" class="xl-warnings"></div>
+    </div>
+  </div>
+
+  <!-- PDF Tab -->
+  <div id="tab-pdf" class="tab-content">
+    <div class="excel-form">
+      <div class="excel-col">
+        <div class="field-label">Input PDF (.pdf)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickPdfInput()">Browse…</button>
+          <span id="pdf-input-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="field-label" style="margin-top:var(--sp-4);">Output Sidecar (.docx or .txt)</div>
+        <div class="picker-row">
+          <button class="btn btn-secondary btn-small" onclick="pickPdfOutput()">Save As…</button>
+          <span id="pdf-output-path" class="picker-path">No file selected</span>
+        </div>
+        <div class="control-group" style="margin-top:var(--sp-4);">
+          <label>Direction</label>
+          <select id="pdf-direction">
+            <option value="ar-en">AR &rarr; EN</option>
+            <option value="en-ar">EN &rarr; AR</option>
+            <option value="auto">Auto-detect</option>
+          </select>
+        </div>
+      </div>
+      <div class="excel-col">
+        <div class="field-label">PDF Options</div>
+        <div class="control-group" style="margin-top:var(--sp-1);">
+          <label>Output format</label>
+          <select id="pdf-opt-outformat">
+            <option value="docx">.docx (Word)</option>
+            <option value="txt">.txt (plain text)</option>
+          </select>
+        </div>
+        <label class="xl-opt" style="margin-top:var(--sp-2);"><input type="checkbox" id="pdf-opt-skiphf" checked> Skip page headers &amp; footers</label>
+        <div class="field-label" style="margin-top:var(--sp-3);">Max segment chars</div>
+        <input type="number" id="pdf-opt-maxchars" min="16" value="8192" class="xl-num">
+        <div style="font-size:var(--fs-xs);color:var(--text-mute);margin-top:var(--sp-2);">
+          The original PDF is never modified; a translated sidecar file is written.
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-pdf-translate" onclick="doTranslatePdf()" disabled>Translate PDF</button>
+      <button class="btn btn-secondary" id="btn-pdf-cancel" onclick="cancelPdf()" style="display:none;">Cancel</button>
+      <button class="btn btn-secondary btn-small" id="btn-pdf-open" onclick="openPdfOutput()" style="display:none;margin-left:auto;">Open output</button>
+    </div>
+
+    <div id="pdf-error" class="xl-error" style="display:none;"></div>
+
+    <div id="pdf-progress" class="xl-progress" style="display:none;">
+      <div class="field-label">
+        <span>Progress</span>
+        <span class="count" id="pdf-counter">0 / 0</span>
+      </div>
+      <div class="xl-bar-track"><div id="pdf-bar-fill" class="xl-bar-fill"></div></div>
+      <div id="pdf-current" class="xl-current"></div>
+    </div>
+
+    <div id="pdf-report" class="xl-report" style="display:none;">
+      <div class="field-label">Report</div>
+      <div class="xl-report-grid" id="pdf-report-grid"></div>
+      <div class="field-label" style="margin-top:var(--sp-3);">Warnings</div>
+      <div id="pdf-warnings" class="xl-warnings"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="status-bar">
@@ -733,6 +861,8 @@ async function init() {
   toggleRtl();
   updateCount();
   initExcel();
+  initWord();
+  initPdf();
 }
 
 function toggleRtl() {
@@ -912,22 +1042,7 @@ function showExcelError(msg) {
 }
 
 function renderExcelReport(r, cancelled) {
-  const grid = document.getElementById('xl-report-grid');
-  const stats = [
-    ['Total', r.total_segments], ['Translated', r.translated],
-    ['Skipped', r.skipped], ['Failed', r.failed],
-    ['Cancelled', r.cancelled ? 'Yes' : 'No'],
-  ];
-  grid.innerHTML = stats.map(function(s) {
-    return '<div class="xl-stat"><span class="label">' + s[0] + '</span>' +
-      '<span class="value">' + s[1] + '</span></div>';
-  }).join('');
-  const w = document.getElementById('xl-warnings');
-  w.textContent = r.warnings && r.warnings.length
-    ? r.warnings.join('\n')
-    : (cancelled ? 'Run cancelled; remaining segments kept their original text.'
-       : 'No warnings.');
-  document.getElementById('xl-report').style.display = 'flex';
+  renderDocReport('xl', r, cancelled, false);
 }
 
 async function cancelExcel() {
@@ -936,6 +1051,301 @@ async function cancelExcel() {
 
 async function openExcelOutput() {
   if (xlState.outputPath) await pywebview.api.open_in_explorer(window.__SESSION_TOKEN, xlState.outputPath);
+}
+
+// ── Word tab ──────────────────────────────────────────────────────
+let wdState = {
+  inputPath: null, outputPath: null, jobId: null,
+  pollTimer: null, running: false,
+};
+
+async function initWord() {
+  const opts = await pywebview.api.get_word_options();
+  document.getElementById('wd-opt-comments').checked = opts.translate_comments;
+  document.getElementById('wd-opt-headers').checked = opts.translate_headers_footers;
+  document.getElementById('wd-opt-footnotes').checked = opts.translate_footnotes;
+  document.getElementById('wd-opt-endnotes').checked = opts.translate_endnotes;
+  document.getElementById('wd-opt-glossary').checked = opts.translate_glossary_doc;
+  document.getElementById('wd-opt-maxchars').value = opts.max_segment_chars;
+  ['wd-input-path','wd-output-path','wd-direction','wd-opt-comments','wd-opt-headers','wd-opt-footnotes','wd-opt-endnotes','wd-opt-glossary','wd-opt-maxchars']
+    .forEach(id => document.getElementById(id).addEventListener('change', updateWordButtonState));
+  updateWordButtonState();
+}
+
+async function pickWordInput() {
+  const path = await pywebview.api.pick_word_input(window.__SESSION_TOKEN);
+  if (path) {
+    wdState.inputPath = path;
+    document.getElementById('wd-input-path').textContent = path;
+    if (!wdState.outputPath) {
+      const stem = path.replace(/\.docx$/i, '');
+      document.getElementById('wd-output-path').textContent = stem + '_translated.docx (suggested)';
+      wdState.outputPath = stem + '_translated.docx';
+    }
+    updateWordButtonState();
+  }
+}
+
+async function pickWordOutput() {
+  const defaultName = wdState.inputPath
+    ? wdState.inputPath.replace(/\.docx$/i, '') + '_translated.docx'
+    : 'document_translated.docx';
+  const path = await pywebview.api.pick_word_output(window.__SESSION_TOKEN, defaultName);
+  if (path) {
+    wdState.outputPath = path;
+    document.getElementById('wd-output-path').textContent = path;
+    updateWordButtonState();
+  }
+}
+
+function updateWordButtonState() {
+  const ready = wdState.inputPath && wdState.outputPath && !wdState.running;
+  document.getElementById('btn-wd-translate').disabled = !ready;
+}
+
+function wdOptions() {
+  return {
+    translate_comments: document.getElementById('wd-opt-comments').checked,
+    translate_headers_footers: document.getElementById('wd-opt-headers').checked,
+    translate_footnotes: document.getElementById('wd-opt-footnotes').checked,
+    translate_endnotes: document.getElementById('wd-opt-endnotes').checked,
+    translate_glossary_doc: document.getElementById('wd-opt-glossary').checked,
+    max_segment_chars: parseInt(document.getElementById('wd-opt-maxchars').value, 10) || 8192,
+  };
+}
+
+async function doTranslateWord() {
+  if (!wdState.inputPath || !wdState.outputPath) return;
+  const exists = await pywebview.api.path_exists(wdState.outputPath);
+  if (exists && !confirm('Output file already exists. Overwrite?')) return;
+  document.getElementById('wd-error').style.display = 'none';
+  document.getElementById('wd-report').style.display = 'none';
+  document.getElementById('wd-progress').style.display = 'flex';
+  document.getElementById('wd-bar-fill').style.width = '0%';
+  document.getElementById('wd-counter').textContent = '0 / 0';
+  document.getElementById('wd-current').textContent = '';
+  document.getElementById('btn-wd-translate').disabled = true;
+  document.getElementById('btn-wd-cancel').style.display = 'inline-block';
+  document.getElementById('btn-wd-open').style.display = 'none';
+  wdState.running = true;
+  setStatus('active', 'Translating Word\u2026');
+  refreshTranslateButtonBusy();
+
+  const direction = document.getElementById('wd-direction').value;
+  const res = await pywebview.api.translate_word(
+    window.__SESSION_TOKEN, wdState.inputPath, wdState.outputPath, direction, wdOptions()
+  );
+  if (res.state === 'error') {
+    wdRunEnded();
+    showWordError(res.error);
+    return;
+  }
+  wdState.jobId = res.job_id;
+  wdState.pollTimer = setInterval(pollWordStatus, 300);
+}
+
+async function pollWordStatus() {
+  const s = await pywebview.api.get_word_status(wdState.jobId);
+  if (s.state === 'running') {
+    const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+    document.getElementById('wd-bar-fill').style.width = pct + '%';
+    document.getElementById('wd-counter').textContent = s.completed + ' / ' + s.total;
+    document.getElementById('wd-current').textContent = s.current ? truncate(s.current, 80) : '';
+    return;
+  }
+  clearInterval(wdState.pollTimer); wdState.pollTimer = null;
+  document.getElementById('wd-bar-fill').style.width = '100%';
+  document.getElementById('wd-progress').style.display = 'none';
+  document.getElementById('btn-wd-cancel').style.display = 'none';
+  if (s.state === 'done' || s.state === 'cancelled') {
+    renderDocReport('wd', s.report, s.state === 'cancelled', false);
+    document.getElementById('btn-wd-open').style.display = 'inline-block';
+    setStatus('success',
+      s.state === 'cancelled' ? 'Cancelled (partial output written)' : 'Word complete');
+  } else if (s.state === 'error') {
+    showWordError(s.error);
+    setStatus('error', 'Word run failed');
+  }
+  wdRunEnded();
+}
+
+function wdRunEnded() {
+  wdState.running = false;
+  updateWordButtonState();
+  refreshTranslateButtonBusy();
+}
+
+function showWordError(msg) {
+  const el = document.getElementById('wd-error');
+  el.textContent = msg || 'Unknown error';
+  el.style.display = 'block';
+  document.getElementById('wd-progress').style.display = 'none';
+  setStatus('error', 'Word run failed');
+}
+
+async function cancelWord() {
+  if (wdState.jobId) await pywebview.api.cancel_word(wdState.jobId);
+}
+
+async function openWordOutput() {
+  if (wdState.outputPath) await pywebview.api.open_in_explorer(window.__SESSION_TOKEN, wdState.outputPath);
+}
+
+// ── PDF tab ───────────────────────────────────────────────────────
+let pdfState = {
+  inputPath: null, outputPath: null, jobId: null,
+  pollTimer: null, running: false,
+};
+
+async function initPdf() {
+  const opts = await pywebview.api.get_pdf_options();
+  document.getElementById('pdf-opt-outformat').value = opts.out_format;
+  document.getElementById('pdf-opt-skiphf').checked = opts.skip_header_footer;
+  document.getElementById('pdf-opt-maxchars').value = opts.max_segment_chars;
+  ['pdf-input-path','pdf-output-path','pdf-direction','pdf-opt-outformat','pdf-opt-skiphf','pdf-opt-maxchars']
+    .forEach(id => document.getElementById(id).addEventListener('change', updatePdfButtonState));
+  updatePdfButtonState();
+}
+
+async function pickPdfInput() {
+  const path = await pywebview.api.pick_pdf_input(window.__SESSION_TOKEN);
+  if (path) {
+    pdfState.inputPath = path;
+    document.getElementById('pdf-input-path').textContent = path;
+    if (!pdfState.outputPath) {
+      const fmt = document.getElementById('pdf-opt-outformat').value;
+      const ext = fmt === 'txt' ? '.txt' : '.docx';
+      const stem = path.replace(/\.pdf$/i, '');
+      document.getElementById('pdf-output-path').textContent = stem + '_translated' + ext + ' (suggested)';
+      pdfState.outputPath = stem + '_translated' + ext;
+    }
+    updatePdfButtonState();
+  }
+}
+
+async function pickPdfOutput() {
+  const fmt = document.getElementById('pdf-opt-outformat').value;
+  const ext = fmt === 'txt' ? '.txt' : '.docx';
+  const defaultName = pdfState.inputPath
+    ? pdfState.inputPath.replace(/\.pdf$/i, '') + '_translated' + ext
+    : 'document_translated' + ext;
+  const path = await pywebview.api.pick_pdf_output(window.__SESSION_TOKEN, defaultName);
+  if (path) {
+    pdfState.outputPath = path;
+    document.getElementById('pdf-output-path').textContent = path;
+    updatePdfButtonState();
+  }
+}
+
+function updatePdfButtonState() {
+  const ready = pdfState.inputPath && pdfState.outputPath && !pdfState.running;
+  document.getElementById('btn-pdf-translate').disabled = !ready;
+}
+
+function pdfOptions() {
+  return {
+    out_format: document.getElementById('pdf-opt-outformat').value,
+    skip_header_footer: document.getElementById('pdf-opt-skiphf').checked,
+    max_segment_chars: parseInt(document.getElementById('pdf-opt-maxchars').value, 10) || 8192,
+  };
+}
+
+async function doTranslatePdf() {
+  if (!pdfState.inputPath || !pdfState.outputPath) return;
+  const exists = await pywebview.api.path_exists(pdfState.outputPath);
+  if (exists && !confirm('Output file already exists. Overwrite?')) return;
+  document.getElementById('pdf-error').style.display = 'none';
+  document.getElementById('pdf-report').style.display = 'none';
+  document.getElementById('pdf-progress').style.display = 'flex';
+  document.getElementById('pdf-bar-fill').style.width = '0%';
+  document.getElementById('pdf-counter').textContent = '0 / 0';
+  document.getElementById('pdf-current').textContent = '';
+  document.getElementById('btn-pdf-translate').disabled = true;
+  document.getElementById('btn-pdf-cancel').style.display = 'inline-block';
+  document.getElementById('btn-pdf-open').style.display = 'none';
+  pdfState.running = true;
+  setStatus('active', 'Translating PDF\u2026');
+  refreshTranslateButtonBusy();
+
+  const direction = document.getElementById('pdf-direction').value;
+  const res = await pywebview.api.translate_pdf(
+    window.__SESSION_TOKEN, pdfState.inputPath, pdfState.outputPath, direction, pdfOptions()
+  );
+  if (res.state === 'error') {
+    pdfRunEnded();
+    showPdfError(res.error);
+    return;
+  }
+  pdfState.jobId = res.job_id;
+  pdfState.pollTimer = setInterval(pollPdfStatus, 300);
+}
+
+async function pollPdfStatus() {
+  const s = await pywebview.api.get_pdf_status(pdfState.jobId);
+  if (s.state === 'running') {
+    const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+    document.getElementById('pdf-bar-fill').style.width = pct + '%';
+    document.getElementById('pdf-counter').textContent = s.completed + ' / ' + s.total;
+    document.getElementById('pdf-current').textContent = s.current ? truncate(s.current, 80) : '';
+    return;
+  }
+  clearInterval(pdfState.pollTimer); pdfState.pollTimer = null;
+  document.getElementById('pdf-bar-fill').style.width = '100%';
+  document.getElementById('pdf-progress').style.display = 'none';
+  document.getElementById('btn-pdf-cancel').style.display = 'none';
+  if (s.state === 'done' || s.state === 'cancelled') {
+    renderDocReport('pdf', s.report, s.state === 'cancelled', true);
+    document.getElementById('btn-pdf-open').style.display = 'inline-block';
+    setStatus('success',
+      s.state === 'cancelled' ? 'Cancelled (partial output written)' : 'PDF complete');
+  } else if (s.state === 'error') {
+    showPdfError(s.error);
+    setStatus('error', 'PDF run failed');
+  }
+  pdfRunEnded();
+}
+
+function pdfRunEnded() {
+  pdfState.running = false;
+  updatePdfButtonState();
+  refreshTranslateButtonBusy();
+}
+
+function showPdfError(msg) {
+  const el = document.getElementById('pdf-error');
+  el.textContent = msg || 'Unknown error';
+  el.style.display = 'block';
+  document.getElementById('pdf-progress').style.display = 'none';
+  setStatus('error', 'PDF run failed');
+}
+
+async function cancelPdf() {
+  if (pdfState.jobId) await pywebview.api.cancel_pdf(pdfState.jobId);
+}
+
+async function openPdfOutput() {
+  if (pdfState.outputPath) await pywebview.api.open_in_explorer(window.__SESSION_TOKEN, pdfState.outputPath);
+}
+
+// Shared report renderer for the Word/PDF tabs (and used by Excel below).
+// `prefix` is 'wd' | 'pdf'. `withPages` adds a Total Pages stat (PDF only).
+function renderDocReport(prefix, r, cancelled, withPages) {
+  const grid = document.getElementById(prefix + '-report-grid');
+  const stats = withPages
+    ? [['Pages', r.total_pages], ['Total', r.total_segments], ['Translated', r.translated],
+       ['Skipped', r.skipped], ['Failed', r.failed], ['Cancelled', r.cancelled ? 'Yes' : 'No']]
+    : [['Total', r.total_segments], ['Translated', r.translated], ['Skipped', r.skipped],
+       ['Failed', r.failed], ['Cancelled', r.cancelled ? 'Yes' : 'No']];
+  grid.innerHTML = stats.map(function(s) {
+    return '<div class="xl-stat"><span class="label">' + s[0] + '</span>' +
+      '<span class="value">' + s[1] + '</span></div>';
+  }).join('');
+  const w = document.getElementById(prefix + '-warnings');
+  w.textContent = r.warnings && r.warnings.length
+    ? r.warnings.join('\n')
+    : (cancelled ? 'Run cancelled; remaining segments kept their original text.'
+       : 'No warnings.');
+  document.getElementById(prefix + '-report').style.display = 'flex';
 }
 
 function truncate(s, n) {

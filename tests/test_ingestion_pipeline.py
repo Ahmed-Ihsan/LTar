@@ -19,6 +19,12 @@ from src.components.knowledge_sources.ingestion import (
     _content_hash,
     _sha256_file,
     _write_manifest,
+    chunk_article,
+)
+from src.components.knowledge_sources.models import Article
+from src.components.translation_pipeline.exceptions import (
+    CorpusError,
+    LegalTranslationError,
 )
 
 pytestmark = pytest.mark.integration
@@ -133,3 +139,68 @@ class TestSha256File:
         f.write_text("bbb", encoding="utf-8")
         h2: FileHash = _sha256_file(f)
         assert h1.sha256 != h2.sha256
+
+
+# ---------------------------------------------------------------------------
+# Domain-exception wrapping — raw ValueError must not leak (TDD)
+# ---------------------------------------------------------------------------
+
+
+def _make_test_article() -> Article:
+    """Build a minimal :class:`Article` for chunking-parameter tests."""
+    return Article(
+        number="1",
+        text="This is a test article body with some legal text content.",
+        law="Test Law",
+        source="Test Source",
+        lang="en",
+        law_slug="test_law",
+        char_start=0,
+        char_end=50,
+        file_path="test.txt",
+    )
+
+
+class TestChunkArticleDomainExceptionWrapping:
+    """Raw ``ValueError`` raises in ``chunk_article`` must be wrapped in
+    domain exceptions so the CLI boundary never sees a bare built-in.
+
+    Each test triggers a known leak point and asserts the raised exception
+    is a :class:`LegalTranslationError` subclass — never a raw ``ValueError``.
+    """
+
+    def test_non_positive_target_tokens_raises_domain_error(self) -> None:
+        """``chunk_article`` with ``target_tokens <= 0`` must raise
+        ``CorpusError``, not a raw ``ValueError``."""
+        article = _make_test_article()
+        with pytest.raises(CorpusError, match="target_tokens must be positive"):
+            chunk_article(article, target_tokens=0, overlap=0)
+        with pytest.raises(CorpusError, match="target_tokens must be positive"):
+            chunk_article(article, target_tokens=-1, overlap=0)
+
+    def test_non_positive_target_tokens_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        article = _make_test_article()
+        try:
+            chunk_article(article, target_tokens=0, overlap=0)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
+
+    def test_negative_overlap_raises_domain_error(self) -> None:
+        """``chunk_article`` with ``overlap < 0`` must raise ``CorpusError``,
+        not a raw ``ValueError``."""
+        article = _make_test_article()
+        with pytest.raises(CorpusError, match="overlap must be non-negative"):
+            chunk_article(article, target_tokens=100, overlap=-1)
+
+    def test_negative_overlap_not_raw_value_error(self) -> None:
+        """The raised exception must NOT be a raw ``ValueError``."""
+        article = _make_test_article()
+        try:
+            chunk_article(article, target_tokens=100, overlap=-1)
+        except ValueError:
+            pytest.fail("raw ValueError leaked instead of a domain exception")
+        except LegalTranslationError:
+            pass  # expected
