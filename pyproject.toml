@@ -98,11 +98,11 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # Test helpers and the mock LLM adapter mirror the mandated protocol signature;
 # the _state builder takes one arg per state field for readability.
 "tests/conftest.py" = ["PLR0913"]
-"tests/test_nodes.py" = ["PLR0913"]
+"tests/unit/test_nodes.py" = ["PLR0913"]
 # The local _SequenceMockLLM.generate mirrors the mandated LLMEngineAdapter
 # protocol signature (6 args, AGENTS.md §5.3) for REVISE-then-APPROVE
 # audit-trace tests; run_translation_streamed takes 7 args for DI (DIP).
-"tests/test_cli.py" = ["PLR0913"]
+"tests/integration/test_cli.py" = ["PLR0913"]
 # Typer commands require Path(__file__) defaults (standard Typer pattern,
 # unavoidable B008). run_translation / _process_batch take 7 args for
 # dependency injection (DIP, engineering-principles §1.5).
@@ -149,27 +149,27 @@ select = ["E", "F", "I", "UP", "B", "PLR0913", "PLR0915"]
 # retrieve_context_chunks / query_chroma take one arg per DI dependency (DIP).
 "src/components/knowledge_sources/retrieval.py" = ["PLR0913"]
 # _term test helper takes one arg per Term field for readability.
-"tests/test_glossary_conflict.py" = ["PLR0913"]
+"tests/unit/test_glossary_conflict.py" = ["PLR0913"]
 # test_excel.py holds single-line OOXML string literals (sharedStrings, sheet,
 # comments, chart XML) that are unreadable if wrapped — same precedent as the
 # embedded HTML/CSS in web_ui.py and the versioned prompt constants.
-"tests/test_excel.py" = ["E501"]
+"tests/integration/test_excel.py" = ["E501"]
 # test_web_ui_excel.py reuses test_excel.py's single-line OOXML fixture literals
 # (sharedStrings, sheet XML) for the .xlsx builder — same E501 precedent.
-"tests/test_web_ui_excel.py" = ["E501", "PLR0913"]
+"tests/integration/test_web_ui_excel.py" = ["E501", "PLR0913"]
 # test_security_hardening.py reuses the same OOXML fixture literals for the
 # XXE / zip-slip / injection tests — same E501 precedent.
-"tests/test_security_hardening.py" = ["E501"]
+"tests/unit/test_security_hardening.py" = ["E501"]
 # test_word.py holds single-line OOXML string literals (document, styles,
 # header, footer, footnotes, endnotes, comments XML) that are unreadable if
 # wrapped — same E501 precedent as test_excel.py. PLR0913 for the _run helper
 # that takes one arg per fixture. I001 for mid-function imports of _W_MAIN in
 # the paragraph-text unit tests.
-"tests/test_word.py" = ["E501", "PLR0913", "I001"]
+"tests/integration/test_word.py" = ["E501", "PLR0913", "I001"]
 # test_pdf.py holds single-line raw PDF fixture builder code and OOXML
 # constant strings. PLR0913 for the _run helper. I001 for mid-function
 # imports in the lazy-import test.
-"tests/test_pdf.py" = ["E501", "PLR0913", "I001"]
+"tests/integration/test_pdf.py" = ["E501", "PLR0913", "I001"]
 # scripts/make_test_fixtures.py holds single-line OOXML and raw-PDF fixture
 # string literals (Arabic/English legal articles) that are unreadable if
 # wrapped — same E501 precedent as the test_* files above.

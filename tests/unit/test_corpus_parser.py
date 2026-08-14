@@ -12,7 +12,7 @@ import pytest
 from src.components.knowledge_sources.ingestion import Article, iter_articles, parse_corpus_file
 from src.components.translation_pipeline.exceptions import CorpusEncodingError, CorpusParseError
 
-FIXTURES_DIR: Path = Path(__file__).parent / "fixtures"
+FIXTURES_DIR: Path = Path(__file__).resolve().parent.parent / "fixtures"
 CORPUS_SAMPLE: Path = FIXTURES_DIR / "corpus_sample.txt"
 
 pytestmark = pytest.mark.unit

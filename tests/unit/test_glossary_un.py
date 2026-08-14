@@ -9,7 +9,7 @@ from src.components.knowledge_sources.glossary import load_glossary_file, load_g
 
 pytestmark = pytest.mark.unit
 
-_GLOSSARY_DIR: Path = Path(__file__).resolve().parent.parent / "data" / "glossary"
+_GLOSSARY_DIR: Path = Path(__file__).resolve().parent.parent.parent / "data" / "glossary"
 _UN_FILE: Path = _GLOSSARY_DIR / "un_international.json"
 
 

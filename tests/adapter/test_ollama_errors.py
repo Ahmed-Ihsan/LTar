@@ -19,6 +19,8 @@ from src.components.translation_pipeline.exceptions import (
     OllamaTimeoutError,
 )
 
+pytestmark = pytest.mark.adapter
+
 # ---------------------------------------------------------------------------
 # LLM kind
 # ---------------------------------------------------------------------------

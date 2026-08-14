@@ -28,6 +28,8 @@ from src.utils.rate_limit import TokenBucket
 from src.utils.xml_escape import escape_xml_text
 from src.utils.zip_safe import validate_zip_path
 
+pytestmark = pytest.mark.unit
+
 # ---------------------------------------------------------------------------
 # 2.12 — Excel OOXML hardening tests
 # ---------------------------------------------------------------------------

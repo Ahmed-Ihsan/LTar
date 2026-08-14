@@ -29,9 +29,9 @@ from src.components.interfaces.models import Adapters
 from src.components.interfaces.web_ui import Api
 from src.config import AppConfig
 
-# Reuse the raw-OOXML / raw-PDF builders from the adapter test suites (DRY).
-from tests.test_pdf import _build_test_pdf
-from tests.test_word import _build_docx
+# Reuse the raw-OOXML / raw-PDF builders from the integration test suite (DRY).
+from tests.integration.test_pdf import _build_test_pdf
+from tests.integration.test_word import _build_docx
 
 pytestmark = pytest.mark.integration
 
